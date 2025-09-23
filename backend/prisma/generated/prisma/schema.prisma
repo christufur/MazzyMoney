@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  fullName     String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Plaid connection info
+  plaidAccessToken     String?
+  plaidItemId          String?
+  plaidInstitutionId   String?
+  plaidInstitutionName String?
+  lastSyncAt           DateTime?
+  syncStatus           SyncStatus @default(NEVER_SYNCED)
+
+  // Relationships
+  accounts          Account[]
+  transactions      Transaction[]
+  budgets           Budget[]
+  userCategoryRules UserCategoryRule[]
+
+  @@map("users")
+}
+
+model UserCategoryRule {
+  id        String   @id @default(uuid())
+  userId    String // Which user this rule belongs to
+  merchant  String // Exact or regex match for merchantName
+  category  String // Override category (e.g., 'Food & Dining')
+  isRegex   Boolean  @default(false) // allow flexible regex rules
+  priority  Int      @default(1) // if multiple matches apply
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Account {
+  id             String  @id @default(cuid())
+  plaidAccountId String  @unique
+  userId         String
+  name           String
+  officialName   String?
+  type           String // checking, savings, credit, etc.
+  subtype        String
+  mask           String? // Last 4 digits
+
+  // Current balances (cached from Plaid)
+  currentBalance   Float  @default(0)
+  availableBalance Float?
+  creditLimit      Float?
+
+  // Metadata
+  isActive      Boolean  @default(true)
+  lastUpdatedAt DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  // Relationships
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@map("accounts")
+}
+
+model Transaction {
+  id                 String @id @default(cuid())
+  plaidTransactionId String @unique
+  userId             String
+  accountId          String
+
+  // Transaction details
+  name           String
+  merchantName   String?
+  amount         Float // Positive for expenses, negative for income
+  date           DateTime
+  authorizedDate DateTime?
+
+  // Categories
+  primaryCategory  String?
+  detailedCategory String?
+  categories       String[] // JSON array of categories
+
+  // User notes
+  notes String?
+
+  // Status
+  pending Boolean @default(false)
+
+  // Location (if available)
+  city    String?
+  region  String?
+  country String?
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([accountId, date])
+  @@index([primaryCategory])
+  @@map("transactions")
+}
+
+model Budget {
+  id       String       @id @default(cuid())
+  userId   String
+  name     String
+  category String
+  amount   Float
+  period   BudgetPeriod @default(MONTHLY)
+
+  // Date range
+  startDate DateTime
+  endDate   DateTime?
+
+  // Status
+  isActive Boolean @default(true)
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("budgets")
+}
+
+enum SyncStatus {
+  NEVER_SYNCED
+  SYNCING
+  SYNCED
+  ERROR
+  TOKEN_EXPIRED
+}
+
+enum BudgetPeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
