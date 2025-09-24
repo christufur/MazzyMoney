@@ -1,6 +1,7 @@
 // src/services/budgetSyncService.ts
 import { prisma } from '../lib/prisma';
 import { Budget, BudgetPeriod } from '../../prisma/generated/prisma';
+import { BudgetAlertService } from './budgetAlertService';
 
 export class BudgetSyncService {
   /**
@@ -9,12 +10,23 @@ export class BudgetSyncService {
   static async syncUserBudgets(userId: string): Promise<void> {
     console.log(`Syncing budgets for user: ${userId}`);
     
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true }
+    });
+
     const budgets = await prisma.budget.findMany({
       where: { userId, isActive: true }
     });
 
     const results = await Promise.allSettled(
-      budgets.map(budget => this.calculateBudgetSpending(budget))
+      budgets.map(async (budget) => {
+        const snapshot = await this.calculateBudgetSpending(budget);
+        await BudgetAlertService.evaluateBudgetAlerts(budget, snapshot, {
+          userEmail: user?.email
+        });
+        return snapshot;
+      })
     );
 
     // Log any failures

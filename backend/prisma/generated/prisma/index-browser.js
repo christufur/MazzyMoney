@@ -214,6 +214,33 @@ exports.Prisma.SavingsGoalScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.BudgetAlertScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  budgetId: 'budgetId',
+  thresholdPercent: 'thresholdPercent',
+  alertType: 'alertType',
+  isEnabled: 'isEnabled',
+  emailEnabled: 'emailEnabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.BudgetAlertNotificationScalarFieldEnum = {
+  id: 'id',
+  alertId: 'alertId',
+  userId: 'userId',
+  budgetName: 'budgetName',
+  category: 'category',
+  thresholdPercent: 'thresholdPercent',
+  currentPercent: 'currentPercent',
+  spent: 'spent',
+  budgetAmount: 'budgetAmount',
+  sentAt: 'sentAt',
+  emailSent: 'emailSent',
+  emailSentAt: 'emailSentAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -243,13 +270,21 @@ exports.BudgetPeriod = exports.$Enums.BudgetPeriod = {
   YEARLY: 'YEARLY'
 };
 
+exports.AlertType = exports.$Enums.AlertType = {
+  SPENDING_THRESHOLD: 'SPENDING_THRESHOLD',
+  BUDGET_EXCEEDED: 'BUDGET_EXCEEDED',
+  BUDGET_APPROACHING: 'BUDGET_APPROACHING'
+};
+
 exports.Prisma.ModelName = {
   User: 'User',
   UserCategoryRule: 'UserCategoryRule',
   Account: 'Account',
   Transaction: 'Transaction',
   Budget: 'Budget',
-  SavingsGoal: 'SavingsGoal'
+  SavingsGoal: 'SavingsGoal',
+  BudgetAlert: 'BudgetAlert',
+  BudgetAlertNotification: 'BudgetAlertNotification'
 };
 
 /**

@@ -43,6 +43,16 @@ export type Budget = $Result.DefaultSelection<Prisma.$BudgetPayload>
  * 
  */
 export type SavingsGoal = $Result.DefaultSelection<Prisma.$SavingsGoalPayload>
+/**
+ * Model BudgetAlert
+ * 
+ */
+export type BudgetAlert = $Result.DefaultSelection<Prisma.$BudgetAlertPayload>
+/**
+ * Model BudgetAlertNotification
+ * 
+ */
+export type BudgetAlertNotification = $Result.DefaultSelection<Prisma.$BudgetAlertNotificationPayload>
 
 /**
  * Enums
@@ -68,6 +78,15 @@ export const BudgetPeriod: {
 
 export type BudgetPeriod = (typeof BudgetPeriod)[keyof typeof BudgetPeriod]
 
+
+export const AlertType: {
+  SPENDING_THRESHOLD: 'SPENDING_THRESHOLD',
+  BUDGET_EXCEEDED: 'BUDGET_EXCEEDED',
+  BUDGET_APPROACHING: 'BUDGET_APPROACHING'
+};
+
+export type AlertType = (typeof AlertType)[keyof typeof AlertType]
+
 }
 
 export type SyncStatus = $Enums.SyncStatus
@@ -77,6 +96,10 @@ export const SyncStatus: typeof $Enums.SyncStatus
 export type BudgetPeriod = $Enums.BudgetPeriod
 
 export const BudgetPeriod: typeof $Enums.BudgetPeriod
+
+export type AlertType = $Enums.AlertType
+
+export const AlertType: typeof $Enums.AlertType
 
 /**
  * ##  Prisma Client ʲˢ
@@ -255,6 +278,26 @@ export class PrismaClient<
     * ```
     */
   get savingsGoal(): Prisma.SavingsGoalDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.budgetAlert`: Exposes CRUD operations for the **BudgetAlert** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more BudgetAlerts
+    * const budgetAlerts = await prisma.budgetAlert.findMany()
+    * ```
+    */
+  get budgetAlert(): Prisma.BudgetAlertDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.budgetAlertNotification`: Exposes CRUD operations for the **BudgetAlertNotification** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more BudgetAlertNotifications
+    * const budgetAlertNotifications = await prisma.budgetAlertNotification.findMany()
+    * ```
+    */
+  get budgetAlertNotification(): Prisma.BudgetAlertNotificationDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -700,7 +743,9 @@ export namespace Prisma {
     Account: 'Account',
     Transaction: 'Transaction',
     Budget: 'Budget',
-    SavingsGoal: 'SavingsGoal'
+    SavingsGoal: 'SavingsGoal',
+    BudgetAlert: 'BudgetAlert',
+    BudgetAlertNotification: 'BudgetAlertNotification'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -719,7 +764,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "userCategoryRule" | "account" | "transaction" | "budget" | "savingsGoal"
+      modelProps: "user" | "userCategoryRule" | "account" | "transaction" | "budget" | "savingsGoal" | "budgetAlert" | "budgetAlertNotification"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1167,6 +1212,154 @@ export namespace Prisma {
           }
         }
       }
+      BudgetAlert: {
+        payload: Prisma.$BudgetAlertPayload<ExtArgs>
+        fields: Prisma.BudgetAlertFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.BudgetAlertFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.BudgetAlertFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload>
+          }
+          findFirst: {
+            args: Prisma.BudgetAlertFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.BudgetAlertFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload>
+          }
+          findMany: {
+            args: Prisma.BudgetAlertFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload>[]
+          }
+          create: {
+            args: Prisma.BudgetAlertCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload>
+          }
+          createMany: {
+            args: Prisma.BudgetAlertCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.BudgetAlertCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload>[]
+          }
+          delete: {
+            args: Prisma.BudgetAlertDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload>
+          }
+          update: {
+            args: Prisma.BudgetAlertUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload>
+          }
+          deleteMany: {
+            args: Prisma.BudgetAlertDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.BudgetAlertUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.BudgetAlertUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload>[]
+          }
+          upsert: {
+            args: Prisma.BudgetAlertUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertPayload>
+          }
+          aggregate: {
+            args: Prisma.BudgetAlertAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateBudgetAlert>
+          }
+          groupBy: {
+            args: Prisma.BudgetAlertGroupByArgs<ExtArgs>
+            result: $Utils.Optional<BudgetAlertGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.BudgetAlertCountArgs<ExtArgs>
+            result: $Utils.Optional<BudgetAlertCountAggregateOutputType> | number
+          }
+        }
+      }
+      BudgetAlertNotification: {
+        payload: Prisma.$BudgetAlertNotificationPayload<ExtArgs>
+        fields: Prisma.BudgetAlertNotificationFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.BudgetAlertNotificationFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.BudgetAlertNotificationFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload>
+          }
+          findFirst: {
+            args: Prisma.BudgetAlertNotificationFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.BudgetAlertNotificationFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload>
+          }
+          findMany: {
+            args: Prisma.BudgetAlertNotificationFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload>[]
+          }
+          create: {
+            args: Prisma.BudgetAlertNotificationCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload>
+          }
+          createMany: {
+            args: Prisma.BudgetAlertNotificationCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.BudgetAlertNotificationCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload>[]
+          }
+          delete: {
+            args: Prisma.BudgetAlertNotificationDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload>
+          }
+          update: {
+            args: Prisma.BudgetAlertNotificationUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload>
+          }
+          deleteMany: {
+            args: Prisma.BudgetAlertNotificationDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.BudgetAlertNotificationUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.BudgetAlertNotificationUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload>[]
+          }
+          upsert: {
+            args: Prisma.BudgetAlertNotificationUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BudgetAlertNotificationPayload>
+          }
+          aggregate: {
+            args: Prisma.BudgetAlertNotificationAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateBudgetAlertNotification>
+          }
+          groupBy: {
+            args: Prisma.BudgetAlertNotificationGroupByArgs<ExtArgs>
+            result: $Utils.Optional<BudgetAlertNotificationGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.BudgetAlertNotificationCountArgs<ExtArgs>
+            result: $Utils.Optional<BudgetAlertNotificationCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -1265,6 +1458,8 @@ export namespace Prisma {
     transaction?: TransactionOmit
     budget?: BudgetOmit
     savingsGoal?: SavingsGoalOmit
+    budgetAlert?: BudgetAlertOmit
+    budgetAlertNotification?: BudgetAlertNotificationOmit
   }
 
   /* Types for Logging */
@@ -1350,6 +1545,8 @@ export namespace Prisma {
     budgets: number
     savingsGoals: number
     userCategoryRules: number
+    budgetAlerts: number
+    budgetAlertNotifications: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -1358,6 +1555,8 @@ export namespace Prisma {
     budgets?: boolean | UserCountOutputTypeCountBudgetsArgs
     savingsGoals?: boolean | UserCountOutputTypeCountSavingsGoalsArgs
     userCategoryRules?: boolean | UserCountOutputTypeCountUserCategoryRulesArgs
+    budgetAlerts?: boolean | UserCountOutputTypeCountBudgetAlertsArgs
+    budgetAlertNotifications?: boolean | UserCountOutputTypeCountBudgetAlertNotificationsArgs
   }
 
   // Custom InputTypes
@@ -1406,6 +1605,20 @@ export namespace Prisma {
     where?: UserCategoryRuleWhereInput
   }
 
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountBudgetAlertsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BudgetAlertWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountBudgetAlertNotificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BudgetAlertNotificationWhereInput
+  }
+
 
   /**
    * Count Type AccountCountOutputType
@@ -1435,6 +1648,68 @@ export namespace Prisma {
    */
   export type AccountCountOutputTypeCountTransactionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: TransactionWhereInput
+  }
+
+
+  /**
+   * Count Type BudgetCountOutputType
+   */
+
+  export type BudgetCountOutputType = {
+    budgetAlerts: number
+  }
+
+  export type BudgetCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    budgetAlerts?: boolean | BudgetCountOutputTypeCountBudgetAlertsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * BudgetCountOutputType without action
+   */
+  export type BudgetCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetCountOutputType
+     */
+    select?: BudgetCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * BudgetCountOutputType without action
+   */
+  export type BudgetCountOutputTypeCountBudgetAlertsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BudgetAlertWhereInput
+  }
+
+
+  /**
+   * Count Type BudgetAlertCountOutputType
+   */
+
+  export type BudgetAlertCountOutputType = {
+    notifications: number
+  }
+
+  export type BudgetAlertCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    notifications?: boolean | BudgetAlertCountOutputTypeCountNotificationsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * BudgetAlertCountOutputType without action
+   */
+  export type BudgetAlertCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertCountOutputType
+     */
+    select?: BudgetAlertCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * BudgetAlertCountOutputType without action
+   */
+  export type BudgetAlertCountOutputTypeCountNotificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BudgetAlertNotificationWhereInput
   }
 
 
@@ -1667,6 +1942,8 @@ export namespace Prisma {
     budgets?: boolean | User$budgetsArgs<ExtArgs>
     savingsGoals?: boolean | User$savingsGoalsArgs<ExtArgs>
     userCategoryRules?: boolean | User$userCategoryRulesArgs<ExtArgs>
+    budgetAlerts?: boolean | User$budgetAlertsArgs<ExtArgs>
+    budgetAlertNotifications?: boolean | User$budgetAlertNotificationsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
@@ -1722,6 +1999,8 @@ export namespace Prisma {
     budgets?: boolean | User$budgetsArgs<ExtArgs>
     savingsGoals?: boolean | User$savingsGoalsArgs<ExtArgs>
     userCategoryRules?: boolean | User$userCategoryRulesArgs<ExtArgs>
+    budgetAlerts?: boolean | User$budgetAlertsArgs<ExtArgs>
+    budgetAlertNotifications?: boolean | User$budgetAlertNotificationsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -1735,6 +2014,8 @@ export namespace Prisma {
       budgets: Prisma.$BudgetPayload<ExtArgs>[]
       savingsGoals: Prisma.$SavingsGoalPayload<ExtArgs>[]
       userCategoryRules: Prisma.$UserCategoryRulePayload<ExtArgs>[]
+      budgetAlerts: Prisma.$BudgetAlertPayload<ExtArgs>[]
+      budgetAlertNotifications: Prisma.$BudgetAlertNotificationPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -2148,6 +2429,8 @@ export namespace Prisma {
     budgets<T extends User$budgetsArgs<ExtArgs> = {}>(args?: Subset<T, User$budgetsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     savingsGoals<T extends User$savingsGoalsArgs<ExtArgs> = {}>(args?: Subset<T, User$savingsGoalsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SavingsGoalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     userCategoryRules<T extends User$userCategoryRulesArgs<ExtArgs> = {}>(args?: Subset<T, User$userCategoryRulesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserCategoryRulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    budgetAlerts<T extends User$budgetAlertsArgs<ExtArgs> = {}>(args?: Subset<T, User$budgetAlertsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    budgetAlertNotifications<T extends User$budgetAlertNotificationsArgs<ExtArgs> = {}>(args?: Subset<T, User$budgetAlertNotificationsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2694,6 +2977,54 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: UserCategoryRuleScalarFieldEnum | UserCategoryRuleScalarFieldEnum[]
+  }
+
+  /**
+   * User.budgetAlerts
+   */
+  export type User$budgetAlertsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    where?: BudgetAlertWhereInput
+    orderBy?: BudgetAlertOrderByWithRelationInput | BudgetAlertOrderByWithRelationInput[]
+    cursor?: BudgetAlertWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: BudgetAlertScalarFieldEnum | BudgetAlertScalarFieldEnum[]
+  }
+
+  /**
+   * User.budgetAlertNotifications
+   */
+  export type User$budgetAlertNotificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    where?: BudgetAlertNotificationWhereInput
+    orderBy?: BudgetAlertNotificationOrderByWithRelationInput | BudgetAlertNotificationOrderByWithRelationInput[]
+    cursor?: BudgetAlertNotificationWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: BudgetAlertNotificationScalarFieldEnum | BudgetAlertNotificationScalarFieldEnum[]
   }
 
   /**
@@ -6618,6 +6949,8 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
+    budgetAlerts?: boolean | Budget$budgetAlertsArgs<ExtArgs>
+    _count?: boolean | BudgetCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["budget"]>
 
   export type BudgetSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -6667,6 +7000,8 @@ export namespace Prisma {
   export type BudgetOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "category" | "amount" | "period" | "startDate" | "endDate" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["budget"]>
   export type BudgetInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
+    budgetAlerts?: boolean | Budget$budgetAlertsArgs<ExtArgs>
+    _count?: boolean | BudgetCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type BudgetIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -6679,6 +7014,7 @@ export namespace Prisma {
     name: "Budget"
     objects: {
       user: Prisma.$UserPayload<ExtArgs>
+      budgetAlerts: Prisma.$BudgetAlertPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -7087,6 +7423,7 @@ export namespace Prisma {
   export interface Prisma__BudgetClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    budgetAlerts<T extends Budget$budgetAlertsArgs<ExtArgs> = {}>(args?: Subset<T, Budget$budgetAlertsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -7520,6 +7857,30 @@ export namespace Prisma {
      * Limit how many Budgets to delete.
      */
     limit?: number
+  }
+
+  /**
+   * Budget.budgetAlerts
+   */
+  export type Budget$budgetAlertsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    where?: BudgetAlertWhereInput
+    orderBy?: BudgetAlertOrderByWithRelationInput | BudgetAlertOrderByWithRelationInput[]
+    cursor?: BudgetAlertWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: BudgetAlertScalarFieldEnum | BudgetAlertScalarFieldEnum[]
   }
 
   /**
@@ -8729,6 +9090,2391 @@ export namespace Prisma {
 
 
   /**
+   * Model BudgetAlert
+   */
+
+  export type AggregateBudgetAlert = {
+    _count: BudgetAlertCountAggregateOutputType | null
+    _avg: BudgetAlertAvgAggregateOutputType | null
+    _sum: BudgetAlertSumAggregateOutputType | null
+    _min: BudgetAlertMinAggregateOutputType | null
+    _max: BudgetAlertMaxAggregateOutputType | null
+  }
+
+  export type BudgetAlertAvgAggregateOutputType = {
+    thresholdPercent: number | null
+  }
+
+  export type BudgetAlertSumAggregateOutputType = {
+    thresholdPercent: number | null
+  }
+
+  export type BudgetAlertMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    budgetId: string | null
+    thresholdPercent: number | null
+    alertType: $Enums.AlertType | null
+    isEnabled: boolean | null
+    emailEnabled: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type BudgetAlertMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    budgetId: string | null
+    thresholdPercent: number | null
+    alertType: $Enums.AlertType | null
+    isEnabled: boolean | null
+    emailEnabled: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type BudgetAlertCountAggregateOutputType = {
+    id: number
+    userId: number
+    budgetId: number
+    thresholdPercent: number
+    alertType: number
+    isEnabled: number
+    emailEnabled: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type BudgetAlertAvgAggregateInputType = {
+    thresholdPercent?: true
+  }
+
+  export type BudgetAlertSumAggregateInputType = {
+    thresholdPercent?: true
+  }
+
+  export type BudgetAlertMinAggregateInputType = {
+    id?: true
+    userId?: true
+    budgetId?: true
+    thresholdPercent?: true
+    alertType?: true
+    isEnabled?: true
+    emailEnabled?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type BudgetAlertMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    budgetId?: true
+    thresholdPercent?: true
+    alertType?: true
+    isEnabled?: true
+    emailEnabled?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type BudgetAlertCountAggregateInputType = {
+    id?: true
+    userId?: true
+    budgetId?: true
+    thresholdPercent?: true
+    alertType?: true
+    isEnabled?: true
+    emailEnabled?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type BudgetAlertAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BudgetAlert to aggregate.
+     */
+    where?: BudgetAlertWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BudgetAlerts to fetch.
+     */
+    orderBy?: BudgetAlertOrderByWithRelationInput | BudgetAlertOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: BudgetAlertWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BudgetAlerts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BudgetAlerts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned BudgetAlerts
+    **/
+    _count?: true | BudgetAlertCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: BudgetAlertAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: BudgetAlertSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: BudgetAlertMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: BudgetAlertMaxAggregateInputType
+  }
+
+  export type GetBudgetAlertAggregateType<T extends BudgetAlertAggregateArgs> = {
+        [P in keyof T & keyof AggregateBudgetAlert]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateBudgetAlert[P]>
+      : GetScalarType<T[P], AggregateBudgetAlert[P]>
+  }
+
+
+
+
+  export type BudgetAlertGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BudgetAlertWhereInput
+    orderBy?: BudgetAlertOrderByWithAggregationInput | BudgetAlertOrderByWithAggregationInput[]
+    by: BudgetAlertScalarFieldEnum[] | BudgetAlertScalarFieldEnum
+    having?: BudgetAlertScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: BudgetAlertCountAggregateInputType | true
+    _avg?: BudgetAlertAvgAggregateInputType
+    _sum?: BudgetAlertSumAggregateInputType
+    _min?: BudgetAlertMinAggregateInputType
+    _max?: BudgetAlertMaxAggregateInputType
+  }
+
+  export type BudgetAlertGroupByOutputType = {
+    id: string
+    userId: string
+    budgetId: string
+    thresholdPercent: number
+    alertType: $Enums.AlertType
+    isEnabled: boolean
+    emailEnabled: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: BudgetAlertCountAggregateOutputType | null
+    _avg: BudgetAlertAvgAggregateOutputType | null
+    _sum: BudgetAlertSumAggregateOutputType | null
+    _min: BudgetAlertMinAggregateOutputType | null
+    _max: BudgetAlertMaxAggregateOutputType | null
+  }
+
+  type GetBudgetAlertGroupByPayload<T extends BudgetAlertGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<BudgetAlertGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof BudgetAlertGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], BudgetAlertGroupByOutputType[P]>
+            : GetScalarType<T[P], BudgetAlertGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type BudgetAlertSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    budgetId?: boolean
+    thresholdPercent?: boolean
+    alertType?: boolean
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    budget?: boolean | BudgetDefaultArgs<ExtArgs>
+    notifications?: boolean | BudgetAlert$notificationsArgs<ExtArgs>
+    _count?: boolean | BudgetAlertCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["budgetAlert"]>
+
+  export type BudgetAlertSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    budgetId?: boolean
+    thresholdPercent?: boolean
+    alertType?: boolean
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    budget?: boolean | BudgetDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["budgetAlert"]>
+
+  export type BudgetAlertSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    budgetId?: boolean
+    thresholdPercent?: boolean
+    alertType?: boolean
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    budget?: boolean | BudgetDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["budgetAlert"]>
+
+  export type BudgetAlertSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    budgetId?: boolean
+    thresholdPercent?: boolean
+    alertType?: boolean
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type BudgetAlertOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "budgetId" | "thresholdPercent" | "alertType" | "isEnabled" | "emailEnabled" | "createdAt" | "updatedAt", ExtArgs["result"]["budgetAlert"]>
+  export type BudgetAlertInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    budget?: boolean | BudgetDefaultArgs<ExtArgs>
+    notifications?: boolean | BudgetAlert$notificationsArgs<ExtArgs>
+    _count?: boolean | BudgetAlertCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type BudgetAlertIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    budget?: boolean | BudgetDefaultArgs<ExtArgs>
+  }
+  export type BudgetAlertIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    budget?: boolean | BudgetDefaultArgs<ExtArgs>
+  }
+
+  export type $BudgetAlertPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "BudgetAlert"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+      budget: Prisma.$BudgetPayload<ExtArgs>
+      notifications: Prisma.$BudgetAlertNotificationPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      budgetId: string
+      thresholdPercent: number
+      alertType: $Enums.AlertType
+      isEnabled: boolean
+      emailEnabled: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["budgetAlert"]>
+    composites: {}
+  }
+
+  type BudgetAlertGetPayload<S extends boolean | null | undefined | BudgetAlertDefaultArgs> = $Result.GetResult<Prisma.$BudgetAlertPayload, S>
+
+  type BudgetAlertCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<BudgetAlertFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: BudgetAlertCountAggregateInputType | true
+    }
+
+  export interface BudgetAlertDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['BudgetAlert'], meta: { name: 'BudgetAlert' } }
+    /**
+     * Find zero or one BudgetAlert that matches the filter.
+     * @param {BudgetAlertFindUniqueArgs} args - Arguments to find a BudgetAlert
+     * @example
+     * // Get one BudgetAlert
+     * const budgetAlert = await prisma.budgetAlert.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends BudgetAlertFindUniqueArgs>(args: SelectSubset<T, BudgetAlertFindUniqueArgs<ExtArgs>>): Prisma__BudgetAlertClient<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one BudgetAlert that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {BudgetAlertFindUniqueOrThrowArgs} args - Arguments to find a BudgetAlert
+     * @example
+     * // Get one BudgetAlert
+     * const budgetAlert = await prisma.budgetAlert.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends BudgetAlertFindUniqueOrThrowArgs>(args: SelectSubset<T, BudgetAlertFindUniqueOrThrowArgs<ExtArgs>>): Prisma__BudgetAlertClient<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first BudgetAlert that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertFindFirstArgs} args - Arguments to find a BudgetAlert
+     * @example
+     * // Get one BudgetAlert
+     * const budgetAlert = await prisma.budgetAlert.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends BudgetAlertFindFirstArgs>(args?: SelectSubset<T, BudgetAlertFindFirstArgs<ExtArgs>>): Prisma__BudgetAlertClient<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first BudgetAlert that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertFindFirstOrThrowArgs} args - Arguments to find a BudgetAlert
+     * @example
+     * // Get one BudgetAlert
+     * const budgetAlert = await prisma.budgetAlert.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends BudgetAlertFindFirstOrThrowArgs>(args?: SelectSubset<T, BudgetAlertFindFirstOrThrowArgs<ExtArgs>>): Prisma__BudgetAlertClient<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more BudgetAlerts that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all BudgetAlerts
+     * const budgetAlerts = await prisma.budgetAlert.findMany()
+     * 
+     * // Get first 10 BudgetAlerts
+     * const budgetAlerts = await prisma.budgetAlert.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const budgetAlertWithIdOnly = await prisma.budgetAlert.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends BudgetAlertFindManyArgs>(args?: SelectSubset<T, BudgetAlertFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a BudgetAlert.
+     * @param {BudgetAlertCreateArgs} args - Arguments to create a BudgetAlert.
+     * @example
+     * // Create one BudgetAlert
+     * const BudgetAlert = await prisma.budgetAlert.create({
+     *   data: {
+     *     // ... data to create a BudgetAlert
+     *   }
+     * })
+     * 
+     */
+    create<T extends BudgetAlertCreateArgs>(args: SelectSubset<T, BudgetAlertCreateArgs<ExtArgs>>): Prisma__BudgetAlertClient<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many BudgetAlerts.
+     * @param {BudgetAlertCreateManyArgs} args - Arguments to create many BudgetAlerts.
+     * @example
+     * // Create many BudgetAlerts
+     * const budgetAlert = await prisma.budgetAlert.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends BudgetAlertCreateManyArgs>(args?: SelectSubset<T, BudgetAlertCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many BudgetAlerts and returns the data saved in the database.
+     * @param {BudgetAlertCreateManyAndReturnArgs} args - Arguments to create many BudgetAlerts.
+     * @example
+     * // Create many BudgetAlerts
+     * const budgetAlert = await prisma.budgetAlert.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many BudgetAlerts and only return the `id`
+     * const budgetAlertWithIdOnly = await prisma.budgetAlert.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends BudgetAlertCreateManyAndReturnArgs>(args?: SelectSubset<T, BudgetAlertCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a BudgetAlert.
+     * @param {BudgetAlertDeleteArgs} args - Arguments to delete one BudgetAlert.
+     * @example
+     * // Delete one BudgetAlert
+     * const BudgetAlert = await prisma.budgetAlert.delete({
+     *   where: {
+     *     // ... filter to delete one BudgetAlert
+     *   }
+     * })
+     * 
+     */
+    delete<T extends BudgetAlertDeleteArgs>(args: SelectSubset<T, BudgetAlertDeleteArgs<ExtArgs>>): Prisma__BudgetAlertClient<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one BudgetAlert.
+     * @param {BudgetAlertUpdateArgs} args - Arguments to update one BudgetAlert.
+     * @example
+     * // Update one BudgetAlert
+     * const budgetAlert = await prisma.budgetAlert.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends BudgetAlertUpdateArgs>(args: SelectSubset<T, BudgetAlertUpdateArgs<ExtArgs>>): Prisma__BudgetAlertClient<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more BudgetAlerts.
+     * @param {BudgetAlertDeleteManyArgs} args - Arguments to filter BudgetAlerts to delete.
+     * @example
+     * // Delete a few BudgetAlerts
+     * const { count } = await prisma.budgetAlert.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends BudgetAlertDeleteManyArgs>(args?: SelectSubset<T, BudgetAlertDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more BudgetAlerts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many BudgetAlerts
+     * const budgetAlert = await prisma.budgetAlert.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends BudgetAlertUpdateManyArgs>(args: SelectSubset<T, BudgetAlertUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more BudgetAlerts and returns the data updated in the database.
+     * @param {BudgetAlertUpdateManyAndReturnArgs} args - Arguments to update many BudgetAlerts.
+     * @example
+     * // Update many BudgetAlerts
+     * const budgetAlert = await prisma.budgetAlert.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more BudgetAlerts and only return the `id`
+     * const budgetAlertWithIdOnly = await prisma.budgetAlert.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends BudgetAlertUpdateManyAndReturnArgs>(args: SelectSubset<T, BudgetAlertUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one BudgetAlert.
+     * @param {BudgetAlertUpsertArgs} args - Arguments to update or create a BudgetAlert.
+     * @example
+     * // Update or create a BudgetAlert
+     * const budgetAlert = await prisma.budgetAlert.upsert({
+     *   create: {
+     *     // ... data to create a BudgetAlert
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the BudgetAlert we want to update
+     *   }
+     * })
+     */
+    upsert<T extends BudgetAlertUpsertArgs>(args: SelectSubset<T, BudgetAlertUpsertArgs<ExtArgs>>): Prisma__BudgetAlertClient<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of BudgetAlerts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertCountArgs} args - Arguments to filter BudgetAlerts to count.
+     * @example
+     * // Count the number of BudgetAlerts
+     * const count = await prisma.budgetAlert.count({
+     *   where: {
+     *     // ... the filter for the BudgetAlerts we want to count
+     *   }
+     * })
+    **/
+    count<T extends BudgetAlertCountArgs>(
+      args?: Subset<T, BudgetAlertCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], BudgetAlertCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a BudgetAlert.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends BudgetAlertAggregateArgs>(args: Subset<T, BudgetAlertAggregateArgs>): Prisma.PrismaPromise<GetBudgetAlertAggregateType<T>>
+
+    /**
+     * Group by BudgetAlert.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends BudgetAlertGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: BudgetAlertGroupByArgs['orderBy'] }
+        : { orderBy?: BudgetAlertGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, BudgetAlertGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetBudgetAlertGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the BudgetAlert model
+   */
+  readonly fields: BudgetAlertFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for BudgetAlert.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__BudgetAlertClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    budget<T extends BudgetDefaultArgs<ExtArgs> = {}>(args?: Subset<T, BudgetDefaultArgs<ExtArgs>>): Prisma__BudgetClient<$Result.GetResult<Prisma.$BudgetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    notifications<T extends BudgetAlert$notificationsArgs<ExtArgs> = {}>(args?: Subset<T, BudgetAlert$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the BudgetAlert model
+   */
+  interface BudgetAlertFieldRefs {
+    readonly id: FieldRef<"BudgetAlert", 'String'>
+    readonly userId: FieldRef<"BudgetAlert", 'String'>
+    readonly budgetId: FieldRef<"BudgetAlert", 'String'>
+    readonly thresholdPercent: FieldRef<"BudgetAlert", 'Float'>
+    readonly alertType: FieldRef<"BudgetAlert", 'AlertType'>
+    readonly isEnabled: FieldRef<"BudgetAlert", 'Boolean'>
+    readonly emailEnabled: FieldRef<"BudgetAlert", 'Boolean'>
+    readonly createdAt: FieldRef<"BudgetAlert", 'DateTime'>
+    readonly updatedAt: FieldRef<"BudgetAlert", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * BudgetAlert findUnique
+   */
+  export type BudgetAlertFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    /**
+     * Filter, which BudgetAlert to fetch.
+     */
+    where: BudgetAlertWhereUniqueInput
+  }
+
+  /**
+   * BudgetAlert findUniqueOrThrow
+   */
+  export type BudgetAlertFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    /**
+     * Filter, which BudgetAlert to fetch.
+     */
+    where: BudgetAlertWhereUniqueInput
+  }
+
+  /**
+   * BudgetAlert findFirst
+   */
+  export type BudgetAlertFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    /**
+     * Filter, which BudgetAlert to fetch.
+     */
+    where?: BudgetAlertWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BudgetAlerts to fetch.
+     */
+    orderBy?: BudgetAlertOrderByWithRelationInput | BudgetAlertOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BudgetAlerts.
+     */
+    cursor?: BudgetAlertWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BudgetAlerts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BudgetAlerts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BudgetAlerts.
+     */
+    distinct?: BudgetAlertScalarFieldEnum | BudgetAlertScalarFieldEnum[]
+  }
+
+  /**
+   * BudgetAlert findFirstOrThrow
+   */
+  export type BudgetAlertFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    /**
+     * Filter, which BudgetAlert to fetch.
+     */
+    where?: BudgetAlertWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BudgetAlerts to fetch.
+     */
+    orderBy?: BudgetAlertOrderByWithRelationInput | BudgetAlertOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BudgetAlerts.
+     */
+    cursor?: BudgetAlertWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BudgetAlerts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BudgetAlerts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BudgetAlerts.
+     */
+    distinct?: BudgetAlertScalarFieldEnum | BudgetAlertScalarFieldEnum[]
+  }
+
+  /**
+   * BudgetAlert findMany
+   */
+  export type BudgetAlertFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    /**
+     * Filter, which BudgetAlerts to fetch.
+     */
+    where?: BudgetAlertWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BudgetAlerts to fetch.
+     */
+    orderBy?: BudgetAlertOrderByWithRelationInput | BudgetAlertOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing BudgetAlerts.
+     */
+    cursor?: BudgetAlertWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BudgetAlerts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BudgetAlerts.
+     */
+    skip?: number
+    distinct?: BudgetAlertScalarFieldEnum | BudgetAlertScalarFieldEnum[]
+  }
+
+  /**
+   * BudgetAlert create
+   */
+  export type BudgetAlertCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    /**
+     * The data needed to create a BudgetAlert.
+     */
+    data: XOR<BudgetAlertCreateInput, BudgetAlertUncheckedCreateInput>
+  }
+
+  /**
+   * BudgetAlert createMany
+   */
+  export type BudgetAlertCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many BudgetAlerts.
+     */
+    data: BudgetAlertCreateManyInput | BudgetAlertCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * BudgetAlert createManyAndReturn
+   */
+  export type BudgetAlertCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * The data used to create many BudgetAlerts.
+     */
+    data: BudgetAlertCreateManyInput | BudgetAlertCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * BudgetAlert update
+   */
+  export type BudgetAlertUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    /**
+     * The data needed to update a BudgetAlert.
+     */
+    data: XOR<BudgetAlertUpdateInput, BudgetAlertUncheckedUpdateInput>
+    /**
+     * Choose, which BudgetAlert to update.
+     */
+    where: BudgetAlertWhereUniqueInput
+  }
+
+  /**
+   * BudgetAlert updateMany
+   */
+  export type BudgetAlertUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update BudgetAlerts.
+     */
+    data: XOR<BudgetAlertUpdateManyMutationInput, BudgetAlertUncheckedUpdateManyInput>
+    /**
+     * Filter which BudgetAlerts to update
+     */
+    where?: BudgetAlertWhereInput
+    /**
+     * Limit how many BudgetAlerts to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * BudgetAlert updateManyAndReturn
+   */
+  export type BudgetAlertUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * The data used to update BudgetAlerts.
+     */
+    data: XOR<BudgetAlertUpdateManyMutationInput, BudgetAlertUncheckedUpdateManyInput>
+    /**
+     * Filter which BudgetAlerts to update
+     */
+    where?: BudgetAlertWhereInput
+    /**
+     * Limit how many BudgetAlerts to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * BudgetAlert upsert
+   */
+  export type BudgetAlertUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    /**
+     * The filter to search for the BudgetAlert to update in case it exists.
+     */
+    where: BudgetAlertWhereUniqueInput
+    /**
+     * In case the BudgetAlert found by the `where` argument doesn't exist, create a new BudgetAlert with this data.
+     */
+    create: XOR<BudgetAlertCreateInput, BudgetAlertUncheckedCreateInput>
+    /**
+     * In case the BudgetAlert was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<BudgetAlertUpdateInput, BudgetAlertUncheckedUpdateInput>
+  }
+
+  /**
+   * BudgetAlert delete
+   */
+  export type BudgetAlertDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+    /**
+     * Filter which BudgetAlert to delete.
+     */
+    where: BudgetAlertWhereUniqueInput
+  }
+
+  /**
+   * BudgetAlert deleteMany
+   */
+  export type BudgetAlertDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BudgetAlerts to delete
+     */
+    where?: BudgetAlertWhereInput
+    /**
+     * Limit how many BudgetAlerts to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * BudgetAlert.notifications
+   */
+  export type BudgetAlert$notificationsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    where?: BudgetAlertNotificationWhereInput
+    orderBy?: BudgetAlertNotificationOrderByWithRelationInput | BudgetAlertNotificationOrderByWithRelationInput[]
+    cursor?: BudgetAlertNotificationWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: BudgetAlertNotificationScalarFieldEnum | BudgetAlertNotificationScalarFieldEnum[]
+  }
+
+  /**
+   * BudgetAlert without action
+   */
+  export type BudgetAlertDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlert
+     */
+    select?: BudgetAlertSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlert
+     */
+    omit?: BudgetAlertOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model BudgetAlertNotification
+   */
+
+  export type AggregateBudgetAlertNotification = {
+    _count: BudgetAlertNotificationCountAggregateOutputType | null
+    _avg: BudgetAlertNotificationAvgAggregateOutputType | null
+    _sum: BudgetAlertNotificationSumAggregateOutputType | null
+    _min: BudgetAlertNotificationMinAggregateOutputType | null
+    _max: BudgetAlertNotificationMaxAggregateOutputType | null
+  }
+
+  export type BudgetAlertNotificationAvgAggregateOutputType = {
+    thresholdPercent: number | null
+    currentPercent: number | null
+    spent: number | null
+    budgetAmount: number | null
+  }
+
+  export type BudgetAlertNotificationSumAggregateOutputType = {
+    thresholdPercent: number | null
+    currentPercent: number | null
+    spent: number | null
+    budgetAmount: number | null
+  }
+
+  export type BudgetAlertNotificationMinAggregateOutputType = {
+    id: string | null
+    alertId: string | null
+    userId: string | null
+    budgetName: string | null
+    category: string | null
+    thresholdPercent: number | null
+    currentPercent: number | null
+    spent: number | null
+    budgetAmount: number | null
+    sentAt: Date | null
+    emailSent: boolean | null
+    emailSentAt: Date | null
+  }
+
+  export type BudgetAlertNotificationMaxAggregateOutputType = {
+    id: string | null
+    alertId: string | null
+    userId: string | null
+    budgetName: string | null
+    category: string | null
+    thresholdPercent: number | null
+    currentPercent: number | null
+    spent: number | null
+    budgetAmount: number | null
+    sentAt: Date | null
+    emailSent: boolean | null
+    emailSentAt: Date | null
+  }
+
+  export type BudgetAlertNotificationCountAggregateOutputType = {
+    id: number
+    alertId: number
+    userId: number
+    budgetName: number
+    category: number
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt: number
+    emailSent: number
+    emailSentAt: number
+    _all: number
+  }
+
+
+  export type BudgetAlertNotificationAvgAggregateInputType = {
+    thresholdPercent?: true
+    currentPercent?: true
+    spent?: true
+    budgetAmount?: true
+  }
+
+  export type BudgetAlertNotificationSumAggregateInputType = {
+    thresholdPercent?: true
+    currentPercent?: true
+    spent?: true
+    budgetAmount?: true
+  }
+
+  export type BudgetAlertNotificationMinAggregateInputType = {
+    id?: true
+    alertId?: true
+    userId?: true
+    budgetName?: true
+    category?: true
+    thresholdPercent?: true
+    currentPercent?: true
+    spent?: true
+    budgetAmount?: true
+    sentAt?: true
+    emailSent?: true
+    emailSentAt?: true
+  }
+
+  export type BudgetAlertNotificationMaxAggregateInputType = {
+    id?: true
+    alertId?: true
+    userId?: true
+    budgetName?: true
+    category?: true
+    thresholdPercent?: true
+    currentPercent?: true
+    spent?: true
+    budgetAmount?: true
+    sentAt?: true
+    emailSent?: true
+    emailSentAt?: true
+  }
+
+  export type BudgetAlertNotificationCountAggregateInputType = {
+    id?: true
+    alertId?: true
+    userId?: true
+    budgetName?: true
+    category?: true
+    thresholdPercent?: true
+    currentPercent?: true
+    spent?: true
+    budgetAmount?: true
+    sentAt?: true
+    emailSent?: true
+    emailSentAt?: true
+    _all?: true
+  }
+
+  export type BudgetAlertNotificationAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BudgetAlertNotification to aggregate.
+     */
+    where?: BudgetAlertNotificationWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BudgetAlertNotifications to fetch.
+     */
+    orderBy?: BudgetAlertNotificationOrderByWithRelationInput | BudgetAlertNotificationOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: BudgetAlertNotificationWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BudgetAlertNotifications from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BudgetAlertNotifications.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned BudgetAlertNotifications
+    **/
+    _count?: true | BudgetAlertNotificationCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: BudgetAlertNotificationAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: BudgetAlertNotificationSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: BudgetAlertNotificationMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: BudgetAlertNotificationMaxAggregateInputType
+  }
+
+  export type GetBudgetAlertNotificationAggregateType<T extends BudgetAlertNotificationAggregateArgs> = {
+        [P in keyof T & keyof AggregateBudgetAlertNotification]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateBudgetAlertNotification[P]>
+      : GetScalarType<T[P], AggregateBudgetAlertNotification[P]>
+  }
+
+
+
+
+  export type BudgetAlertNotificationGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BudgetAlertNotificationWhereInput
+    orderBy?: BudgetAlertNotificationOrderByWithAggregationInput | BudgetAlertNotificationOrderByWithAggregationInput[]
+    by: BudgetAlertNotificationScalarFieldEnum[] | BudgetAlertNotificationScalarFieldEnum
+    having?: BudgetAlertNotificationScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: BudgetAlertNotificationCountAggregateInputType | true
+    _avg?: BudgetAlertNotificationAvgAggregateInputType
+    _sum?: BudgetAlertNotificationSumAggregateInputType
+    _min?: BudgetAlertNotificationMinAggregateInputType
+    _max?: BudgetAlertNotificationMaxAggregateInputType
+  }
+
+  export type BudgetAlertNotificationGroupByOutputType = {
+    id: string
+    alertId: string
+    userId: string
+    budgetName: string
+    category: string
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt: Date
+    emailSent: boolean
+    emailSentAt: Date | null
+    _count: BudgetAlertNotificationCountAggregateOutputType | null
+    _avg: BudgetAlertNotificationAvgAggregateOutputType | null
+    _sum: BudgetAlertNotificationSumAggregateOutputType | null
+    _min: BudgetAlertNotificationMinAggregateOutputType | null
+    _max: BudgetAlertNotificationMaxAggregateOutputType | null
+  }
+
+  type GetBudgetAlertNotificationGroupByPayload<T extends BudgetAlertNotificationGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<BudgetAlertNotificationGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof BudgetAlertNotificationGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], BudgetAlertNotificationGroupByOutputType[P]>
+            : GetScalarType<T[P], BudgetAlertNotificationGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type BudgetAlertNotificationSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    alertId?: boolean
+    userId?: boolean
+    budgetName?: boolean
+    category?: boolean
+    thresholdPercent?: boolean
+    currentPercent?: boolean
+    spent?: boolean
+    budgetAmount?: boolean
+    sentAt?: boolean
+    emailSent?: boolean
+    emailSentAt?: boolean
+    alert?: boolean | BudgetAlertDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["budgetAlertNotification"]>
+
+  export type BudgetAlertNotificationSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    alertId?: boolean
+    userId?: boolean
+    budgetName?: boolean
+    category?: boolean
+    thresholdPercent?: boolean
+    currentPercent?: boolean
+    spent?: boolean
+    budgetAmount?: boolean
+    sentAt?: boolean
+    emailSent?: boolean
+    emailSentAt?: boolean
+    alert?: boolean | BudgetAlertDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["budgetAlertNotification"]>
+
+  export type BudgetAlertNotificationSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    alertId?: boolean
+    userId?: boolean
+    budgetName?: boolean
+    category?: boolean
+    thresholdPercent?: boolean
+    currentPercent?: boolean
+    spent?: boolean
+    budgetAmount?: boolean
+    sentAt?: boolean
+    emailSent?: boolean
+    emailSentAt?: boolean
+    alert?: boolean | BudgetAlertDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["budgetAlertNotification"]>
+
+  export type BudgetAlertNotificationSelectScalar = {
+    id?: boolean
+    alertId?: boolean
+    userId?: boolean
+    budgetName?: boolean
+    category?: boolean
+    thresholdPercent?: boolean
+    currentPercent?: boolean
+    spent?: boolean
+    budgetAmount?: boolean
+    sentAt?: boolean
+    emailSent?: boolean
+    emailSentAt?: boolean
+  }
+
+  export type BudgetAlertNotificationOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "alertId" | "userId" | "budgetName" | "category" | "thresholdPercent" | "currentPercent" | "spent" | "budgetAmount" | "sentAt" | "emailSent" | "emailSentAt", ExtArgs["result"]["budgetAlertNotification"]>
+  export type BudgetAlertNotificationInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    alert?: boolean | BudgetAlertDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type BudgetAlertNotificationIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    alert?: boolean | BudgetAlertDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type BudgetAlertNotificationIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    alert?: boolean | BudgetAlertDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $BudgetAlertNotificationPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "BudgetAlertNotification"
+    objects: {
+      alert: Prisma.$BudgetAlertPayload<ExtArgs>
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      alertId: string
+      userId: string
+      budgetName: string
+      category: string
+      thresholdPercent: number
+      currentPercent: number
+      spent: number
+      budgetAmount: number
+      sentAt: Date
+      emailSent: boolean
+      emailSentAt: Date | null
+    }, ExtArgs["result"]["budgetAlertNotification"]>
+    composites: {}
+  }
+
+  type BudgetAlertNotificationGetPayload<S extends boolean | null | undefined | BudgetAlertNotificationDefaultArgs> = $Result.GetResult<Prisma.$BudgetAlertNotificationPayload, S>
+
+  type BudgetAlertNotificationCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<BudgetAlertNotificationFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: BudgetAlertNotificationCountAggregateInputType | true
+    }
+
+  export interface BudgetAlertNotificationDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['BudgetAlertNotification'], meta: { name: 'BudgetAlertNotification' } }
+    /**
+     * Find zero or one BudgetAlertNotification that matches the filter.
+     * @param {BudgetAlertNotificationFindUniqueArgs} args - Arguments to find a BudgetAlertNotification
+     * @example
+     * // Get one BudgetAlertNotification
+     * const budgetAlertNotification = await prisma.budgetAlertNotification.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends BudgetAlertNotificationFindUniqueArgs>(args: SelectSubset<T, BudgetAlertNotificationFindUniqueArgs<ExtArgs>>): Prisma__BudgetAlertNotificationClient<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one BudgetAlertNotification that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {BudgetAlertNotificationFindUniqueOrThrowArgs} args - Arguments to find a BudgetAlertNotification
+     * @example
+     * // Get one BudgetAlertNotification
+     * const budgetAlertNotification = await prisma.budgetAlertNotification.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends BudgetAlertNotificationFindUniqueOrThrowArgs>(args: SelectSubset<T, BudgetAlertNotificationFindUniqueOrThrowArgs<ExtArgs>>): Prisma__BudgetAlertNotificationClient<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first BudgetAlertNotification that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertNotificationFindFirstArgs} args - Arguments to find a BudgetAlertNotification
+     * @example
+     * // Get one BudgetAlertNotification
+     * const budgetAlertNotification = await prisma.budgetAlertNotification.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends BudgetAlertNotificationFindFirstArgs>(args?: SelectSubset<T, BudgetAlertNotificationFindFirstArgs<ExtArgs>>): Prisma__BudgetAlertNotificationClient<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first BudgetAlertNotification that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertNotificationFindFirstOrThrowArgs} args - Arguments to find a BudgetAlertNotification
+     * @example
+     * // Get one BudgetAlertNotification
+     * const budgetAlertNotification = await prisma.budgetAlertNotification.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends BudgetAlertNotificationFindFirstOrThrowArgs>(args?: SelectSubset<T, BudgetAlertNotificationFindFirstOrThrowArgs<ExtArgs>>): Prisma__BudgetAlertNotificationClient<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more BudgetAlertNotifications that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertNotificationFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all BudgetAlertNotifications
+     * const budgetAlertNotifications = await prisma.budgetAlertNotification.findMany()
+     * 
+     * // Get first 10 BudgetAlertNotifications
+     * const budgetAlertNotifications = await prisma.budgetAlertNotification.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const budgetAlertNotificationWithIdOnly = await prisma.budgetAlertNotification.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends BudgetAlertNotificationFindManyArgs>(args?: SelectSubset<T, BudgetAlertNotificationFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a BudgetAlertNotification.
+     * @param {BudgetAlertNotificationCreateArgs} args - Arguments to create a BudgetAlertNotification.
+     * @example
+     * // Create one BudgetAlertNotification
+     * const BudgetAlertNotification = await prisma.budgetAlertNotification.create({
+     *   data: {
+     *     // ... data to create a BudgetAlertNotification
+     *   }
+     * })
+     * 
+     */
+    create<T extends BudgetAlertNotificationCreateArgs>(args: SelectSubset<T, BudgetAlertNotificationCreateArgs<ExtArgs>>): Prisma__BudgetAlertNotificationClient<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many BudgetAlertNotifications.
+     * @param {BudgetAlertNotificationCreateManyArgs} args - Arguments to create many BudgetAlertNotifications.
+     * @example
+     * // Create many BudgetAlertNotifications
+     * const budgetAlertNotification = await prisma.budgetAlertNotification.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends BudgetAlertNotificationCreateManyArgs>(args?: SelectSubset<T, BudgetAlertNotificationCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many BudgetAlertNotifications and returns the data saved in the database.
+     * @param {BudgetAlertNotificationCreateManyAndReturnArgs} args - Arguments to create many BudgetAlertNotifications.
+     * @example
+     * // Create many BudgetAlertNotifications
+     * const budgetAlertNotification = await prisma.budgetAlertNotification.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many BudgetAlertNotifications and only return the `id`
+     * const budgetAlertNotificationWithIdOnly = await prisma.budgetAlertNotification.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends BudgetAlertNotificationCreateManyAndReturnArgs>(args?: SelectSubset<T, BudgetAlertNotificationCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a BudgetAlertNotification.
+     * @param {BudgetAlertNotificationDeleteArgs} args - Arguments to delete one BudgetAlertNotification.
+     * @example
+     * // Delete one BudgetAlertNotification
+     * const BudgetAlertNotification = await prisma.budgetAlertNotification.delete({
+     *   where: {
+     *     // ... filter to delete one BudgetAlertNotification
+     *   }
+     * })
+     * 
+     */
+    delete<T extends BudgetAlertNotificationDeleteArgs>(args: SelectSubset<T, BudgetAlertNotificationDeleteArgs<ExtArgs>>): Prisma__BudgetAlertNotificationClient<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one BudgetAlertNotification.
+     * @param {BudgetAlertNotificationUpdateArgs} args - Arguments to update one BudgetAlertNotification.
+     * @example
+     * // Update one BudgetAlertNotification
+     * const budgetAlertNotification = await prisma.budgetAlertNotification.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends BudgetAlertNotificationUpdateArgs>(args: SelectSubset<T, BudgetAlertNotificationUpdateArgs<ExtArgs>>): Prisma__BudgetAlertNotificationClient<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more BudgetAlertNotifications.
+     * @param {BudgetAlertNotificationDeleteManyArgs} args - Arguments to filter BudgetAlertNotifications to delete.
+     * @example
+     * // Delete a few BudgetAlertNotifications
+     * const { count } = await prisma.budgetAlertNotification.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends BudgetAlertNotificationDeleteManyArgs>(args?: SelectSubset<T, BudgetAlertNotificationDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more BudgetAlertNotifications.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertNotificationUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many BudgetAlertNotifications
+     * const budgetAlertNotification = await prisma.budgetAlertNotification.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends BudgetAlertNotificationUpdateManyArgs>(args: SelectSubset<T, BudgetAlertNotificationUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more BudgetAlertNotifications and returns the data updated in the database.
+     * @param {BudgetAlertNotificationUpdateManyAndReturnArgs} args - Arguments to update many BudgetAlertNotifications.
+     * @example
+     * // Update many BudgetAlertNotifications
+     * const budgetAlertNotification = await prisma.budgetAlertNotification.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more BudgetAlertNotifications and only return the `id`
+     * const budgetAlertNotificationWithIdOnly = await prisma.budgetAlertNotification.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends BudgetAlertNotificationUpdateManyAndReturnArgs>(args: SelectSubset<T, BudgetAlertNotificationUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one BudgetAlertNotification.
+     * @param {BudgetAlertNotificationUpsertArgs} args - Arguments to update or create a BudgetAlertNotification.
+     * @example
+     * // Update or create a BudgetAlertNotification
+     * const budgetAlertNotification = await prisma.budgetAlertNotification.upsert({
+     *   create: {
+     *     // ... data to create a BudgetAlertNotification
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the BudgetAlertNotification we want to update
+     *   }
+     * })
+     */
+    upsert<T extends BudgetAlertNotificationUpsertArgs>(args: SelectSubset<T, BudgetAlertNotificationUpsertArgs<ExtArgs>>): Prisma__BudgetAlertNotificationClient<$Result.GetResult<Prisma.$BudgetAlertNotificationPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of BudgetAlertNotifications.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertNotificationCountArgs} args - Arguments to filter BudgetAlertNotifications to count.
+     * @example
+     * // Count the number of BudgetAlertNotifications
+     * const count = await prisma.budgetAlertNotification.count({
+     *   where: {
+     *     // ... the filter for the BudgetAlertNotifications we want to count
+     *   }
+     * })
+    **/
+    count<T extends BudgetAlertNotificationCountArgs>(
+      args?: Subset<T, BudgetAlertNotificationCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], BudgetAlertNotificationCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a BudgetAlertNotification.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertNotificationAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends BudgetAlertNotificationAggregateArgs>(args: Subset<T, BudgetAlertNotificationAggregateArgs>): Prisma.PrismaPromise<GetBudgetAlertNotificationAggregateType<T>>
+
+    /**
+     * Group by BudgetAlertNotification.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BudgetAlertNotificationGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends BudgetAlertNotificationGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: BudgetAlertNotificationGroupByArgs['orderBy'] }
+        : { orderBy?: BudgetAlertNotificationGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, BudgetAlertNotificationGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetBudgetAlertNotificationGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the BudgetAlertNotification model
+   */
+  readonly fields: BudgetAlertNotificationFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for BudgetAlertNotification.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__BudgetAlertNotificationClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    alert<T extends BudgetAlertDefaultArgs<ExtArgs> = {}>(args?: Subset<T, BudgetAlertDefaultArgs<ExtArgs>>): Prisma__BudgetAlertClient<$Result.GetResult<Prisma.$BudgetAlertPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the BudgetAlertNotification model
+   */
+  interface BudgetAlertNotificationFieldRefs {
+    readonly id: FieldRef<"BudgetAlertNotification", 'String'>
+    readonly alertId: FieldRef<"BudgetAlertNotification", 'String'>
+    readonly userId: FieldRef<"BudgetAlertNotification", 'String'>
+    readonly budgetName: FieldRef<"BudgetAlertNotification", 'String'>
+    readonly category: FieldRef<"BudgetAlertNotification", 'String'>
+    readonly thresholdPercent: FieldRef<"BudgetAlertNotification", 'Float'>
+    readonly currentPercent: FieldRef<"BudgetAlertNotification", 'Float'>
+    readonly spent: FieldRef<"BudgetAlertNotification", 'Float'>
+    readonly budgetAmount: FieldRef<"BudgetAlertNotification", 'Float'>
+    readonly sentAt: FieldRef<"BudgetAlertNotification", 'DateTime'>
+    readonly emailSent: FieldRef<"BudgetAlertNotification", 'Boolean'>
+    readonly emailSentAt: FieldRef<"BudgetAlertNotification", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * BudgetAlertNotification findUnique
+   */
+  export type BudgetAlertNotificationFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    /**
+     * Filter, which BudgetAlertNotification to fetch.
+     */
+    where: BudgetAlertNotificationWhereUniqueInput
+  }
+
+  /**
+   * BudgetAlertNotification findUniqueOrThrow
+   */
+  export type BudgetAlertNotificationFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    /**
+     * Filter, which BudgetAlertNotification to fetch.
+     */
+    where: BudgetAlertNotificationWhereUniqueInput
+  }
+
+  /**
+   * BudgetAlertNotification findFirst
+   */
+  export type BudgetAlertNotificationFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    /**
+     * Filter, which BudgetAlertNotification to fetch.
+     */
+    where?: BudgetAlertNotificationWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BudgetAlertNotifications to fetch.
+     */
+    orderBy?: BudgetAlertNotificationOrderByWithRelationInput | BudgetAlertNotificationOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BudgetAlertNotifications.
+     */
+    cursor?: BudgetAlertNotificationWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BudgetAlertNotifications from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BudgetAlertNotifications.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BudgetAlertNotifications.
+     */
+    distinct?: BudgetAlertNotificationScalarFieldEnum | BudgetAlertNotificationScalarFieldEnum[]
+  }
+
+  /**
+   * BudgetAlertNotification findFirstOrThrow
+   */
+  export type BudgetAlertNotificationFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    /**
+     * Filter, which BudgetAlertNotification to fetch.
+     */
+    where?: BudgetAlertNotificationWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BudgetAlertNotifications to fetch.
+     */
+    orderBy?: BudgetAlertNotificationOrderByWithRelationInput | BudgetAlertNotificationOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BudgetAlertNotifications.
+     */
+    cursor?: BudgetAlertNotificationWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BudgetAlertNotifications from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BudgetAlertNotifications.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BudgetAlertNotifications.
+     */
+    distinct?: BudgetAlertNotificationScalarFieldEnum | BudgetAlertNotificationScalarFieldEnum[]
+  }
+
+  /**
+   * BudgetAlertNotification findMany
+   */
+  export type BudgetAlertNotificationFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    /**
+     * Filter, which BudgetAlertNotifications to fetch.
+     */
+    where?: BudgetAlertNotificationWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BudgetAlertNotifications to fetch.
+     */
+    orderBy?: BudgetAlertNotificationOrderByWithRelationInput | BudgetAlertNotificationOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing BudgetAlertNotifications.
+     */
+    cursor?: BudgetAlertNotificationWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BudgetAlertNotifications from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BudgetAlertNotifications.
+     */
+    skip?: number
+    distinct?: BudgetAlertNotificationScalarFieldEnum | BudgetAlertNotificationScalarFieldEnum[]
+  }
+
+  /**
+   * BudgetAlertNotification create
+   */
+  export type BudgetAlertNotificationCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    /**
+     * The data needed to create a BudgetAlertNotification.
+     */
+    data: XOR<BudgetAlertNotificationCreateInput, BudgetAlertNotificationUncheckedCreateInput>
+  }
+
+  /**
+   * BudgetAlertNotification createMany
+   */
+  export type BudgetAlertNotificationCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many BudgetAlertNotifications.
+     */
+    data: BudgetAlertNotificationCreateManyInput | BudgetAlertNotificationCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * BudgetAlertNotification createManyAndReturn
+   */
+  export type BudgetAlertNotificationCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * The data used to create many BudgetAlertNotifications.
+     */
+    data: BudgetAlertNotificationCreateManyInput | BudgetAlertNotificationCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * BudgetAlertNotification update
+   */
+  export type BudgetAlertNotificationUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    /**
+     * The data needed to update a BudgetAlertNotification.
+     */
+    data: XOR<BudgetAlertNotificationUpdateInput, BudgetAlertNotificationUncheckedUpdateInput>
+    /**
+     * Choose, which BudgetAlertNotification to update.
+     */
+    where: BudgetAlertNotificationWhereUniqueInput
+  }
+
+  /**
+   * BudgetAlertNotification updateMany
+   */
+  export type BudgetAlertNotificationUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update BudgetAlertNotifications.
+     */
+    data: XOR<BudgetAlertNotificationUpdateManyMutationInput, BudgetAlertNotificationUncheckedUpdateManyInput>
+    /**
+     * Filter which BudgetAlertNotifications to update
+     */
+    where?: BudgetAlertNotificationWhereInput
+    /**
+     * Limit how many BudgetAlertNotifications to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * BudgetAlertNotification updateManyAndReturn
+   */
+  export type BudgetAlertNotificationUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * The data used to update BudgetAlertNotifications.
+     */
+    data: XOR<BudgetAlertNotificationUpdateManyMutationInput, BudgetAlertNotificationUncheckedUpdateManyInput>
+    /**
+     * Filter which BudgetAlertNotifications to update
+     */
+    where?: BudgetAlertNotificationWhereInput
+    /**
+     * Limit how many BudgetAlertNotifications to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * BudgetAlertNotification upsert
+   */
+  export type BudgetAlertNotificationUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    /**
+     * The filter to search for the BudgetAlertNotification to update in case it exists.
+     */
+    where: BudgetAlertNotificationWhereUniqueInput
+    /**
+     * In case the BudgetAlertNotification found by the `where` argument doesn't exist, create a new BudgetAlertNotification with this data.
+     */
+    create: XOR<BudgetAlertNotificationCreateInput, BudgetAlertNotificationUncheckedCreateInput>
+    /**
+     * In case the BudgetAlertNotification was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<BudgetAlertNotificationUpdateInput, BudgetAlertNotificationUncheckedUpdateInput>
+  }
+
+  /**
+   * BudgetAlertNotification delete
+   */
+  export type BudgetAlertNotificationDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+    /**
+     * Filter which BudgetAlertNotification to delete.
+     */
+    where: BudgetAlertNotificationWhereUniqueInput
+  }
+
+  /**
+   * BudgetAlertNotification deleteMany
+   */
+  export type BudgetAlertNotificationDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BudgetAlertNotifications to delete
+     */
+    where?: BudgetAlertNotificationWhereInput
+    /**
+     * Limit how many BudgetAlertNotifications to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * BudgetAlertNotification without action
+   */
+  export type BudgetAlertNotificationDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BudgetAlertNotification
+     */
+    select?: BudgetAlertNotificationSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BudgetAlertNotification
+     */
+    omit?: BudgetAlertNotificationOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BudgetAlertNotificationInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -8854,6 +11600,39 @@ export namespace Prisma {
   export type SavingsGoalScalarFieldEnum = (typeof SavingsGoalScalarFieldEnum)[keyof typeof SavingsGoalScalarFieldEnum]
 
 
+  export const BudgetAlertScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    budgetId: 'budgetId',
+    thresholdPercent: 'thresholdPercent',
+    alertType: 'alertType',
+    isEnabled: 'isEnabled',
+    emailEnabled: 'emailEnabled',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type BudgetAlertScalarFieldEnum = (typeof BudgetAlertScalarFieldEnum)[keyof typeof BudgetAlertScalarFieldEnum]
+
+
+  export const BudgetAlertNotificationScalarFieldEnum: {
+    id: 'id',
+    alertId: 'alertId',
+    userId: 'userId',
+    budgetName: 'budgetName',
+    category: 'category',
+    thresholdPercent: 'thresholdPercent',
+    currentPercent: 'currentPercent',
+    spent: 'spent',
+    budgetAmount: 'budgetAmount',
+    sentAt: 'sentAt',
+    emailSent: 'emailSent',
+    emailSentAt: 'emailSentAt'
+  };
+
+  export type BudgetAlertNotificationScalarFieldEnum = (typeof BudgetAlertNotificationScalarFieldEnum)[keyof typeof BudgetAlertNotificationScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -8972,6 +11751,20 @@ export namespace Prisma {
    */
   export type ListEnumBudgetPeriodFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BudgetPeriod[]'>
     
+
+
+  /**
+   * Reference to a field of type 'AlertType'
+   */
+  export type EnumAlertTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AlertType'>
+    
+
+
+  /**
+   * Reference to a field of type 'AlertType[]'
+   */
+  export type ListEnumAlertTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AlertType[]'>
+    
   /**
    * Deep Input Types
    */
@@ -8998,6 +11791,8 @@ export namespace Prisma {
     budgets?: BudgetListRelationFilter
     savingsGoals?: SavingsGoalListRelationFilter
     userCategoryRules?: UserCategoryRuleListRelationFilter
+    budgetAlerts?: BudgetAlertListRelationFilter
+    budgetAlertNotifications?: BudgetAlertNotificationListRelationFilter
   }
 
   export type UserOrderByWithRelationInput = {
@@ -9018,6 +11813,8 @@ export namespace Prisma {
     budgets?: BudgetOrderByRelationAggregateInput
     savingsGoals?: SavingsGoalOrderByRelationAggregateInput
     userCategoryRules?: UserCategoryRuleOrderByRelationAggregateInput
+    budgetAlerts?: BudgetAlertOrderByRelationAggregateInput
+    budgetAlertNotifications?: BudgetAlertNotificationOrderByRelationAggregateInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -9041,6 +11838,8 @@ export namespace Prisma {
     budgets?: BudgetListRelationFilter
     savingsGoals?: SavingsGoalListRelationFilter
     userCategoryRules?: UserCategoryRuleListRelationFilter
+    budgetAlerts?: BudgetAlertListRelationFilter
+    budgetAlertNotifications?: BudgetAlertNotificationListRelationFilter
   }, "id" | "email">
 
   export type UserOrderByWithAggregationInput = {
@@ -9402,6 +12201,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Budget"> | Date | string
     updatedAt?: DateTimeFilter<"Budget"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    budgetAlerts?: BudgetAlertListRelationFilter
   }
 
   export type BudgetOrderByWithRelationInput = {
@@ -9417,6 +12217,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
+    budgetAlerts?: BudgetAlertOrderByRelationAggregateInput
   }
 
   export type BudgetWhereUniqueInput = Prisma.AtLeast<{
@@ -9435,6 +12236,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Budget"> | Date | string
     updatedAt?: DateTimeFilter<"Budget"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    budgetAlerts?: BudgetAlertListRelationFilter
   }, "id">
 
   export type BudgetOrderByWithAggregationInput = {
@@ -9565,6 +12367,185 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"SavingsGoal"> | Date | string
   }
 
+  export type BudgetAlertWhereInput = {
+    AND?: BudgetAlertWhereInput | BudgetAlertWhereInput[]
+    OR?: BudgetAlertWhereInput[]
+    NOT?: BudgetAlertWhereInput | BudgetAlertWhereInput[]
+    id?: StringFilter<"BudgetAlert"> | string
+    userId?: StringFilter<"BudgetAlert"> | string
+    budgetId?: StringFilter<"BudgetAlert"> | string
+    thresholdPercent?: FloatFilter<"BudgetAlert"> | number
+    alertType?: EnumAlertTypeFilter<"BudgetAlert"> | $Enums.AlertType
+    isEnabled?: BoolFilter<"BudgetAlert"> | boolean
+    emailEnabled?: BoolFilter<"BudgetAlert"> | boolean
+    createdAt?: DateTimeFilter<"BudgetAlert"> | Date | string
+    updatedAt?: DateTimeFilter<"BudgetAlert"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    budget?: XOR<BudgetScalarRelationFilter, BudgetWhereInput>
+    notifications?: BudgetAlertNotificationListRelationFilter
+  }
+
+  export type BudgetAlertOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    budgetId?: SortOrder
+    thresholdPercent?: SortOrder
+    alertType?: SortOrder
+    isEnabled?: SortOrder
+    emailEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+    budget?: BudgetOrderByWithRelationInput
+    notifications?: BudgetAlertNotificationOrderByRelationAggregateInput
+  }
+
+  export type BudgetAlertWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    userId_budgetId_alertType?: BudgetAlertUserIdBudgetIdAlertTypeCompoundUniqueInput
+    AND?: BudgetAlertWhereInput | BudgetAlertWhereInput[]
+    OR?: BudgetAlertWhereInput[]
+    NOT?: BudgetAlertWhereInput | BudgetAlertWhereInput[]
+    userId?: StringFilter<"BudgetAlert"> | string
+    budgetId?: StringFilter<"BudgetAlert"> | string
+    thresholdPercent?: FloatFilter<"BudgetAlert"> | number
+    alertType?: EnumAlertTypeFilter<"BudgetAlert"> | $Enums.AlertType
+    isEnabled?: BoolFilter<"BudgetAlert"> | boolean
+    emailEnabled?: BoolFilter<"BudgetAlert"> | boolean
+    createdAt?: DateTimeFilter<"BudgetAlert"> | Date | string
+    updatedAt?: DateTimeFilter<"BudgetAlert"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    budget?: XOR<BudgetScalarRelationFilter, BudgetWhereInput>
+    notifications?: BudgetAlertNotificationListRelationFilter
+  }, "id" | "userId_budgetId_alertType">
+
+  export type BudgetAlertOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    budgetId?: SortOrder
+    thresholdPercent?: SortOrder
+    alertType?: SortOrder
+    isEnabled?: SortOrder
+    emailEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: BudgetAlertCountOrderByAggregateInput
+    _avg?: BudgetAlertAvgOrderByAggregateInput
+    _max?: BudgetAlertMaxOrderByAggregateInput
+    _min?: BudgetAlertMinOrderByAggregateInput
+    _sum?: BudgetAlertSumOrderByAggregateInput
+  }
+
+  export type BudgetAlertScalarWhereWithAggregatesInput = {
+    AND?: BudgetAlertScalarWhereWithAggregatesInput | BudgetAlertScalarWhereWithAggregatesInput[]
+    OR?: BudgetAlertScalarWhereWithAggregatesInput[]
+    NOT?: BudgetAlertScalarWhereWithAggregatesInput | BudgetAlertScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"BudgetAlert"> | string
+    userId?: StringWithAggregatesFilter<"BudgetAlert"> | string
+    budgetId?: StringWithAggregatesFilter<"BudgetAlert"> | string
+    thresholdPercent?: FloatWithAggregatesFilter<"BudgetAlert"> | number
+    alertType?: EnumAlertTypeWithAggregatesFilter<"BudgetAlert"> | $Enums.AlertType
+    isEnabled?: BoolWithAggregatesFilter<"BudgetAlert"> | boolean
+    emailEnabled?: BoolWithAggregatesFilter<"BudgetAlert"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"BudgetAlert"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"BudgetAlert"> | Date | string
+  }
+
+  export type BudgetAlertNotificationWhereInput = {
+    AND?: BudgetAlertNotificationWhereInput | BudgetAlertNotificationWhereInput[]
+    OR?: BudgetAlertNotificationWhereInput[]
+    NOT?: BudgetAlertNotificationWhereInput | BudgetAlertNotificationWhereInput[]
+    id?: StringFilter<"BudgetAlertNotification"> | string
+    alertId?: StringFilter<"BudgetAlertNotification"> | string
+    userId?: StringFilter<"BudgetAlertNotification"> | string
+    budgetName?: StringFilter<"BudgetAlertNotification"> | string
+    category?: StringFilter<"BudgetAlertNotification"> | string
+    thresholdPercent?: FloatFilter<"BudgetAlertNotification"> | number
+    currentPercent?: FloatFilter<"BudgetAlertNotification"> | number
+    spent?: FloatFilter<"BudgetAlertNotification"> | number
+    budgetAmount?: FloatFilter<"BudgetAlertNotification"> | number
+    sentAt?: DateTimeFilter<"BudgetAlertNotification"> | Date | string
+    emailSent?: BoolFilter<"BudgetAlertNotification"> | boolean
+    emailSentAt?: DateTimeNullableFilter<"BudgetAlertNotification"> | Date | string | null
+    alert?: XOR<BudgetAlertScalarRelationFilter, BudgetAlertWhereInput>
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type BudgetAlertNotificationOrderByWithRelationInput = {
+    id?: SortOrder
+    alertId?: SortOrder
+    userId?: SortOrder
+    budgetName?: SortOrder
+    category?: SortOrder
+    thresholdPercent?: SortOrder
+    currentPercent?: SortOrder
+    spent?: SortOrder
+    budgetAmount?: SortOrder
+    sentAt?: SortOrder
+    emailSent?: SortOrder
+    emailSentAt?: SortOrderInput | SortOrder
+    alert?: BudgetAlertOrderByWithRelationInput
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type BudgetAlertNotificationWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: BudgetAlertNotificationWhereInput | BudgetAlertNotificationWhereInput[]
+    OR?: BudgetAlertNotificationWhereInput[]
+    NOT?: BudgetAlertNotificationWhereInput | BudgetAlertNotificationWhereInput[]
+    alertId?: StringFilter<"BudgetAlertNotification"> | string
+    userId?: StringFilter<"BudgetAlertNotification"> | string
+    budgetName?: StringFilter<"BudgetAlertNotification"> | string
+    category?: StringFilter<"BudgetAlertNotification"> | string
+    thresholdPercent?: FloatFilter<"BudgetAlertNotification"> | number
+    currentPercent?: FloatFilter<"BudgetAlertNotification"> | number
+    spent?: FloatFilter<"BudgetAlertNotification"> | number
+    budgetAmount?: FloatFilter<"BudgetAlertNotification"> | number
+    sentAt?: DateTimeFilter<"BudgetAlertNotification"> | Date | string
+    emailSent?: BoolFilter<"BudgetAlertNotification"> | boolean
+    emailSentAt?: DateTimeNullableFilter<"BudgetAlertNotification"> | Date | string | null
+    alert?: XOR<BudgetAlertScalarRelationFilter, BudgetAlertWhereInput>
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id">
+
+  export type BudgetAlertNotificationOrderByWithAggregationInput = {
+    id?: SortOrder
+    alertId?: SortOrder
+    userId?: SortOrder
+    budgetName?: SortOrder
+    category?: SortOrder
+    thresholdPercent?: SortOrder
+    currentPercent?: SortOrder
+    spent?: SortOrder
+    budgetAmount?: SortOrder
+    sentAt?: SortOrder
+    emailSent?: SortOrder
+    emailSentAt?: SortOrderInput | SortOrder
+    _count?: BudgetAlertNotificationCountOrderByAggregateInput
+    _avg?: BudgetAlertNotificationAvgOrderByAggregateInput
+    _max?: BudgetAlertNotificationMaxOrderByAggregateInput
+    _min?: BudgetAlertNotificationMinOrderByAggregateInput
+    _sum?: BudgetAlertNotificationSumOrderByAggregateInput
+  }
+
+  export type BudgetAlertNotificationScalarWhereWithAggregatesInput = {
+    AND?: BudgetAlertNotificationScalarWhereWithAggregatesInput | BudgetAlertNotificationScalarWhereWithAggregatesInput[]
+    OR?: BudgetAlertNotificationScalarWhereWithAggregatesInput[]
+    NOT?: BudgetAlertNotificationScalarWhereWithAggregatesInput | BudgetAlertNotificationScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"BudgetAlertNotification"> | string
+    alertId?: StringWithAggregatesFilter<"BudgetAlertNotification"> | string
+    userId?: StringWithAggregatesFilter<"BudgetAlertNotification"> | string
+    budgetName?: StringWithAggregatesFilter<"BudgetAlertNotification"> | string
+    category?: StringWithAggregatesFilter<"BudgetAlertNotification"> | string
+    thresholdPercent?: FloatWithAggregatesFilter<"BudgetAlertNotification"> | number
+    currentPercent?: FloatWithAggregatesFilter<"BudgetAlertNotification"> | number
+    spent?: FloatWithAggregatesFilter<"BudgetAlertNotification"> | number
+    budgetAmount?: FloatWithAggregatesFilter<"BudgetAlertNotification"> | number
+    sentAt?: DateTimeWithAggregatesFilter<"BudgetAlertNotification"> | Date | string
+    emailSent?: BoolWithAggregatesFilter<"BudgetAlertNotification"> | boolean
+    emailSentAt?: DateTimeNullableWithAggregatesFilter<"BudgetAlertNotification"> | Date | string | null
+  }
+
   export type UserCreateInput = {
     id?: string
     email: string
@@ -9583,6 +12564,8 @@ export namespace Prisma {
     budgets?: BudgetCreateNestedManyWithoutUserInput
     savingsGoals?: SavingsGoalCreateNestedManyWithoutUserInput
     userCategoryRules?: UserCategoryRuleCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
@@ -9603,6 +12586,8 @@ export namespace Prisma {
     budgets?: BudgetUncheckedCreateNestedManyWithoutUserInput
     savingsGoals?: SavingsGoalUncheckedCreateNestedManyWithoutUserInput
     userCategoryRules?: UserCategoryRuleUncheckedCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertUncheckedCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserUpdateInput = {
@@ -9623,6 +12608,8 @@ export namespace Prisma {
     budgets?: BudgetUpdateManyWithoutUserNestedInput
     savingsGoals?: SavingsGoalUpdateManyWithoutUserNestedInput
     userCategoryRules?: UserCategoryRuleUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
@@ -9643,6 +12630,8 @@ export namespace Prisma {
     budgets?: BudgetUncheckedUpdateManyWithoutUserNestedInput
     savingsGoals?: SavingsGoalUncheckedUpdateManyWithoutUserNestedInput
     userCategoryRules?: UserCategoryRuleUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
@@ -10052,6 +13041,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutBudgetsInput
+    budgetAlerts?: BudgetAlertCreateNestedManyWithoutBudgetInput
   }
 
   export type BudgetUncheckedCreateInput = {
@@ -10066,6 +13056,7 @@ export namespace Prisma {
     isActive?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
+    budgetAlerts?: BudgetAlertUncheckedCreateNestedManyWithoutBudgetInput
   }
 
   export type BudgetUpdateInput = {
@@ -10080,6 +13071,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutBudgetsNestedInput
+    budgetAlerts?: BudgetAlertUpdateManyWithoutBudgetNestedInput
   }
 
   export type BudgetUncheckedUpdateInput = {
@@ -10094,6 +13086,7 @@ export namespace Prisma {
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    budgetAlerts?: BudgetAlertUncheckedUpdateManyWithoutBudgetNestedInput
   }
 
   export type BudgetCreateManyInput = {
@@ -10241,6 +13234,195 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type BudgetAlertCreateInput = {
+    id?: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutBudgetAlertsInput
+    budget: BudgetCreateNestedOneWithoutBudgetAlertsInput
+    notifications?: BudgetAlertNotificationCreateNestedManyWithoutAlertInput
+  }
+
+  export type BudgetAlertUncheckedCreateInput = {
+    id?: string
+    userId: string
+    budgetId: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    notifications?: BudgetAlertNotificationUncheckedCreateNestedManyWithoutAlertInput
+  }
+
+  export type BudgetAlertUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutBudgetAlertsNestedInput
+    budget?: BudgetUpdateOneRequiredWithoutBudgetAlertsNestedInput
+    notifications?: BudgetAlertNotificationUpdateManyWithoutAlertNestedInput
+  }
+
+  export type BudgetAlertUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    budgetId?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    notifications?: BudgetAlertNotificationUncheckedUpdateManyWithoutAlertNestedInput
+  }
+
+  export type BudgetAlertCreateManyInput = {
+    id?: string
+    userId: string
+    budgetId: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BudgetAlertUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BudgetAlertUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    budgetId?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BudgetAlertNotificationCreateInput = {
+    id?: string
+    budgetName: string
+    category: string
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt?: Date | string
+    emailSent?: boolean
+    emailSentAt?: Date | string | null
+    alert: BudgetAlertCreateNestedOneWithoutNotificationsInput
+    user: UserCreateNestedOneWithoutBudgetAlertNotificationsInput
+  }
+
+  export type BudgetAlertNotificationUncheckedCreateInput = {
+    id?: string
+    alertId: string
+    userId: string
+    budgetName: string
+    category: string
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt?: Date | string
+    emailSent?: boolean
+    emailSentAt?: Date | string | null
+  }
+
+  export type BudgetAlertNotificationUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    budgetName?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    currentPercent?: FloatFieldUpdateOperationsInput | number
+    spent?: FloatFieldUpdateOperationsInput | number
+    budgetAmount?: FloatFieldUpdateOperationsInput | number
+    sentAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    emailSent?: BoolFieldUpdateOperationsInput | boolean
+    emailSentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    alert?: BudgetAlertUpdateOneRequiredWithoutNotificationsNestedInput
+    user?: UserUpdateOneRequiredWithoutBudgetAlertNotificationsNestedInput
+  }
+
+  export type BudgetAlertNotificationUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    alertId?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    budgetName?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    currentPercent?: FloatFieldUpdateOperationsInput | number
+    spent?: FloatFieldUpdateOperationsInput | number
+    budgetAmount?: FloatFieldUpdateOperationsInput | number
+    sentAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    emailSent?: BoolFieldUpdateOperationsInput | boolean
+    emailSentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type BudgetAlertNotificationCreateManyInput = {
+    id?: string
+    alertId: string
+    userId: string
+    budgetName: string
+    category: string
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt?: Date | string
+    emailSent?: boolean
+    emailSentAt?: Date | string | null
+  }
+
+  export type BudgetAlertNotificationUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    budgetName?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    currentPercent?: FloatFieldUpdateOperationsInput | number
+    spent?: FloatFieldUpdateOperationsInput | number
+    budgetAmount?: FloatFieldUpdateOperationsInput | number
+    sentAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    emailSent?: BoolFieldUpdateOperationsInput | boolean
+    emailSentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type BudgetAlertNotificationUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    alertId?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    budgetName?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    currentPercent?: FloatFieldUpdateOperationsInput | number
+    spent?: FloatFieldUpdateOperationsInput | number
+    budgetAmount?: FloatFieldUpdateOperationsInput | number
+    sentAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    emailSent?: BoolFieldUpdateOperationsInput | boolean
+    emailSentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -10330,6 +13512,18 @@ export namespace Prisma {
     none?: UserCategoryRuleWhereInput
   }
 
+  export type BudgetAlertListRelationFilter = {
+    every?: BudgetAlertWhereInput
+    some?: BudgetAlertWhereInput
+    none?: BudgetAlertWhereInput
+  }
+
+  export type BudgetAlertNotificationListRelationFilter = {
+    every?: BudgetAlertNotificationWhereInput
+    some?: BudgetAlertNotificationWhereInput
+    none?: BudgetAlertNotificationWhereInput
+  }
+
   export type SortOrderInput = {
     sort: SortOrder
     nulls?: NullsOrder
@@ -10352,6 +13546,14 @@ export namespace Prisma {
   }
 
   export type UserCategoryRuleOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type BudgetAlertOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type BudgetAlertNotificationOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -10884,6 +14086,142 @@ export namespace Prisma {
     currentAmount?: SortOrder
   }
 
+  export type EnumAlertTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.AlertType | EnumAlertTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.AlertType[] | ListEnumAlertTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AlertType[] | ListEnumAlertTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumAlertTypeFilter<$PrismaModel> | $Enums.AlertType
+  }
+
+  export type BudgetScalarRelationFilter = {
+    is?: BudgetWhereInput
+    isNot?: BudgetWhereInput
+  }
+
+  export type BudgetAlertUserIdBudgetIdAlertTypeCompoundUniqueInput = {
+    userId: string
+    budgetId: string
+    alertType: $Enums.AlertType
+  }
+
+  export type BudgetAlertCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    budgetId?: SortOrder
+    thresholdPercent?: SortOrder
+    alertType?: SortOrder
+    isEnabled?: SortOrder
+    emailEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type BudgetAlertAvgOrderByAggregateInput = {
+    thresholdPercent?: SortOrder
+  }
+
+  export type BudgetAlertMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    budgetId?: SortOrder
+    thresholdPercent?: SortOrder
+    alertType?: SortOrder
+    isEnabled?: SortOrder
+    emailEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type BudgetAlertMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    budgetId?: SortOrder
+    thresholdPercent?: SortOrder
+    alertType?: SortOrder
+    isEnabled?: SortOrder
+    emailEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type BudgetAlertSumOrderByAggregateInput = {
+    thresholdPercent?: SortOrder
+  }
+
+  export type EnumAlertTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.AlertType | EnumAlertTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.AlertType[] | ListEnumAlertTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AlertType[] | ListEnumAlertTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumAlertTypeWithAggregatesFilter<$PrismaModel> | $Enums.AlertType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumAlertTypeFilter<$PrismaModel>
+    _max?: NestedEnumAlertTypeFilter<$PrismaModel>
+  }
+
+  export type BudgetAlertScalarRelationFilter = {
+    is?: BudgetAlertWhereInput
+    isNot?: BudgetAlertWhereInput
+  }
+
+  export type BudgetAlertNotificationCountOrderByAggregateInput = {
+    id?: SortOrder
+    alertId?: SortOrder
+    userId?: SortOrder
+    budgetName?: SortOrder
+    category?: SortOrder
+    thresholdPercent?: SortOrder
+    currentPercent?: SortOrder
+    spent?: SortOrder
+    budgetAmount?: SortOrder
+    sentAt?: SortOrder
+    emailSent?: SortOrder
+    emailSentAt?: SortOrder
+  }
+
+  export type BudgetAlertNotificationAvgOrderByAggregateInput = {
+    thresholdPercent?: SortOrder
+    currentPercent?: SortOrder
+    spent?: SortOrder
+    budgetAmount?: SortOrder
+  }
+
+  export type BudgetAlertNotificationMaxOrderByAggregateInput = {
+    id?: SortOrder
+    alertId?: SortOrder
+    userId?: SortOrder
+    budgetName?: SortOrder
+    category?: SortOrder
+    thresholdPercent?: SortOrder
+    currentPercent?: SortOrder
+    spent?: SortOrder
+    budgetAmount?: SortOrder
+    sentAt?: SortOrder
+    emailSent?: SortOrder
+    emailSentAt?: SortOrder
+  }
+
+  export type BudgetAlertNotificationMinOrderByAggregateInput = {
+    id?: SortOrder
+    alertId?: SortOrder
+    userId?: SortOrder
+    budgetName?: SortOrder
+    category?: SortOrder
+    thresholdPercent?: SortOrder
+    currentPercent?: SortOrder
+    spent?: SortOrder
+    budgetAmount?: SortOrder
+    sentAt?: SortOrder
+    emailSent?: SortOrder
+    emailSentAt?: SortOrder
+  }
+
+  export type BudgetAlertNotificationSumOrderByAggregateInput = {
+    thresholdPercent?: SortOrder
+    currentPercent?: SortOrder
+    spent?: SortOrder
+    budgetAmount?: SortOrder
+  }
+
   export type AccountCreateNestedManyWithoutUserInput = {
     create?: XOR<AccountCreateWithoutUserInput, AccountUncheckedCreateWithoutUserInput> | AccountCreateWithoutUserInput[] | AccountUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AccountCreateOrConnectWithoutUserInput | AccountCreateOrConnectWithoutUserInput[]
@@ -10919,6 +14257,20 @@ export namespace Prisma {
     connect?: UserCategoryRuleWhereUniqueInput | UserCategoryRuleWhereUniqueInput[]
   }
 
+  export type BudgetAlertCreateNestedManyWithoutUserInput = {
+    create?: XOR<BudgetAlertCreateWithoutUserInput, BudgetAlertUncheckedCreateWithoutUserInput> | BudgetAlertCreateWithoutUserInput[] | BudgetAlertUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BudgetAlertCreateOrConnectWithoutUserInput | BudgetAlertCreateOrConnectWithoutUserInput[]
+    createMany?: BudgetAlertCreateManyUserInputEnvelope
+    connect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+  }
+
+  export type BudgetAlertNotificationCreateNestedManyWithoutUserInput = {
+    create?: XOR<BudgetAlertNotificationCreateWithoutUserInput, BudgetAlertNotificationUncheckedCreateWithoutUserInput> | BudgetAlertNotificationCreateWithoutUserInput[] | BudgetAlertNotificationUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BudgetAlertNotificationCreateOrConnectWithoutUserInput | BudgetAlertNotificationCreateOrConnectWithoutUserInput[]
+    createMany?: BudgetAlertNotificationCreateManyUserInputEnvelope
+    connect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+  }
+
   export type AccountUncheckedCreateNestedManyWithoutUserInput = {
     create?: XOR<AccountCreateWithoutUserInput, AccountUncheckedCreateWithoutUserInput> | AccountCreateWithoutUserInput[] | AccountUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AccountCreateOrConnectWithoutUserInput | AccountCreateOrConnectWithoutUserInput[]
@@ -10952,6 +14304,20 @@ export namespace Prisma {
     connectOrCreate?: UserCategoryRuleCreateOrConnectWithoutUserInput | UserCategoryRuleCreateOrConnectWithoutUserInput[]
     createMany?: UserCategoryRuleCreateManyUserInputEnvelope
     connect?: UserCategoryRuleWhereUniqueInput | UserCategoryRuleWhereUniqueInput[]
+  }
+
+  export type BudgetAlertUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<BudgetAlertCreateWithoutUserInput, BudgetAlertUncheckedCreateWithoutUserInput> | BudgetAlertCreateWithoutUserInput[] | BudgetAlertUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BudgetAlertCreateOrConnectWithoutUserInput | BudgetAlertCreateOrConnectWithoutUserInput[]
+    createMany?: BudgetAlertCreateManyUserInputEnvelope
+    connect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+  }
+
+  export type BudgetAlertNotificationUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<BudgetAlertNotificationCreateWithoutUserInput, BudgetAlertNotificationUncheckedCreateWithoutUserInput> | BudgetAlertNotificationCreateWithoutUserInput[] | BudgetAlertNotificationUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BudgetAlertNotificationCreateOrConnectWithoutUserInput | BudgetAlertNotificationCreateOrConnectWithoutUserInput[]
+    createMany?: BudgetAlertNotificationCreateManyUserInputEnvelope
+    connect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -11044,6 +14410,34 @@ export namespace Prisma {
     deleteMany?: UserCategoryRuleScalarWhereInput | UserCategoryRuleScalarWhereInput[]
   }
 
+  export type BudgetAlertUpdateManyWithoutUserNestedInput = {
+    create?: XOR<BudgetAlertCreateWithoutUserInput, BudgetAlertUncheckedCreateWithoutUserInput> | BudgetAlertCreateWithoutUserInput[] | BudgetAlertUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BudgetAlertCreateOrConnectWithoutUserInput | BudgetAlertCreateOrConnectWithoutUserInput[]
+    upsert?: BudgetAlertUpsertWithWhereUniqueWithoutUserInput | BudgetAlertUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: BudgetAlertCreateManyUserInputEnvelope
+    set?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    disconnect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    delete?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    connect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    update?: BudgetAlertUpdateWithWhereUniqueWithoutUserInput | BudgetAlertUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: BudgetAlertUpdateManyWithWhereWithoutUserInput | BudgetAlertUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: BudgetAlertScalarWhereInput | BudgetAlertScalarWhereInput[]
+  }
+
+  export type BudgetAlertNotificationUpdateManyWithoutUserNestedInput = {
+    create?: XOR<BudgetAlertNotificationCreateWithoutUserInput, BudgetAlertNotificationUncheckedCreateWithoutUserInput> | BudgetAlertNotificationCreateWithoutUserInput[] | BudgetAlertNotificationUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BudgetAlertNotificationCreateOrConnectWithoutUserInput | BudgetAlertNotificationCreateOrConnectWithoutUserInput[]
+    upsert?: BudgetAlertNotificationUpsertWithWhereUniqueWithoutUserInput | BudgetAlertNotificationUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: BudgetAlertNotificationCreateManyUserInputEnvelope
+    set?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    disconnect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    delete?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    connect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    update?: BudgetAlertNotificationUpdateWithWhereUniqueWithoutUserInput | BudgetAlertNotificationUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: BudgetAlertNotificationUpdateManyWithWhereWithoutUserInput | BudgetAlertNotificationUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: BudgetAlertNotificationScalarWhereInput | BudgetAlertNotificationScalarWhereInput[]
+  }
+
   export type AccountUncheckedUpdateManyWithoutUserNestedInput = {
     create?: XOR<AccountCreateWithoutUserInput, AccountUncheckedCreateWithoutUserInput> | AccountCreateWithoutUserInput[] | AccountUncheckedCreateWithoutUserInput[]
     connectOrCreate?: AccountCreateOrConnectWithoutUserInput | AccountCreateOrConnectWithoutUserInput[]
@@ -11112,6 +14506,34 @@ export namespace Prisma {
     update?: UserCategoryRuleUpdateWithWhereUniqueWithoutUserInput | UserCategoryRuleUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: UserCategoryRuleUpdateManyWithWhereWithoutUserInput | UserCategoryRuleUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: UserCategoryRuleScalarWhereInput | UserCategoryRuleScalarWhereInput[]
+  }
+
+  export type BudgetAlertUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<BudgetAlertCreateWithoutUserInput, BudgetAlertUncheckedCreateWithoutUserInput> | BudgetAlertCreateWithoutUserInput[] | BudgetAlertUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BudgetAlertCreateOrConnectWithoutUserInput | BudgetAlertCreateOrConnectWithoutUserInput[]
+    upsert?: BudgetAlertUpsertWithWhereUniqueWithoutUserInput | BudgetAlertUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: BudgetAlertCreateManyUserInputEnvelope
+    set?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    disconnect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    delete?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    connect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    update?: BudgetAlertUpdateWithWhereUniqueWithoutUserInput | BudgetAlertUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: BudgetAlertUpdateManyWithWhereWithoutUserInput | BudgetAlertUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: BudgetAlertScalarWhereInput | BudgetAlertScalarWhereInput[]
+  }
+
+  export type BudgetAlertNotificationUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<BudgetAlertNotificationCreateWithoutUserInput, BudgetAlertNotificationUncheckedCreateWithoutUserInput> | BudgetAlertNotificationCreateWithoutUserInput[] | BudgetAlertNotificationUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: BudgetAlertNotificationCreateOrConnectWithoutUserInput | BudgetAlertNotificationCreateOrConnectWithoutUserInput[]
+    upsert?: BudgetAlertNotificationUpsertWithWhereUniqueWithoutUserInput | BudgetAlertNotificationUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: BudgetAlertNotificationCreateManyUserInputEnvelope
+    set?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    disconnect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    delete?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    connect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    update?: BudgetAlertNotificationUpdateWithWhereUniqueWithoutUserInput | BudgetAlertNotificationUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: BudgetAlertNotificationUpdateManyWithWhereWithoutUserInput | BudgetAlertNotificationUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: BudgetAlertNotificationScalarWhereInput | BudgetAlertNotificationScalarWhereInput[]
   }
 
   export type UserCreateNestedOneWithoutUserCategoryRulesInput = {
@@ -11255,6 +14677,20 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
+  export type BudgetAlertCreateNestedManyWithoutBudgetInput = {
+    create?: XOR<BudgetAlertCreateWithoutBudgetInput, BudgetAlertUncheckedCreateWithoutBudgetInput> | BudgetAlertCreateWithoutBudgetInput[] | BudgetAlertUncheckedCreateWithoutBudgetInput[]
+    connectOrCreate?: BudgetAlertCreateOrConnectWithoutBudgetInput | BudgetAlertCreateOrConnectWithoutBudgetInput[]
+    createMany?: BudgetAlertCreateManyBudgetInputEnvelope
+    connect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+  }
+
+  export type BudgetAlertUncheckedCreateNestedManyWithoutBudgetInput = {
+    create?: XOR<BudgetAlertCreateWithoutBudgetInput, BudgetAlertUncheckedCreateWithoutBudgetInput> | BudgetAlertCreateWithoutBudgetInput[] | BudgetAlertUncheckedCreateWithoutBudgetInput[]
+    connectOrCreate?: BudgetAlertCreateOrConnectWithoutBudgetInput | BudgetAlertCreateOrConnectWithoutBudgetInput[]
+    createMany?: BudgetAlertCreateManyBudgetInputEnvelope
+    connect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+  }
+
   export type EnumBudgetPeriodFieldUpdateOperationsInput = {
     set?: $Enums.BudgetPeriod
   }
@@ -11265,6 +14701,34 @@ export namespace Prisma {
     upsert?: UserUpsertWithoutBudgetsInput
     connect?: UserWhereUniqueInput
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutBudgetsInput, UserUpdateWithoutBudgetsInput>, UserUncheckedUpdateWithoutBudgetsInput>
+  }
+
+  export type BudgetAlertUpdateManyWithoutBudgetNestedInput = {
+    create?: XOR<BudgetAlertCreateWithoutBudgetInput, BudgetAlertUncheckedCreateWithoutBudgetInput> | BudgetAlertCreateWithoutBudgetInput[] | BudgetAlertUncheckedCreateWithoutBudgetInput[]
+    connectOrCreate?: BudgetAlertCreateOrConnectWithoutBudgetInput | BudgetAlertCreateOrConnectWithoutBudgetInput[]
+    upsert?: BudgetAlertUpsertWithWhereUniqueWithoutBudgetInput | BudgetAlertUpsertWithWhereUniqueWithoutBudgetInput[]
+    createMany?: BudgetAlertCreateManyBudgetInputEnvelope
+    set?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    disconnect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    delete?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    connect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    update?: BudgetAlertUpdateWithWhereUniqueWithoutBudgetInput | BudgetAlertUpdateWithWhereUniqueWithoutBudgetInput[]
+    updateMany?: BudgetAlertUpdateManyWithWhereWithoutBudgetInput | BudgetAlertUpdateManyWithWhereWithoutBudgetInput[]
+    deleteMany?: BudgetAlertScalarWhereInput | BudgetAlertScalarWhereInput[]
+  }
+
+  export type BudgetAlertUncheckedUpdateManyWithoutBudgetNestedInput = {
+    create?: XOR<BudgetAlertCreateWithoutBudgetInput, BudgetAlertUncheckedCreateWithoutBudgetInput> | BudgetAlertCreateWithoutBudgetInput[] | BudgetAlertUncheckedCreateWithoutBudgetInput[]
+    connectOrCreate?: BudgetAlertCreateOrConnectWithoutBudgetInput | BudgetAlertCreateOrConnectWithoutBudgetInput[]
+    upsert?: BudgetAlertUpsertWithWhereUniqueWithoutBudgetInput | BudgetAlertUpsertWithWhereUniqueWithoutBudgetInput[]
+    createMany?: BudgetAlertCreateManyBudgetInputEnvelope
+    set?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    disconnect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    delete?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    connect?: BudgetAlertWhereUniqueInput | BudgetAlertWhereUniqueInput[]
+    update?: BudgetAlertUpdateWithWhereUniqueWithoutBudgetInput | BudgetAlertUpdateWithWhereUniqueWithoutBudgetInput[]
+    updateMany?: BudgetAlertUpdateManyWithWhereWithoutBudgetInput | BudgetAlertUpdateManyWithWhereWithoutBudgetInput[]
+    deleteMany?: BudgetAlertScalarWhereInput | BudgetAlertScalarWhereInput[]
   }
 
   export type UserCreateNestedOneWithoutSavingsGoalsInput = {
@@ -11279,6 +14743,108 @@ export namespace Prisma {
     upsert?: UserUpsertWithoutSavingsGoalsInput
     connect?: UserWhereUniqueInput
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutSavingsGoalsInput, UserUpdateWithoutSavingsGoalsInput>, UserUncheckedUpdateWithoutSavingsGoalsInput>
+  }
+
+  export type UserCreateNestedOneWithoutBudgetAlertsInput = {
+    create?: XOR<UserCreateWithoutBudgetAlertsInput, UserUncheckedCreateWithoutBudgetAlertsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutBudgetAlertsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type BudgetCreateNestedOneWithoutBudgetAlertsInput = {
+    create?: XOR<BudgetCreateWithoutBudgetAlertsInput, BudgetUncheckedCreateWithoutBudgetAlertsInput>
+    connectOrCreate?: BudgetCreateOrConnectWithoutBudgetAlertsInput
+    connect?: BudgetWhereUniqueInput
+  }
+
+  export type BudgetAlertNotificationCreateNestedManyWithoutAlertInput = {
+    create?: XOR<BudgetAlertNotificationCreateWithoutAlertInput, BudgetAlertNotificationUncheckedCreateWithoutAlertInput> | BudgetAlertNotificationCreateWithoutAlertInput[] | BudgetAlertNotificationUncheckedCreateWithoutAlertInput[]
+    connectOrCreate?: BudgetAlertNotificationCreateOrConnectWithoutAlertInput | BudgetAlertNotificationCreateOrConnectWithoutAlertInput[]
+    createMany?: BudgetAlertNotificationCreateManyAlertInputEnvelope
+    connect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+  }
+
+  export type BudgetAlertNotificationUncheckedCreateNestedManyWithoutAlertInput = {
+    create?: XOR<BudgetAlertNotificationCreateWithoutAlertInput, BudgetAlertNotificationUncheckedCreateWithoutAlertInput> | BudgetAlertNotificationCreateWithoutAlertInput[] | BudgetAlertNotificationUncheckedCreateWithoutAlertInput[]
+    connectOrCreate?: BudgetAlertNotificationCreateOrConnectWithoutAlertInput | BudgetAlertNotificationCreateOrConnectWithoutAlertInput[]
+    createMany?: BudgetAlertNotificationCreateManyAlertInputEnvelope
+    connect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+  }
+
+  export type EnumAlertTypeFieldUpdateOperationsInput = {
+    set?: $Enums.AlertType
+  }
+
+  export type UserUpdateOneRequiredWithoutBudgetAlertsNestedInput = {
+    create?: XOR<UserCreateWithoutBudgetAlertsInput, UserUncheckedCreateWithoutBudgetAlertsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutBudgetAlertsInput
+    upsert?: UserUpsertWithoutBudgetAlertsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutBudgetAlertsInput, UserUpdateWithoutBudgetAlertsInput>, UserUncheckedUpdateWithoutBudgetAlertsInput>
+  }
+
+  export type BudgetUpdateOneRequiredWithoutBudgetAlertsNestedInput = {
+    create?: XOR<BudgetCreateWithoutBudgetAlertsInput, BudgetUncheckedCreateWithoutBudgetAlertsInput>
+    connectOrCreate?: BudgetCreateOrConnectWithoutBudgetAlertsInput
+    upsert?: BudgetUpsertWithoutBudgetAlertsInput
+    connect?: BudgetWhereUniqueInput
+    update?: XOR<XOR<BudgetUpdateToOneWithWhereWithoutBudgetAlertsInput, BudgetUpdateWithoutBudgetAlertsInput>, BudgetUncheckedUpdateWithoutBudgetAlertsInput>
+  }
+
+  export type BudgetAlertNotificationUpdateManyWithoutAlertNestedInput = {
+    create?: XOR<BudgetAlertNotificationCreateWithoutAlertInput, BudgetAlertNotificationUncheckedCreateWithoutAlertInput> | BudgetAlertNotificationCreateWithoutAlertInput[] | BudgetAlertNotificationUncheckedCreateWithoutAlertInput[]
+    connectOrCreate?: BudgetAlertNotificationCreateOrConnectWithoutAlertInput | BudgetAlertNotificationCreateOrConnectWithoutAlertInput[]
+    upsert?: BudgetAlertNotificationUpsertWithWhereUniqueWithoutAlertInput | BudgetAlertNotificationUpsertWithWhereUniqueWithoutAlertInput[]
+    createMany?: BudgetAlertNotificationCreateManyAlertInputEnvelope
+    set?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    disconnect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    delete?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    connect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    update?: BudgetAlertNotificationUpdateWithWhereUniqueWithoutAlertInput | BudgetAlertNotificationUpdateWithWhereUniqueWithoutAlertInput[]
+    updateMany?: BudgetAlertNotificationUpdateManyWithWhereWithoutAlertInput | BudgetAlertNotificationUpdateManyWithWhereWithoutAlertInput[]
+    deleteMany?: BudgetAlertNotificationScalarWhereInput | BudgetAlertNotificationScalarWhereInput[]
+  }
+
+  export type BudgetAlertNotificationUncheckedUpdateManyWithoutAlertNestedInput = {
+    create?: XOR<BudgetAlertNotificationCreateWithoutAlertInput, BudgetAlertNotificationUncheckedCreateWithoutAlertInput> | BudgetAlertNotificationCreateWithoutAlertInput[] | BudgetAlertNotificationUncheckedCreateWithoutAlertInput[]
+    connectOrCreate?: BudgetAlertNotificationCreateOrConnectWithoutAlertInput | BudgetAlertNotificationCreateOrConnectWithoutAlertInput[]
+    upsert?: BudgetAlertNotificationUpsertWithWhereUniqueWithoutAlertInput | BudgetAlertNotificationUpsertWithWhereUniqueWithoutAlertInput[]
+    createMany?: BudgetAlertNotificationCreateManyAlertInputEnvelope
+    set?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    disconnect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    delete?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    connect?: BudgetAlertNotificationWhereUniqueInput | BudgetAlertNotificationWhereUniqueInput[]
+    update?: BudgetAlertNotificationUpdateWithWhereUniqueWithoutAlertInput | BudgetAlertNotificationUpdateWithWhereUniqueWithoutAlertInput[]
+    updateMany?: BudgetAlertNotificationUpdateManyWithWhereWithoutAlertInput | BudgetAlertNotificationUpdateManyWithWhereWithoutAlertInput[]
+    deleteMany?: BudgetAlertNotificationScalarWhereInput | BudgetAlertNotificationScalarWhereInput[]
+  }
+
+  export type BudgetAlertCreateNestedOneWithoutNotificationsInput = {
+    create?: XOR<BudgetAlertCreateWithoutNotificationsInput, BudgetAlertUncheckedCreateWithoutNotificationsInput>
+    connectOrCreate?: BudgetAlertCreateOrConnectWithoutNotificationsInput
+    connect?: BudgetAlertWhereUniqueInput
+  }
+
+  export type UserCreateNestedOneWithoutBudgetAlertNotificationsInput = {
+    create?: XOR<UserCreateWithoutBudgetAlertNotificationsInput, UserUncheckedCreateWithoutBudgetAlertNotificationsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutBudgetAlertNotificationsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type BudgetAlertUpdateOneRequiredWithoutNotificationsNestedInput = {
+    create?: XOR<BudgetAlertCreateWithoutNotificationsInput, BudgetAlertUncheckedCreateWithoutNotificationsInput>
+    connectOrCreate?: BudgetAlertCreateOrConnectWithoutNotificationsInput
+    upsert?: BudgetAlertUpsertWithoutNotificationsInput
+    connect?: BudgetAlertWhereUniqueInput
+    update?: XOR<XOR<BudgetAlertUpdateToOneWithWhereWithoutNotificationsInput, BudgetAlertUpdateWithoutNotificationsInput>, BudgetAlertUncheckedUpdateWithoutNotificationsInput>
+  }
+
+  export type UserUpdateOneRequiredWithoutBudgetAlertNotificationsNestedInput = {
+    create?: XOR<UserCreateWithoutBudgetAlertNotificationsInput, UserUncheckedCreateWithoutBudgetAlertNotificationsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutBudgetAlertNotificationsInput
+    upsert?: UserUpsertWithoutBudgetAlertNotificationsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutBudgetAlertNotificationsInput, UserUpdateWithoutBudgetAlertNotificationsInput>, UserUncheckedUpdateWithoutBudgetAlertNotificationsInput>
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -11532,6 +15098,23 @@ export namespace Prisma {
     _max?: NestedEnumBudgetPeriodFilter<$PrismaModel>
   }
 
+  export type NestedEnumAlertTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.AlertType | EnumAlertTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.AlertType[] | ListEnumAlertTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AlertType[] | ListEnumAlertTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumAlertTypeFilter<$PrismaModel> | $Enums.AlertType
+  }
+
+  export type NestedEnumAlertTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.AlertType | EnumAlertTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.AlertType[] | ListEnumAlertTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AlertType[] | ListEnumAlertTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumAlertTypeWithAggregatesFilter<$PrismaModel> | $Enums.AlertType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumAlertTypeFilter<$PrismaModel>
+    _max?: NestedEnumAlertTypeFilter<$PrismaModel>
+  }
+
   export type AccountCreateWithoutUserInput = {
     id?: string
     plaidAccountId: string
@@ -11639,6 +15222,7 @@ export namespace Prisma {
     isActive?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
+    budgetAlerts?: BudgetAlertCreateNestedManyWithoutBudgetInput
   }
 
   export type BudgetUncheckedCreateWithoutUserInput = {
@@ -11652,6 +15236,7 @@ export namespace Prisma {
     isActive?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
+    budgetAlerts?: BudgetAlertUncheckedCreateNestedManyWithoutBudgetInput
   }
 
   export type BudgetCreateOrConnectWithoutUserInput = {
@@ -11729,6 +15314,78 @@ export namespace Prisma {
 
   export type UserCategoryRuleCreateManyUserInputEnvelope = {
     data: UserCategoryRuleCreateManyUserInput | UserCategoryRuleCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type BudgetAlertCreateWithoutUserInput = {
+    id?: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    budget: BudgetCreateNestedOneWithoutBudgetAlertsInput
+    notifications?: BudgetAlertNotificationCreateNestedManyWithoutAlertInput
+  }
+
+  export type BudgetAlertUncheckedCreateWithoutUserInput = {
+    id?: string
+    budgetId: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    notifications?: BudgetAlertNotificationUncheckedCreateNestedManyWithoutAlertInput
+  }
+
+  export type BudgetAlertCreateOrConnectWithoutUserInput = {
+    where: BudgetAlertWhereUniqueInput
+    create: XOR<BudgetAlertCreateWithoutUserInput, BudgetAlertUncheckedCreateWithoutUserInput>
+  }
+
+  export type BudgetAlertCreateManyUserInputEnvelope = {
+    data: BudgetAlertCreateManyUserInput | BudgetAlertCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type BudgetAlertNotificationCreateWithoutUserInput = {
+    id?: string
+    budgetName: string
+    category: string
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt?: Date | string
+    emailSent?: boolean
+    emailSentAt?: Date | string | null
+    alert: BudgetAlertCreateNestedOneWithoutNotificationsInput
+  }
+
+  export type BudgetAlertNotificationUncheckedCreateWithoutUserInput = {
+    id?: string
+    alertId: string
+    budgetName: string
+    category: string
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt?: Date | string
+    emailSent?: boolean
+    emailSentAt?: Date | string | null
+  }
+
+  export type BudgetAlertNotificationCreateOrConnectWithoutUserInput = {
+    where: BudgetAlertNotificationWhereUniqueInput
+    create: XOR<BudgetAlertNotificationCreateWithoutUserInput, BudgetAlertNotificationUncheckedCreateWithoutUserInput>
+  }
+
+  export type BudgetAlertNotificationCreateManyUserInputEnvelope = {
+    data: BudgetAlertNotificationCreateManyUserInput | BudgetAlertNotificationCreateManyUserInput[]
     skipDuplicates?: boolean
   }
 
@@ -11906,6 +15563,71 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"UserCategoryRule"> | Date | string
   }
 
+  export type BudgetAlertUpsertWithWhereUniqueWithoutUserInput = {
+    where: BudgetAlertWhereUniqueInput
+    update: XOR<BudgetAlertUpdateWithoutUserInput, BudgetAlertUncheckedUpdateWithoutUserInput>
+    create: XOR<BudgetAlertCreateWithoutUserInput, BudgetAlertUncheckedCreateWithoutUserInput>
+  }
+
+  export type BudgetAlertUpdateWithWhereUniqueWithoutUserInput = {
+    where: BudgetAlertWhereUniqueInput
+    data: XOR<BudgetAlertUpdateWithoutUserInput, BudgetAlertUncheckedUpdateWithoutUserInput>
+  }
+
+  export type BudgetAlertUpdateManyWithWhereWithoutUserInput = {
+    where: BudgetAlertScalarWhereInput
+    data: XOR<BudgetAlertUpdateManyMutationInput, BudgetAlertUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type BudgetAlertScalarWhereInput = {
+    AND?: BudgetAlertScalarWhereInput | BudgetAlertScalarWhereInput[]
+    OR?: BudgetAlertScalarWhereInput[]
+    NOT?: BudgetAlertScalarWhereInput | BudgetAlertScalarWhereInput[]
+    id?: StringFilter<"BudgetAlert"> | string
+    userId?: StringFilter<"BudgetAlert"> | string
+    budgetId?: StringFilter<"BudgetAlert"> | string
+    thresholdPercent?: FloatFilter<"BudgetAlert"> | number
+    alertType?: EnumAlertTypeFilter<"BudgetAlert"> | $Enums.AlertType
+    isEnabled?: BoolFilter<"BudgetAlert"> | boolean
+    emailEnabled?: BoolFilter<"BudgetAlert"> | boolean
+    createdAt?: DateTimeFilter<"BudgetAlert"> | Date | string
+    updatedAt?: DateTimeFilter<"BudgetAlert"> | Date | string
+  }
+
+  export type BudgetAlertNotificationUpsertWithWhereUniqueWithoutUserInput = {
+    where: BudgetAlertNotificationWhereUniqueInput
+    update: XOR<BudgetAlertNotificationUpdateWithoutUserInput, BudgetAlertNotificationUncheckedUpdateWithoutUserInput>
+    create: XOR<BudgetAlertNotificationCreateWithoutUserInput, BudgetAlertNotificationUncheckedCreateWithoutUserInput>
+  }
+
+  export type BudgetAlertNotificationUpdateWithWhereUniqueWithoutUserInput = {
+    where: BudgetAlertNotificationWhereUniqueInput
+    data: XOR<BudgetAlertNotificationUpdateWithoutUserInput, BudgetAlertNotificationUncheckedUpdateWithoutUserInput>
+  }
+
+  export type BudgetAlertNotificationUpdateManyWithWhereWithoutUserInput = {
+    where: BudgetAlertNotificationScalarWhereInput
+    data: XOR<BudgetAlertNotificationUpdateManyMutationInput, BudgetAlertNotificationUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type BudgetAlertNotificationScalarWhereInput = {
+    AND?: BudgetAlertNotificationScalarWhereInput | BudgetAlertNotificationScalarWhereInput[]
+    OR?: BudgetAlertNotificationScalarWhereInput[]
+    NOT?: BudgetAlertNotificationScalarWhereInput | BudgetAlertNotificationScalarWhereInput[]
+    id?: StringFilter<"BudgetAlertNotification"> | string
+    alertId?: StringFilter<"BudgetAlertNotification"> | string
+    userId?: StringFilter<"BudgetAlertNotification"> | string
+    budgetName?: StringFilter<"BudgetAlertNotification"> | string
+    category?: StringFilter<"BudgetAlertNotification"> | string
+    thresholdPercent?: FloatFilter<"BudgetAlertNotification"> | number
+    currentPercent?: FloatFilter<"BudgetAlertNotification"> | number
+    spent?: FloatFilter<"BudgetAlertNotification"> | number
+    budgetAmount?: FloatFilter<"BudgetAlertNotification"> | number
+    sentAt?: DateTimeFilter<"BudgetAlertNotification"> | Date | string
+    emailSent?: BoolFilter<"BudgetAlertNotification"> | boolean
+    emailSentAt?: DateTimeNullableFilter<"BudgetAlertNotification"> | Date | string | null
+  }
+
   export type UserCreateWithoutUserCategoryRulesInput = {
     id?: string
     email: string
@@ -11923,6 +15645,8 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutUserInput
     budgets?: BudgetCreateNestedManyWithoutUserInput
     savingsGoals?: SavingsGoalCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutUserCategoryRulesInput = {
@@ -11942,6 +15666,8 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
     budgets?: BudgetUncheckedCreateNestedManyWithoutUserInput
     savingsGoals?: SavingsGoalUncheckedCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertUncheckedCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutUserCategoryRulesInput = {
@@ -11977,6 +15703,8 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutUserNestedInput
     budgets?: BudgetUpdateManyWithoutUserNestedInput
     savingsGoals?: SavingsGoalUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutUserCategoryRulesInput = {
@@ -11996,6 +15724,8 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
     budgets?: BudgetUncheckedUpdateManyWithoutUserNestedInput
     savingsGoals?: SavingsGoalUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateWithoutAccountsInput = {
@@ -12015,6 +15745,8 @@ export namespace Prisma {
     budgets?: BudgetCreateNestedManyWithoutUserInput
     savingsGoals?: SavingsGoalCreateNestedManyWithoutUserInput
     userCategoryRules?: UserCategoryRuleCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutAccountsInput = {
@@ -12034,6 +15766,8 @@ export namespace Prisma {
     budgets?: BudgetUncheckedCreateNestedManyWithoutUserInput
     savingsGoals?: SavingsGoalUncheckedCreateNestedManyWithoutUserInput
     userCategoryRules?: UserCategoryRuleUncheckedCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertUncheckedCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutAccountsInput = {
@@ -12121,6 +15855,8 @@ export namespace Prisma {
     budgets?: BudgetUpdateManyWithoutUserNestedInput
     savingsGoals?: SavingsGoalUpdateManyWithoutUserNestedInput
     userCategoryRules?: UserCategoryRuleUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAccountsInput = {
@@ -12140,6 +15876,8 @@ export namespace Prisma {
     budgets?: BudgetUncheckedUpdateManyWithoutUserNestedInput
     savingsGoals?: SavingsGoalUncheckedUpdateManyWithoutUserNestedInput
     userCategoryRules?: UserCategoryRuleUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type TransactionUpsertWithWhereUniqueWithoutAccountInput = {
@@ -12175,6 +15913,8 @@ export namespace Prisma {
     budgets?: BudgetCreateNestedManyWithoutUserInput
     savingsGoals?: SavingsGoalCreateNestedManyWithoutUserInput
     userCategoryRules?: UserCategoryRuleCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutTransactionsInput = {
@@ -12194,6 +15934,8 @@ export namespace Prisma {
     budgets?: BudgetUncheckedCreateNestedManyWithoutUserInput
     savingsGoals?: SavingsGoalUncheckedCreateNestedManyWithoutUserInput
     userCategoryRules?: UserCategoryRuleUncheckedCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertUncheckedCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutTransactionsInput = {
@@ -12268,6 +16010,8 @@ export namespace Prisma {
     budgets?: BudgetUpdateManyWithoutUserNestedInput
     savingsGoals?: SavingsGoalUpdateManyWithoutUserNestedInput
     userCategoryRules?: UserCategoryRuleUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutTransactionsInput = {
@@ -12287,6 +16031,8 @@ export namespace Prisma {
     budgets?: BudgetUncheckedUpdateManyWithoutUserNestedInput
     savingsGoals?: SavingsGoalUncheckedUpdateManyWithoutUserNestedInput
     userCategoryRules?: UserCategoryRuleUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type AccountUpsertWithoutTransactionsInput = {
@@ -12351,6 +16097,8 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutUserInput
     savingsGoals?: SavingsGoalCreateNestedManyWithoutUserInput
     userCategoryRules?: UserCategoryRuleCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutBudgetsInput = {
@@ -12370,11 +16118,47 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
     savingsGoals?: SavingsGoalUncheckedCreateNestedManyWithoutUserInput
     userCategoryRules?: UserCategoryRuleUncheckedCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertUncheckedCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutBudgetsInput = {
     where: UserWhereUniqueInput
     create: XOR<UserCreateWithoutBudgetsInput, UserUncheckedCreateWithoutBudgetsInput>
+  }
+
+  export type BudgetAlertCreateWithoutBudgetInput = {
+    id?: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutBudgetAlertsInput
+    notifications?: BudgetAlertNotificationCreateNestedManyWithoutAlertInput
+  }
+
+  export type BudgetAlertUncheckedCreateWithoutBudgetInput = {
+    id?: string
+    userId: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    notifications?: BudgetAlertNotificationUncheckedCreateNestedManyWithoutAlertInput
+  }
+
+  export type BudgetAlertCreateOrConnectWithoutBudgetInput = {
+    where: BudgetAlertWhereUniqueInput
+    create: XOR<BudgetAlertCreateWithoutBudgetInput, BudgetAlertUncheckedCreateWithoutBudgetInput>
+  }
+
+  export type BudgetAlertCreateManyBudgetInputEnvelope = {
+    data: BudgetAlertCreateManyBudgetInput | BudgetAlertCreateManyBudgetInput[]
+    skipDuplicates?: boolean
   }
 
   export type UserUpsertWithoutBudgetsInput = {
@@ -12405,6 +16189,8 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutUserNestedInput
     savingsGoals?: SavingsGoalUpdateManyWithoutUserNestedInput
     userCategoryRules?: UserCategoryRuleUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutBudgetsInput = {
@@ -12424,6 +16210,24 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
     savingsGoals?: SavingsGoalUncheckedUpdateManyWithoutUserNestedInput
     userCategoryRules?: UserCategoryRuleUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type BudgetAlertUpsertWithWhereUniqueWithoutBudgetInput = {
+    where: BudgetAlertWhereUniqueInput
+    update: XOR<BudgetAlertUpdateWithoutBudgetInput, BudgetAlertUncheckedUpdateWithoutBudgetInput>
+    create: XOR<BudgetAlertCreateWithoutBudgetInput, BudgetAlertUncheckedCreateWithoutBudgetInput>
+  }
+
+  export type BudgetAlertUpdateWithWhereUniqueWithoutBudgetInput = {
+    where: BudgetAlertWhereUniqueInput
+    data: XOR<BudgetAlertUpdateWithoutBudgetInput, BudgetAlertUncheckedUpdateWithoutBudgetInput>
+  }
+
+  export type BudgetAlertUpdateManyWithWhereWithoutBudgetInput = {
+    where: BudgetAlertScalarWhereInput
+    data: XOR<BudgetAlertUpdateManyMutationInput, BudgetAlertUncheckedUpdateManyWithoutBudgetInput>
   }
 
   export type UserCreateWithoutSavingsGoalsInput = {
@@ -12443,6 +16247,8 @@ export namespace Prisma {
     transactions?: TransactionCreateNestedManyWithoutUserInput
     budgets?: BudgetCreateNestedManyWithoutUserInput
     userCategoryRules?: UserCategoryRuleCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutSavingsGoalsInput = {
@@ -12462,6 +16268,8 @@ export namespace Prisma {
     transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
     budgets?: BudgetUncheckedCreateNestedManyWithoutUserInput
     userCategoryRules?: UserCategoryRuleUncheckedCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertUncheckedCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutSavingsGoalsInput = {
@@ -12497,6 +16305,8 @@ export namespace Prisma {
     transactions?: TransactionUpdateManyWithoutUserNestedInput
     budgets?: BudgetUpdateManyWithoutUserNestedInput
     userCategoryRules?: UserCategoryRuleUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutSavingsGoalsInput = {
@@ -12516,6 +16326,398 @@ export namespace Prisma {
     transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
     budgets?: BudgetUncheckedUpdateManyWithoutUserNestedInput
     userCategoryRules?: UserCategoryRuleUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserCreateWithoutBudgetAlertsInput = {
+    id?: string
+    email: string
+    fullName: string
+    passwordHash: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    plaidAccessToken?: string | null
+    plaidItemId?: string | null
+    plaidInstitutionId?: string | null
+    plaidInstitutionName?: string | null
+    lastSyncAt?: Date | string | null
+    syncStatus?: $Enums.SyncStatus
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    budgets?: BudgetCreateNestedManyWithoutUserInput
+    savingsGoals?: SavingsGoalCreateNestedManyWithoutUserInput
+    userCategoryRules?: UserCategoryRuleCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutBudgetAlertsInput = {
+    id?: string
+    email: string
+    fullName: string
+    passwordHash: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    plaidAccessToken?: string | null
+    plaidItemId?: string | null
+    plaidInstitutionId?: string | null
+    plaidInstitutionName?: string | null
+    lastSyncAt?: Date | string | null
+    syncStatus?: $Enums.SyncStatus
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    budgets?: BudgetUncheckedCreateNestedManyWithoutUserInput
+    savingsGoals?: SavingsGoalUncheckedCreateNestedManyWithoutUserInput
+    userCategoryRules?: UserCategoryRuleUncheckedCreateNestedManyWithoutUserInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutBudgetAlertsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutBudgetAlertsInput, UserUncheckedCreateWithoutBudgetAlertsInput>
+  }
+
+  export type BudgetCreateWithoutBudgetAlertsInput = {
+    id?: string
+    name: string
+    category: string
+    amount: number
+    period?: $Enums.BudgetPeriod
+    startDate: Date | string
+    endDate?: Date | string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutBudgetsInput
+  }
+
+  export type BudgetUncheckedCreateWithoutBudgetAlertsInput = {
+    id?: string
+    userId: string
+    name: string
+    category: string
+    amount: number
+    period?: $Enums.BudgetPeriod
+    startDate: Date | string
+    endDate?: Date | string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BudgetCreateOrConnectWithoutBudgetAlertsInput = {
+    where: BudgetWhereUniqueInput
+    create: XOR<BudgetCreateWithoutBudgetAlertsInput, BudgetUncheckedCreateWithoutBudgetAlertsInput>
+  }
+
+  export type BudgetAlertNotificationCreateWithoutAlertInput = {
+    id?: string
+    budgetName: string
+    category: string
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt?: Date | string
+    emailSent?: boolean
+    emailSentAt?: Date | string | null
+    user: UserCreateNestedOneWithoutBudgetAlertNotificationsInput
+  }
+
+  export type BudgetAlertNotificationUncheckedCreateWithoutAlertInput = {
+    id?: string
+    userId: string
+    budgetName: string
+    category: string
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt?: Date | string
+    emailSent?: boolean
+    emailSentAt?: Date | string | null
+  }
+
+  export type BudgetAlertNotificationCreateOrConnectWithoutAlertInput = {
+    where: BudgetAlertNotificationWhereUniqueInput
+    create: XOR<BudgetAlertNotificationCreateWithoutAlertInput, BudgetAlertNotificationUncheckedCreateWithoutAlertInput>
+  }
+
+  export type BudgetAlertNotificationCreateManyAlertInputEnvelope = {
+    data: BudgetAlertNotificationCreateManyAlertInput | BudgetAlertNotificationCreateManyAlertInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type UserUpsertWithoutBudgetAlertsInput = {
+    update: XOR<UserUpdateWithoutBudgetAlertsInput, UserUncheckedUpdateWithoutBudgetAlertsInput>
+    create: XOR<UserCreateWithoutBudgetAlertsInput, UserUncheckedCreateWithoutBudgetAlertsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutBudgetAlertsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutBudgetAlertsInput, UserUncheckedUpdateWithoutBudgetAlertsInput>
+  }
+
+  export type UserUpdateWithoutBudgetAlertsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    fullName?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    plaidAccessToken?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidItemId?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidInstitutionId?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidInstitutionName?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    syncStatus?: EnumSyncStatusFieldUpdateOperationsInput | $Enums.SyncStatus
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    budgets?: BudgetUpdateManyWithoutUserNestedInput
+    savingsGoals?: SavingsGoalUpdateManyWithoutUserNestedInput
+    userCategoryRules?: UserCategoryRuleUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutBudgetAlertsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    fullName?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    plaidAccessToken?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidItemId?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidInstitutionId?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidInstitutionName?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    syncStatus?: EnumSyncStatusFieldUpdateOperationsInput | $Enums.SyncStatus
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    budgets?: BudgetUncheckedUpdateManyWithoutUserNestedInput
+    savingsGoals?: SavingsGoalUncheckedUpdateManyWithoutUserNestedInput
+    userCategoryRules?: UserCategoryRuleUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlertNotifications?: BudgetAlertNotificationUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type BudgetUpsertWithoutBudgetAlertsInput = {
+    update: XOR<BudgetUpdateWithoutBudgetAlertsInput, BudgetUncheckedUpdateWithoutBudgetAlertsInput>
+    create: XOR<BudgetCreateWithoutBudgetAlertsInput, BudgetUncheckedCreateWithoutBudgetAlertsInput>
+    where?: BudgetWhereInput
+  }
+
+  export type BudgetUpdateToOneWithWhereWithoutBudgetAlertsInput = {
+    where?: BudgetWhereInput
+    data: XOR<BudgetUpdateWithoutBudgetAlertsInput, BudgetUncheckedUpdateWithoutBudgetAlertsInput>
+  }
+
+  export type BudgetUpdateWithoutBudgetAlertsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    amount?: FloatFieldUpdateOperationsInput | number
+    period?: EnumBudgetPeriodFieldUpdateOperationsInput | $Enums.BudgetPeriod
+    startDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    endDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutBudgetsNestedInput
+  }
+
+  export type BudgetUncheckedUpdateWithoutBudgetAlertsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    amount?: FloatFieldUpdateOperationsInput | number
+    period?: EnumBudgetPeriodFieldUpdateOperationsInput | $Enums.BudgetPeriod
+    startDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    endDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BudgetAlertNotificationUpsertWithWhereUniqueWithoutAlertInput = {
+    where: BudgetAlertNotificationWhereUniqueInput
+    update: XOR<BudgetAlertNotificationUpdateWithoutAlertInput, BudgetAlertNotificationUncheckedUpdateWithoutAlertInput>
+    create: XOR<BudgetAlertNotificationCreateWithoutAlertInput, BudgetAlertNotificationUncheckedCreateWithoutAlertInput>
+  }
+
+  export type BudgetAlertNotificationUpdateWithWhereUniqueWithoutAlertInput = {
+    where: BudgetAlertNotificationWhereUniqueInput
+    data: XOR<BudgetAlertNotificationUpdateWithoutAlertInput, BudgetAlertNotificationUncheckedUpdateWithoutAlertInput>
+  }
+
+  export type BudgetAlertNotificationUpdateManyWithWhereWithoutAlertInput = {
+    where: BudgetAlertNotificationScalarWhereInput
+    data: XOR<BudgetAlertNotificationUpdateManyMutationInput, BudgetAlertNotificationUncheckedUpdateManyWithoutAlertInput>
+  }
+
+  export type BudgetAlertCreateWithoutNotificationsInput = {
+    id?: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutBudgetAlertsInput
+    budget: BudgetCreateNestedOneWithoutBudgetAlertsInput
+  }
+
+  export type BudgetAlertUncheckedCreateWithoutNotificationsInput = {
+    id?: string
+    userId: string
+    budgetId: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BudgetAlertCreateOrConnectWithoutNotificationsInput = {
+    where: BudgetAlertWhereUniqueInput
+    create: XOR<BudgetAlertCreateWithoutNotificationsInput, BudgetAlertUncheckedCreateWithoutNotificationsInput>
+  }
+
+  export type UserCreateWithoutBudgetAlertNotificationsInput = {
+    id?: string
+    email: string
+    fullName: string
+    passwordHash: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    plaidAccessToken?: string | null
+    plaidItemId?: string | null
+    plaidInstitutionId?: string | null
+    plaidInstitutionName?: string | null
+    lastSyncAt?: Date | string | null
+    syncStatus?: $Enums.SyncStatus
+    accounts?: AccountCreateNestedManyWithoutUserInput
+    transactions?: TransactionCreateNestedManyWithoutUserInput
+    budgets?: BudgetCreateNestedManyWithoutUserInput
+    savingsGoals?: SavingsGoalCreateNestedManyWithoutUserInput
+    userCategoryRules?: UserCategoryRuleCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutBudgetAlertNotificationsInput = {
+    id?: string
+    email: string
+    fullName: string
+    passwordHash: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    plaidAccessToken?: string | null
+    plaidItemId?: string | null
+    plaidInstitutionId?: string | null
+    plaidInstitutionName?: string | null
+    lastSyncAt?: Date | string | null
+    syncStatus?: $Enums.SyncStatus
+    accounts?: AccountUncheckedCreateNestedManyWithoutUserInput
+    transactions?: TransactionUncheckedCreateNestedManyWithoutUserInput
+    budgets?: BudgetUncheckedCreateNestedManyWithoutUserInput
+    savingsGoals?: SavingsGoalUncheckedCreateNestedManyWithoutUserInput
+    userCategoryRules?: UserCategoryRuleUncheckedCreateNestedManyWithoutUserInput
+    budgetAlerts?: BudgetAlertUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutBudgetAlertNotificationsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutBudgetAlertNotificationsInput, UserUncheckedCreateWithoutBudgetAlertNotificationsInput>
+  }
+
+  export type BudgetAlertUpsertWithoutNotificationsInput = {
+    update: XOR<BudgetAlertUpdateWithoutNotificationsInput, BudgetAlertUncheckedUpdateWithoutNotificationsInput>
+    create: XOR<BudgetAlertCreateWithoutNotificationsInput, BudgetAlertUncheckedCreateWithoutNotificationsInput>
+    where?: BudgetAlertWhereInput
+  }
+
+  export type BudgetAlertUpdateToOneWithWhereWithoutNotificationsInput = {
+    where?: BudgetAlertWhereInput
+    data: XOR<BudgetAlertUpdateWithoutNotificationsInput, BudgetAlertUncheckedUpdateWithoutNotificationsInput>
+  }
+
+  export type BudgetAlertUpdateWithoutNotificationsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutBudgetAlertsNestedInput
+    budget?: BudgetUpdateOneRequiredWithoutBudgetAlertsNestedInput
+  }
+
+  export type BudgetAlertUncheckedUpdateWithoutNotificationsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    budgetId?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UserUpsertWithoutBudgetAlertNotificationsInput = {
+    update: XOR<UserUpdateWithoutBudgetAlertNotificationsInput, UserUncheckedUpdateWithoutBudgetAlertNotificationsInput>
+    create: XOR<UserCreateWithoutBudgetAlertNotificationsInput, UserUncheckedCreateWithoutBudgetAlertNotificationsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutBudgetAlertNotificationsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutBudgetAlertNotificationsInput, UserUncheckedUpdateWithoutBudgetAlertNotificationsInput>
+  }
+
+  export type UserUpdateWithoutBudgetAlertNotificationsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    fullName?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    plaidAccessToken?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidItemId?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidInstitutionId?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidInstitutionName?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    syncStatus?: EnumSyncStatusFieldUpdateOperationsInput | $Enums.SyncStatus
+    accounts?: AccountUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUpdateManyWithoutUserNestedInput
+    budgets?: BudgetUpdateManyWithoutUserNestedInput
+    savingsGoals?: SavingsGoalUpdateManyWithoutUserNestedInput
+    userCategoryRules?: UserCategoryRuleUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutBudgetAlertNotificationsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    fullName?: StringFieldUpdateOperationsInput | string
+    passwordHash?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    plaidAccessToken?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidItemId?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidInstitutionId?: NullableStringFieldUpdateOperationsInput | string | null
+    plaidInstitutionName?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    syncStatus?: EnumSyncStatusFieldUpdateOperationsInput | $Enums.SyncStatus
+    accounts?: AccountUncheckedUpdateManyWithoutUserNestedInput
+    transactions?: TransactionUncheckedUpdateManyWithoutUserNestedInput
+    budgets?: BudgetUncheckedUpdateManyWithoutUserNestedInput
+    savingsGoals?: SavingsGoalUncheckedUpdateManyWithoutUserNestedInput
+    userCategoryRules?: UserCategoryRuleUncheckedUpdateManyWithoutUserNestedInput
+    budgetAlerts?: BudgetAlertUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type AccountCreateManyUserInput = {
@@ -12590,6 +16792,31 @@ export namespace Prisma {
     priority?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+  }
+
+  export type BudgetAlertCreateManyUserInput = {
+    id?: string
+    budgetId: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BudgetAlertNotificationCreateManyUserInput = {
+    id?: string
+    alertId: string
+    budgetName: string
+    category: string
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt?: Date | string
+    emailSent?: boolean
+    emailSentAt?: Date | string | null
   }
 
   export type AccountUpdateWithoutUserInput = {
@@ -12716,6 +16943,7 @@ export namespace Prisma {
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    budgetAlerts?: BudgetAlertUpdateManyWithoutBudgetNestedInput
   }
 
   export type BudgetUncheckedUpdateWithoutUserInput = {
@@ -12729,6 +16957,7 @@ export namespace Prisma {
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    budgetAlerts?: BudgetAlertUncheckedUpdateManyWithoutBudgetNestedInput
   }
 
   export type BudgetUncheckedUpdateManyWithoutUserInput = {
@@ -12816,6 +17045,83 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type BudgetAlertUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    budget?: BudgetUpdateOneRequiredWithoutBudgetAlertsNestedInput
+    notifications?: BudgetAlertNotificationUpdateManyWithoutAlertNestedInput
+  }
+
+  export type BudgetAlertUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    budgetId?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    notifications?: BudgetAlertNotificationUncheckedUpdateManyWithoutAlertNestedInput
+  }
+
+  export type BudgetAlertUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    budgetId?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BudgetAlertNotificationUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    budgetName?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    currentPercent?: FloatFieldUpdateOperationsInput | number
+    spent?: FloatFieldUpdateOperationsInput | number
+    budgetAmount?: FloatFieldUpdateOperationsInput | number
+    sentAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    emailSent?: BoolFieldUpdateOperationsInput | boolean
+    emailSentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    alert?: BudgetAlertUpdateOneRequiredWithoutNotificationsNestedInput
+  }
+
+  export type BudgetAlertNotificationUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    alertId?: StringFieldUpdateOperationsInput | string
+    budgetName?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    currentPercent?: FloatFieldUpdateOperationsInput | number
+    spent?: FloatFieldUpdateOperationsInput | number
+    budgetAmount?: FloatFieldUpdateOperationsInput | number
+    sentAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    emailSent?: BoolFieldUpdateOperationsInput | boolean
+    emailSentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type BudgetAlertNotificationUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    alertId?: StringFieldUpdateOperationsInput | string
+    budgetName?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    currentPercent?: FloatFieldUpdateOperationsInput | number
+    spent?: FloatFieldUpdateOperationsInput | number
+    budgetAmount?: FloatFieldUpdateOperationsInput | number
+    sentAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    emailSent?: BoolFieldUpdateOperationsInput | boolean
+    emailSentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
   export type TransactionCreateManyAccountInput = {
     id?: string
     plaidTransactionId: string
@@ -12898,6 +17204,108 @@ export namespace Prisma {
     country?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BudgetAlertCreateManyBudgetInput = {
+    id?: string
+    userId: string
+    thresholdPercent: number
+    alertType?: $Enums.AlertType
+    isEnabled?: boolean
+    emailEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BudgetAlertUpdateWithoutBudgetInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutBudgetAlertsNestedInput
+    notifications?: BudgetAlertNotificationUpdateManyWithoutAlertNestedInput
+  }
+
+  export type BudgetAlertUncheckedUpdateWithoutBudgetInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    notifications?: BudgetAlertNotificationUncheckedUpdateManyWithoutAlertNestedInput
+  }
+
+  export type BudgetAlertUncheckedUpdateManyWithoutBudgetInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    alertType?: EnumAlertTypeFieldUpdateOperationsInput | $Enums.AlertType
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    emailEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BudgetAlertNotificationCreateManyAlertInput = {
+    id?: string
+    userId: string
+    budgetName: string
+    category: string
+    thresholdPercent: number
+    currentPercent: number
+    spent: number
+    budgetAmount: number
+    sentAt?: Date | string
+    emailSent?: boolean
+    emailSentAt?: Date | string | null
+  }
+
+  export type BudgetAlertNotificationUpdateWithoutAlertInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    budgetName?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    currentPercent?: FloatFieldUpdateOperationsInput | number
+    spent?: FloatFieldUpdateOperationsInput | number
+    budgetAmount?: FloatFieldUpdateOperationsInput | number
+    sentAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    emailSent?: BoolFieldUpdateOperationsInput | boolean
+    emailSentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    user?: UserUpdateOneRequiredWithoutBudgetAlertNotificationsNestedInput
+  }
+
+  export type BudgetAlertNotificationUncheckedUpdateWithoutAlertInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    budgetName?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    currentPercent?: FloatFieldUpdateOperationsInput | number
+    spent?: FloatFieldUpdateOperationsInput | number
+    budgetAmount?: FloatFieldUpdateOperationsInput | number
+    sentAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    emailSent?: BoolFieldUpdateOperationsInput | boolean
+    emailSentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type BudgetAlertNotificationUncheckedUpdateManyWithoutAlertInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    budgetName?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    thresholdPercent?: FloatFieldUpdateOperationsInput | number
+    currentPercent?: FloatFieldUpdateOperationsInput | number
+    spent?: FloatFieldUpdateOperationsInput | number
+    budgetAmount?: FloatFieldUpdateOperationsInput | number
+    sentAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    emailSent?: BoolFieldUpdateOperationsInput | boolean
+    emailSentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
 

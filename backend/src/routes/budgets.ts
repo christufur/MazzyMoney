@@ -2,9 +2,12 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/auth';
 import { BudgetSyncService } from '../services/budgetSyncService';
+import { BudgetAlertService } from '../services/budgetAlertService';
+import budgetAlertRouter from './budgetAlerts';
 
 const router = Router();
 router.use(authenticateToken);
+router.use('/:budgetId/alerts', budgetAlertRouter);
 
 // GET /api/budgets - Get all budgets with current spending
 router.get('/', async (req: Request, res: Response) => {
@@ -13,7 +16,10 @@ router.get('/', async (req: Request, res: Response) => {
     
     const budgets = await prisma.budget.findMany({
       where: { userId, isActive: true },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      include: {
+        budgetAlerts: true
+      }
     });
 
     // Calculate current spending for each budget
@@ -95,13 +101,16 @@ router.post('/', async (req: Request, res: Response) => {
       }
     });
 
+    await BudgetAlertService.ensureDefaultAlerts(budget);
+
     // Calculate initial spending
     const spending = await BudgetSyncService.calculateBudgetSpending(budget);
 
     res.status(201).json({ 
       budget: {
         ...budget,
-        ...spending
+        ...spending,
+        budgetAlerts: await prisma.budgetAlert.findMany({ where: { budgetId: budget.id } })
       }
     });
   } catch (error: any) {
@@ -118,7 +127,8 @@ router.put('/:id', async (req: Request, res: Response) => {
     const { name, category, amount, period, startDate, endDate } = req.body;
 
     const budget = await prisma.budget.findFirst({
-      where: { id, userId }
+      where: { id, userId },
+      include: { budgetAlerts: true }
     });
 
     if (!budget) {
@@ -148,11 +158,14 @@ router.put('/:id', async (req: Request, res: Response) => {
         startDate: newStartDate,
         endDate: endDate ? new Date(endDate) : newEndDate,
         updatedAt: new Date()
-      }
+      },
+      include: { budgetAlerts: true }
     });
 
     // Recalculate spending
     const spending = await BudgetSyncService.calculateBudgetSpending(updatedBudget);
+
+    await BudgetAlertService.evaluateBudgetAlerts(updatedBudget, spending);
 
     res.json({ 
       budget: {

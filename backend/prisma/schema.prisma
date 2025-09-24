@@ -30,6 +30,8 @@ model User {
   budgets           Budget[]
   savingsGoals      SavingsGoal[]
   userCategoryRules UserCategoryRule[]
+  budgetAlerts             BudgetAlert[]
+  budgetAlertNotifications BudgetAlertNotification[]
 
   @@map("users")
 }
@@ -138,6 +140,7 @@ model Budget {
 
   // Relationships
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetAlerts BudgetAlert[]
 
   @@map("budgets")
 }
@@ -174,4 +177,49 @@ enum BudgetPeriod {
   MONTHLY
   QUARTERLY
   YEARLY
+}
+
+enum AlertType {
+  SPENDING_THRESHOLD
+  BUDGET_EXCEEDED
+  BUDGET_APPROACHING
+}
+
+model BudgetAlert {
+  id               String     @id @default(cuid())
+  userId           String
+  budgetId         String
+  thresholdPercent Float
+  alertType        AlertType  @default(SPENDING_THRESHOLD)
+  isEnabled        Boolean    @default(true)
+  emailEnabled     Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budget   Budget  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  notifications BudgetAlertNotification[]
+
+  @@unique([userId, budgetId, alertType])
+  @@map("budget_alerts")
+}
+
+model BudgetAlertNotification {
+  id               String   @id @default(cuid())
+  alertId          String
+  userId           String
+  budgetName       String
+  category         String
+  thresholdPercent Float
+  currentPercent   Float
+  spent            Float
+  budgetAmount     Float
+  sentAt           DateTime @default(now())
+  emailSent        Boolean  @default(false)
+  emailSentAt      DateTime?
+
+  alert BudgetAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("budget_alert_notifications")
 }

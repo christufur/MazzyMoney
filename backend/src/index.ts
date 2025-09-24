@@ -217,4 +217,8 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-startServer();
+export { startServer };
+
+if (require.main === module) {
+  startServer();
+}
