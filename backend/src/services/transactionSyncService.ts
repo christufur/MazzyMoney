@@ -1,7 +1,7 @@
-// Updated src/services/transactionSyncService.ts
 import { Configuration, PlaidApi, PlaidEnvironments, CountryCode } from 'plaid';
 import { prisma } from '../lib/prisma';
 import { BudgetSyncService } from './budgetSyncService';
+import { SmartCategorizationService } from './smartCategorizationService';
 
 const configuration = new Configuration({
   basePath: PlaidEnvironments[process.env.PLAID_ENV as keyof typeof PlaidEnvironments || 'sandbox'],
@@ -23,7 +23,6 @@ interface SyncResult {
   error?: string;
 }
 
-// Enhanced categorization service
 class EnhancedCategoryService {
   
   // Map Plaid's primary categories to cleaner display categories
@@ -31,10 +30,10 @@ class EnhancedCategoryService {
     // Income
     'Deposit': 'Income',
     'Payroll': 'Income',
-    'Transfer': 'Income', // We'll handle this more specifically below
+    'Transfer': 'Income',
     
     // Housing & Utilities
-    'Payment': 'Housing', // We'll be more specific based on secondary category
+    'Payment': 'Housing',
     'Service': 'Bills & Utilities',
     
     // Food & Dining
@@ -195,6 +194,9 @@ export class TransactionSyncService {
   static async syncUserTransactions(userId: string): Promise<SyncResult> {
     try {
       console.log(`Starting sync for user ${userId}`);
+      
+      // Initialize smart categorization patterns
+      await SmartCategorizationService.initializePatterns();
       
       // Update sync status
       await prisma.user.update({
@@ -386,7 +388,6 @@ export class TransactionSyncService {
         continue;
       }
 
-      // Enhanced categorization
       const enhancedCategory = EnhancedCategoryService.categorizeTransaction(
         plaidTransaction.category || [],
         plaidTransaction.merchant_name || '',
@@ -401,6 +402,16 @@ export class TransactionSyncService {
         where: { plaidTransactionId: plaidTransaction.transaction_id }
       });
 
+      // Apply smart categorization
+      const smartCategory = await SmartCategorizationService.categorizeTransaction(
+        plaidTransaction.name,
+        plaidTransaction.merchant_name || undefined,
+        plaidTransaction.category || undefined
+      );
+
+      // Use smart categorization if confidence is high, otherwise fall back to enhanced category
+      const finalCategory = smartCategory.confidence > 0.7 ? smartCategory.category : enhancedCategory;
+
       const transactionData = {
         plaidTransactionId: plaidTransaction.transaction_id,
         userId,
@@ -412,7 +423,7 @@ export class TransactionSyncService {
         authorizedDate: plaidTransaction.authorized_date ? new Date(plaidTransaction.authorized_date) : null,
         
         // Store ALL category information
-        primaryCategory: enhancedCategory, // Our enhanced category for reports/budgets
+        primaryCategory: finalCategory, // Smart categorization result
         detailedCategory: plaidTransaction.category?.[1] || null, // Plaid's secondary category
         categories: plaidTransaction.category || [], // Full Plaid category hierarchy
         

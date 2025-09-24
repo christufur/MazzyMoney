@@ -199,6 +199,21 @@ exports.Prisma.BudgetScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.SavingsGoalScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  description: 'description',
+  targetAmount: 'targetAmount',
+  currentAmount: 'currentAmount',
+  targetDate: 'targetDate',
+  category: 'category',
+  isActive: 'isActive',
+  isCompleted: 'isCompleted',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -233,7 +248,8 @@ exports.Prisma.ModelName = {
   UserCategoryRule: 'UserCategoryRule',
   Account: 'Account',
   Transaction: 'Transaction',
-  Budget: 'Budget'
+  Budget: 'Budget',
+  SavingsGoal: 'SavingsGoal'
 };
 
 /**

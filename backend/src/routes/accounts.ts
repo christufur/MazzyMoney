@@ -1,4 +1,3 @@
-// Updated routes/accounts.ts (FIXED VERSION)
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/auth';

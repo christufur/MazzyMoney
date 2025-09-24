@@ -1,4 +1,3 @@
-// Updated routes/plaid.ts (Fixed version)
 import { Router, Request, Response } from 'express';
 import { Configuration, PlaidApi, Products, PlaidEnvironments, CountryCode } from 'plaid';
 import { prisma } from '../lib/prisma';

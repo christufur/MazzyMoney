@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/auth';
 import { TransactionSyncService } from '../services/transactionSyncService';
+import { SmartCategorizationService } from '../services/smartCategorizationService';
 
 const router = Router();
 router.use(authenticateToken);
@@ -578,7 +579,6 @@ router.get('/debug/categories', async (req: Request, res: Response) => {
         }
       }
 
-      // Enhanced category analysis
       if (transaction.primaryCategory) {
         enhancedCategoryAnalysis[transaction.primaryCategory] =
           (enhancedCategoryAnalysis[transaction.primaryCategory] || 0) + 1;
@@ -658,7 +658,6 @@ router.post('/debug/enhanced-recategorize', async (req: Request, res: Response) 
     let updatedCount = 0;
     const categoryStats: Record<string, number> = {};
 
-    // Enhanced categorization function specifically for your bank format
     const categorizeTransactionEnhanced = (
       plaidCategories: string[],
       merchantName: string,
@@ -676,7 +675,6 @@ router.post('/debug/enhanced-recategorize', async (req: Request, res: Response) 
         }
       }
       
-      // Enhanced patterns for your specific transaction format
       const enhancedPatterns = [
         // Coffee & Food - specific to what I see in your data
         { pattern: /starbucks/i, category: 'Food & Dining' },
@@ -924,6 +922,87 @@ router.get('/debug/categories', async (req: Request, res: Response) => {
 });
 
 /**
+ * PUT /api/transactions/:id/category
+ * Update transaction category and learn from correction
+ */
+router.put('/:id/category', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { category } = req.body;
+    const userId = req.user!.id;
+
+    if (!category) {
+      return res.status(400).json({ error: 'Category is required' });
+    }
+
+    // Verify transaction belongs to user
+    const transaction = await prisma.transaction.findFirst({
+      where: { id, userId }
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    // Update transaction category
+    const updatedTransaction = await prisma.transaction.update({
+      where: { id },
+      data: { primaryCategory: category }
+    });
+
+    // Learn from this correction
+    await SmartCategorizationService.learnFromCorrection(
+      id, 
+      transaction.primaryCategory || 'Other', 
+      category
+    );
+
+    res.json({ 
+      success: true,
+      transaction: {
+        id: updatedTransaction.id,
+        primaryCategory: updatedTransaction.primaryCategory
+      }
+    });
+  } catch (error: any) {
+    console.error('Error updating transaction category:', error);
+    res.status(500).json({ error: 'Failed to update transaction category' });
+  }
+});
+
+/**
+ * GET /api/transactions/:id/suggestions
+ * Get categorization suggestions for a transaction
+ */
+router.get('/:id/suggestions', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    // Verify transaction belongs to user
+    const transaction = await prisma.transaction.findFirst({
+      where: { id, userId },
+      select: { name: true, merchantName: true }
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    // Get smart categorization suggestions
+    const suggestions = await SmartCategorizationService.getSuggestions(
+      transaction.name,
+      transaction.merchantName || undefined
+    );
+
+    res.json({ suggestions });
+  } catch (error: any) {
+    console.error('Error getting categorization suggestions:', error);
+    res.status(500).json({ error: 'Failed to get suggestions' });
+  }
+});
+
+/**
  * PUT /api/transactions/:id/notes
  * Update transaction notes
  */
@@ -979,7 +1058,6 @@ router.post('/debug/recategorize', async (req: Request, res: Response) => {
     let updatedCount = 0;
     const categoryStats: Record<string, number> = {};
 
-    // Enhanced categorization function for your bank format
     const categorizeTransactionEnhanced = (
       plaidCategories: string[],
       merchantName: string,
@@ -997,7 +1075,6 @@ router.post('/debug/recategorize', async (req: Request, res: Response) => {
         }
       }
       
-      // Enhanced patterns for your specific transaction format
       const enhancedPatterns = [
         // Coffee & Food
         { pattern: /starbucks/i, category: 'Food & Dining' },

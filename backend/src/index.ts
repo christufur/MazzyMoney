@@ -1,4 +1,3 @@
-// Updated src/index.ts
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors'; 
@@ -12,10 +11,11 @@ import plaidRoutes from './routes/plaid';
 import transactionRoutes from './routes/transactions';
 import { accountsRouter } from './routes/accounts';
 import budgets from './routes/budgets';
+import analyticsRoutes from './routes/analytics';
 
 dotenv.config();
 
-const app = express();
+export const app = express();
 const port = process.env.PORT || 8000;
 
 // Middleware
@@ -31,6 +31,7 @@ app.use('/api/plaid', plaidRoutes);
 app.use('/api/transactions', transactionRoutes); // New cached transactions route
 app.use('/api/accounts', accountsRouter); // New cached accounts route
 app.use('/api/budgets', budgets);
+app.use('/api/analytics', analyticsRoutes);
 
 
 // Root endpoint

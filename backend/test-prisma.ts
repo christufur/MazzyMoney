@@ -4,7 +4,7 @@ async function createTestUser() {
   const user = await prisma.user.create({
     data: {
       email: 'test@example.com',
-      passwordHash: 'temporary-hash', // We'll fix auth later
+      passwordHash: 'temporary-hash',
       fullName: 'Test User'
     }
   });
