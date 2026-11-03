@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import SidebarLayout from '../components/layout/SidebarLayout';
 import { PlaidLink } from '../components/plaid/PlaidLink';
+import ManualAccounts from '../components/accounts/ManualAccounts';
 import { plaidAPI } from '../services/api';
 import type { PlaidItem, PlaidItemStatus, PlaidItemsResponse } from '../services/api';
 
@@ -239,6 +240,9 @@ const ConnectionsPage: React.FC = () => {
                         ))}
                     </div>
                 )}
+
+                {/* Accounts Plaid does not connect: the 401(k), car, house, cash. */}
+                <ManualAccounts />
             </div>
         </SidebarLayout>
     );

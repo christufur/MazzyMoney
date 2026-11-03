@@ -156,7 +156,7 @@ describe('GET /api/accounts', () => {
     expect(response.body.connected).toBe(true);
     expect(response.body.institution).toEqual({ name: 'Accounts Bank' });
     expect(response.body.accounts).toHaveLength(2);
-    expect(response.body.accounts[0]).toEqual({
+    expect(response.body.accounts[0]).toMatchObject({
       account_id: `acc-plaid-${stamp}`,
       name: 'Everyday Checking',
       official_name: 'Everyday Checking Account',
@@ -164,7 +164,11 @@ describe('GET /api/accounts', () => {
       type: 'depository',
       subtype: 'checking',
       mask: '1111',
+      // W4.4: the frontend needs the database id and the manual/liability flags.
+      isManual: false,
+      isLiability: false,
     });
+    expect(response.body.accounts[0].id).toBeTruthy();
     // Manual accounts fall back to the database id for account_id.
     const manual = response.body.accounts[1];
     expect(manual).toMatchObject({
