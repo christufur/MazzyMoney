@@ -78,9 +78,23 @@ describe('merchantKey', () => {
   });
 });
 
+// Fixed-date fixtures: evaluate as of the latest charge, so the "cancelled" rule does not depend on today.
+const detectAtLastCharge = (rows: Parameters<typeof detectSeries>[0]) =>
+  detectSeries(rows, new Date(Math.max(...rows.map((row) => row.date.getTime()))));
+
 describe('detectSeries', () => {
+  it('drops a series whose last charge is more than two cycles old (cancelled)', () => {
+    const rows = [
+      expense(DAY(2025, 0, 15), 15.49),
+      expense(DAY(2025, 1, 15), 15.49),
+      expense(DAY(2025, 2, 15), 15.49),
+    ];
+    expect(detectSeries(rows, DAY(2025, 3, 20))).toHaveLength(1);
+    expect(detectSeries(rows, DAY(2025, 5, 1))).toHaveLength(0);
+  });
+
   it('finds a monthly subscription and its next date', () => {
-    const series = detectSeries([
+    const series = detectAtLastCharge([
       expense(DAY(2025, 0, 15), 15.49),
       expense(DAY(2025, 1, 15), 15.49),
       expense(DAY(2025, 2, 15), 15.49),
@@ -99,7 +113,7 @@ describe('detectSeries', () => {
   });
 
   it('uses the median amount, so one odd charge does not move it', () => {
-    const series = detectSeries([
+    const series = detectAtLastCharge([
       expense(DAY(2025, 0, 5), 20),
       expense(DAY(2025, 1, 5), 20),
       expense(DAY(2025, 2, 5), 20),
@@ -110,7 +124,7 @@ describe('detectSeries', () => {
   });
 
   it('finds a weekly series', () => {
-    const series = detectSeries([
+    const series = detectAtLastCharge([
       expense(DAY(2025, 2, 3), 25, 'Planet Fitness'),
       expense(DAY(2025, 2, 10), 25, 'Planet Fitness'),
       expense(DAY(2025, 2, 17), 25, 'Planet Fitness'),
@@ -123,7 +137,7 @@ describe('detectSeries', () => {
   });
 
   it('finds a yearly series across three years', () => {
-    const series = detectSeries([
+    const series = detectAtLastCharge([
       expense(DAY(2022, 5, 1), 120, 'Car Registration'),
       expense(DAY(2023, 5, 1), 120, 'Car Registration'),
       expense(DAY(2024, 5, 1), 120, 'Car Registration'),
@@ -136,7 +150,7 @@ describe('detectSeries', () => {
   });
 
   it('clamps a monthly bill to the last day of a short month', () => {
-    const series = detectSeries([
+    const series = detectAtLastCharge([
       expense(DAY(2024, 10, 30), 9.99, 'iCloud'),
       expense(DAY(2024, 11, 31), 9.99, 'iCloud'),
       expense(DAY(2025, 0, 31), 9.99, 'iCloud'),
@@ -149,7 +163,7 @@ describe('detectSeries', () => {
   });
 
   it('ignores only two occurrences', () => {
-    const series = detectSeries([
+    const series = detectAtLastCharge([
       expense(DAY(2025, 0, 15), 15.49),
       expense(DAY(2025, 1, 15), 15.49),
     ]);
@@ -158,7 +172,7 @@ describe('detectSeries', () => {
   });
 
   it('ignores irregular gaps', () => {
-    const series = detectSeries([
+    const series = detectAtLastCharge([
       expense(DAY(2025, 0, 3), 15.49),
       expense(DAY(2025, 0, 6), 15.49),
       expense(DAY(2025, 0, 27), 15.49),
@@ -170,7 +184,7 @@ describe('detectSeries', () => {
   });
 
   it('ignores amounts that swing by more than 15%', () => {
-    const series = detectSeries([
+    const series = detectAtLastCharge([
       expense(DAY(2025, 0, 15), 10),
       expense(DAY(2025, 1, 15), 18),
       expense(DAY(2025, 2, 15), 10),
@@ -181,7 +195,7 @@ describe('detectSeries', () => {
   });
 
   it('keeps groups apart and lists the soonest bill first', () => {
-    const series = detectSeries([
+    const series = detectAtLastCharge([
       expense(DAY(2025, 0, 20), 15.49, 'Netflix.com 1234'),
       expense(DAY(2025, 1, 20), 15.49, 'NETFLIX.COM 8443'),
       expense(DAY(2025, 2, 20), 15.49, 'Netflix.com 5555'),

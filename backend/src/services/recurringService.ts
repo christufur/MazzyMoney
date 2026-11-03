@@ -112,7 +112,7 @@ function addIntervalUtc(date: Date, intervalDays: number): Date {
  * Pure: no database and no clock. `transactions` should already be expenses only
  * (amount > 0, not a transfer, not hidden, not pending).
  */
-export function detectSeries(transactions: RecurringTransactionInput[]): DetectedSeries[] {
+export function detectSeries(transactions: RecurringTransactionInput[], now: Date = new Date()): DetectedSeries[] {
   const groups = new Map<string, RecurringTransactionInput[]>();
 
   for (const transaction of transactions) {
@@ -162,6 +162,9 @@ export function detectSeries(transactions: RecurringTransactionInput[]): Detecte
     if (steadyAmounts / amounts.length < CONSISTENCY_RATIO) continue;
 
     const lastDate = utcMidnight(sorted[sorted.length - 1].date);
+
+    // Two whole cycles with no charge means the subscription was cancelled; it no longer repeats.
+    if (utcDayNumber(now) - utcDayNumber(lastDate) > 2 * match.intervalDays + match.tolerance) continue;
 
     detected.push({
       merchantKey: key,
@@ -239,7 +242,7 @@ export class RecurringService {
       saved.push(savedSeries);
     }
 
-    // A cancelled subscription disappears once two whole cycles have gone by without a charge.
+    // A series the detector no longer finds disappears once its next charge is a full cycle overdue.
     const now = Date.now();
     const existing = await prisma.recurringSeries.findMany({
       where: { userId },
@@ -249,7 +252,7 @@ export class RecurringService {
     const stale = existing.filter((row) => {
       if (row.status !== 'ACTIVE') return false;
       if (detectedKeys.has(row.merchantKey)) return false;
-      return row.nextDate.getTime() < now - 2 * row.intervalDays * MS_PER_DAY;
+      return row.nextDate.getTime() < now - row.intervalDays * MS_PER_DAY;
     });
 
     if (stale.length > 0) {

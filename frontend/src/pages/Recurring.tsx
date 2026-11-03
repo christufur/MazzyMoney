@@ -52,7 +52,8 @@ const shortDate = (value: string) => {
 };
 
 /** Phone stacks name over the facts; from md the columns line up under the header. */
-const ROW_GRID = 'md:grid-cols-[minmax(0,1fr)_8rem_6rem_6rem_6rem_auto]';
+// Fixed last column: the header's empty cell must be as wide as the rows' Ignore button.
+const ROW_GRID = 'md:grid-cols-[minmax(0,1fr)_8rem_6rem_6rem_6rem_5rem]';
 
 interface SeriesRowProps {
   row: RecurringSeries;
@@ -93,7 +94,7 @@ const SeriesRow: React.FC<SeriesRowProps> = ({ row, ignored, busy, onToggle }) =
         size="sm"
         onClick={() => onToggle(row)}
         disabled={busy}
-        className={cn('-mr-2 shrink-0', ignored ? 'text-ink' : 'text-muted-foreground')}
+        className={cn('-mr-2 shrink-0 md:justify-self-end', ignored ? 'text-ink' : 'text-muted-foreground')}
       >
         {busy ? 'Saving…' : ignored ? 'Restore' : 'Ignore'}
       </Button>
