@@ -5,6 +5,7 @@ import SidebarLayout from '../components/layout/SidebarLayout';
 import {
   accountAPI,
   budgetAPI,
+  monthNoteAPI,
   networthAPI,
   recurringAPI,
   transactionAPI,
@@ -15,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { addMonths, isoDay, money, moneyWhole, monthKey, monthName, parseMonth } from '@/lib/money';
+import { addMonths, money, moneyWhole, monthKey, monthName, parseMonth, rangeFor } from '@/lib/money';
 import { reflectOnMonth } from '@/lib/reflection';
 import { historyChange, realHistory } from '@/lib/networth';
 
@@ -34,13 +35,6 @@ const since = (iso: string | null) => {
   const h = Math.round(min / 60);
   return h < 24 ? `Synced ${h} h ago` : `Synced ${new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 };
-
-function rangeFor(month: string, cutDay?: number) {
-  const start = parseMonth(month);
-  const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
-  const end = new Date(start.getFullYear(), start.getMonth(), Math.min(cutDay ?? lastDay, lastDay));
-  return { dateFrom: isoDay(start), dateTo: isoDay(end) };
-}
 
 const Figure: React.FC<{ label: string; value: string; tone?: 'sage' | 'terra' }> = ({ label, value, tone }) => (
   <div className="border-b border-rule pb-3">
@@ -83,6 +77,10 @@ const Overview: React.FC = () => {
   const [sync, setSync] = useState<SyncInfo | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [target, setTarget] = useState<number | null>(null);
+  // The month a "Close …" link points at: last month in the first week, or a past month on view. Null once closed.
+  const [toClose, setToClose] = useState<string | null>(null);
+  const [closedAt, setClosedAt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,12 +97,14 @@ const Overview: React.FC = () => {
       setConnected(Boolean(accounts?.connected));
 
       // Secondary panels: a failure here leaves the panel empty instead of failing the page.
-      const [prevTx, reviewTx, rec, nw, st] = await Promise.allSettled([
+      const [prevTx, reviewTx, rec, nw, st, mine, prevNote] = await Promise.allSettled([
         transactionAPI.getTransactions({ ...rangeFor(addMonths(month, -1), isCurrent ? today : undefined), limit: 1 }),
         transactionAPI.getTransactions({ reviewed: false, limit: 6 }),
         recurringAPI.getAll(),
         networthAPI.get('6m'),
         transactionAPI.getSyncStatus(),
+        monthNoteAPI.get(month),
+        isCurrent ? monthNoteAPI.get(addMonths(month, -1)) : Promise.resolve(null),
       ]);
       setLastSaved(prevTx.status === 'fulfilled' && prevTx.value.summary
         ? (prevTx.value.summary.income ?? 0) - (prevTx.value.summary.expenses ?? 0)
@@ -115,6 +115,15 @@ const Overview: React.FC = () => {
       setUpcoming(rec.status === 'fulfilled' ? rec.value.upcoming.slice(0, 5) : []);
       setNetWorth(nw.status === 'fulfilled' ? nw.value : null);
       setSync(st.status === 'fulfilled' ? st.value : null);
+      const own = mine.status === 'fulfilled' ? mine.value : null;
+      setTarget(own?.savingsTarget ?? null);
+      setClosedAt(own?.closedAt ?? null);
+      if (isCurrent) {
+        const prev = prevNote.status === 'fulfilled' ? prevNote.value : null;
+        setToClose(today <= 7 && prev && !prev.closedAt ? prev.month : null);
+      } else {
+        setToClose(own && !own.closedAt ? month : null);
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Could not load this month. Check that the server is running, then try again.');
     } finally {
@@ -162,8 +171,9 @@ const Overview: React.FC = () => {
         lastMonthSaved: lastSaved,
         overLines: budgets.map((b) => ({ category: b.category, over: b.spent - b.available, rollover: b.rollover })),
         hasBudgets: budgets.length > 0,
+        savingsTarget: target,
       }),
-    [isCurrent, month, summary, lastSaved, budgets]
+    [isCurrent, month, summary, lastSaved, budgets, target]
   );
 
   return (
@@ -176,13 +186,20 @@ const Overview: React.FC = () => {
           <div>
             <h1 className="text-title font-semibold text-ink">{monthName(month)}</h1>
             <p className="text-sm text-muted-foreground">
-              {isCurrent ? `Day ${new Date().getDate()} of ${daysInMonth}` : 'Closed month'}
+              {isCurrent ? `Day ${new Date().getDate()} of ${daysInMonth}` : closedAt ? (
+                <Link to={`/close/${month}`} className="underline-offset-4 hover:text-ink hover:underline">Closed · see the close</Link>
+              ) : 'Not closed yet'}
             </p>
           </div>
           <Button variant="ghost" size="icon" aria-label="Next month" disabled={isCurrent} onClick={() => setMonth(addMonths(month, 1))}>
             <ChevronRight />
           </Button>
         </div>
+        {toClose && (
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/close/${toClose}`}>Close {monthName(toClose, false)}</Link>
+          </Button>
+        )}
         {sync?.connected && (
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span aria-live="polite">{syncing || sync.status === 'SYNCING' ? 'Syncing your banks…' : sync.status === 'TOKEN_EXPIRED'

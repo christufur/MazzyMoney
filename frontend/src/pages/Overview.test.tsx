@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { vi, beforeEach, describe, it, expect } from 'vitest';
 import type { ReactNode } from 'react';
 import Overview from './Overview';
-import { accountAPI, budgetAPI, networthAPI, recurringAPI, transactionAPI } from '../services/api';
+import { accountAPI, budgetAPI, monthNoteAPI, networthAPI, recurringAPI, transactionAPI } from '../services/api';
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ logout: vi.fn(), user: null }),
@@ -15,6 +15,7 @@ vi.mock('../services/api', () => ({
   budgetAPI: { getBudgets: vi.fn() },
   networthAPI: { get: vi.fn() },
   recurringAPI: { getAll: vi.fn() },
+  monthNoteAPI: { get: vi.fn(async (month: string) => ({ month, note: null, savingsTarget: null, closedAt: null })), save: vi.fn() },
   transactionAPI: {
     getTransactions: vi.fn(),
     getSyncStatus: vi.fn(),
@@ -72,5 +73,33 @@ describe('Overview', () => {
 
     const button = await screen.findByRole('link', { name: 'Review 4 transactions' });
     expect(button).toHaveAttribute('href', '/transactions?review=1');
+  });
+
+  it('offers to close last month in the first week until it is closed', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 3, 12));
+    try {
+      const { unmount } = render(
+        <MemoryRouter initialEntries={['/overview']}>
+          <Overview />
+        </MemoryRouter>
+      );
+      const link = await screen.findByRole('link', { name: 'Close October' });
+      expect(link).toHaveAttribute('href', '/close/2026-10');
+      unmount();
+
+      vi.mocked(monthNoteAPI.get).mockImplementation(async (month: string) =>
+        ({ month, note: null, savingsTarget: null, closedAt: '2026-11-02T00:00:00.000Z' }) as any
+      );
+      render(
+        <MemoryRouter initialEntries={['/overview']}>
+          <Overview />
+        </MemoryRouter>
+      );
+      await screen.findByRole('link', { name: 'Review 4 transactions' });
+      expect(screen.queryByRole('link', { name: 'Close October' })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

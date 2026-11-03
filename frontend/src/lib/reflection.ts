@@ -10,6 +10,8 @@ export interface ReflectionInput {
   lastMonthSaved: number | null;
   overLines: { category: string; over: number; rollover: boolean }[];
   hasBudgets: boolean;
+  /** The savings target set when the month before was closed; null or absent when none. */
+  savingsTarget?: number | null;
 }
 
 /** The spread's one plain sentence about the month: facts first, calm about overspending. */
@@ -37,6 +39,13 @@ export function reflectOnMonth(r: ReflectionInput): string {
         ? `Spending is ${moneyWhole(-saved)} ahead of income so far this month.`
         : `Spending was ${moneyWhole(-saved)} more than income in ${r.monthLabel}.`
     );
+  }
+
+  if (r.savingsTarget) {
+    const target = moneyWhole(r.savingsTarget);
+    if (saved >= r.savingsTarget) parts.push(`That meets your ${target} target.`);
+    else if (r.isCurrentMonth) parts.push(`${moneyWhole(r.savingsTarget - Math.max(saved, 0))} to go to your ${target} target.`);
+    else parts.push(`The target was ${target}.`);
   }
 
   const over = [...r.overLines].filter((l) => l.over > 0).sort((a, b) => b.over - a.over);

@@ -510,6 +510,8 @@ export interface NetWorthResponse {
   };
   points: NetWorthPoint[];
   accounts: NetWorthAccount[];
+  /** The first real snapshot day; earlier points are worked back from transactions. Null when none are. */
+  estimatedBefore?: string | null;
 }
 
 export const networthAPI = {
@@ -822,6 +824,29 @@ export const rulesAPI = {
     setCategory?: string
   ): Promise<{ rule: Rule; matchCount: number }> => {
     const response = await api.post('/api/rules/from-transaction', { transactionId, setCategory });
+    return response.data;
+  },
+};
+
+export interface MonthNote {
+  month: string;
+  note: string | null;
+  savingsTarget: number | null;
+  closedAt: string | null;
+}
+
+/** Monthly close (E7): the owner's note, the month's savings target, and when it was closed. */
+export const monthNoteAPI = {
+  get: async (month: string): Promise<MonthNote> => {
+    const response = await api.get(`/api/month-notes/${month}`);
+    return response.data;
+  },
+
+  save: async (
+    month: string,
+    changes: { note?: string | null; savingsTarget?: number | null; closed?: boolean }
+  ): Promise<MonthNote> => {
+    const response = await api.put(`/api/month-notes/${month}`, changes);
     return response.data;
   },
 };

@@ -24,6 +24,7 @@ const RulesPage = lazy(() => import('./pages/Rules'));
 const ConnectionsPage = lazy(() => import('./pages/Connections'));
 const NetWorthPage = lazy(() => import('./pages/NetWorth'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
+const CloseMonthPage = lazy(() => import('./pages/CloseMonth'));
 
 const LoadingSpinner: React.FC = () => (
   <div className="flex h-screen items-center justify-center bg-paper" role="status">
@@ -177,6 +178,15 @@ const App: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/close/:month"
+                element={
+                  <ProtectedRoute>
+                    <CloseMonthPage />
                   </ProtectedRoute>
                 }
               />

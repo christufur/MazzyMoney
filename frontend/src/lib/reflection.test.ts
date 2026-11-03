@@ -36,6 +36,14 @@ describe('reflectOnMonth', () => {
     ).toBe('You saved $1,716 in October. Travel went $90 over.');
   });
 
+  it('measures the month against its savings target', () => {
+    const plain = { ...base, lastMonthSaved: null, hasBudgets: false };
+    expect(reflectOnMonth({ ...plain, income: 3000, spent: 2000, savingsTarget: 800 })).toContain('That meets your $800 target.');
+    expect(reflectOnMonth({ ...plain, income: 3000, spent: 2700, savingsTarget: 800 })).toContain('$500 to go to your $800 target.');
+    expect(reflectOnMonth({ ...plain, isCurrentMonth: false, income: 3000, spent: 2700, savingsTarget: 800 })).toContain('The target was $800.');
+    expect(reflectOnMonth({ ...plain, income: 3000, spent: 2700, savingsTarget: null })).not.toContain('target');
+  });
+
   it('handles an empty month', () => {
     expect(reflectOnMonth({ ...base, income: 0, spent: 0 })).toBe('Nothing recorded for this month yet.');
   });

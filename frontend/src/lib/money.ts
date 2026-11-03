@@ -20,3 +20,11 @@ export const monthName = (key: string, withYear = true) =>
   parseMonth(key).toLocaleDateString('en-US', withYear ? { month: 'long', year: 'numeric' } : { month: 'long' });
 export const isoDay = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** The first and last day of a month as API dates; `cutDay` stops early to compare the same point in a month. */
+export function rangeFor(month: string, cutDay?: number) {
+  const start = parseMonth(month);
+  const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+  const end = new Date(start.getFullYear(), start.getMonth(), Math.min(cutDay ?? lastDay, lastDay));
+  return { dateFrom: isoDay(start), dateTo: isoDay(end) };
+}

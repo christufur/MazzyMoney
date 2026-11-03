@@ -20,6 +20,7 @@ import rulesRoutes from './routes/rules';
 import { netWorthRouter } from './routes/networth';
 import { importRouter } from './routes/import';
 import settingsRoutes from './routes/settings';
+import monthNotesRoutes from './routes/monthNotes';
 import { NotifyService, appTimeZone } from './services/notifyService';
 
 dotenv.config();
@@ -48,6 +49,7 @@ app.use('/api/recurring', recurringRoutes);
 app.use('/api/rules', rulesRoutes);
 app.use('/api/networth', netWorthRouter);
 app.use('/api/settings', settingsRoutes); // ntfy topic + toggles (E2)
+app.use('/api/month-notes', monthNotesRoutes); // monthly close (E7)
 
 // Health check endpoint
 app.get('/health', async (req: Request, res: Response) => {
