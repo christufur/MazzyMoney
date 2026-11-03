@@ -58,7 +58,7 @@ cd frontend && bunx tsc --noEmit && bun run build && bun run test
 - Files: `docker-compose.test.yml` (new; `postgres:16` on port 5433, database `mazzy_test`), `backend/.env.test` (new; gitignored), `backend/.env.example` (new), `backend/bunfig.toml` (new; `[test] preload = ["./src/__tests__/setup.ts"]`), `backend/src/__tests__/setup.ts` (new), `backend/package.json`, `bun.lock` files, all existing test files.
 - **Move to Bun** (see §5): delete `package-lock.json` files, run `bun install`. Remove `jest`, `ts-jest`, `@types/jest`, `ts-node`, `nodemon`; add `@types/bun`. Scripts: `dev` = `bun --watch src/index.ts`, `start` = `bun src/index.ts`, `test` = `bun test`, `test:db:up` = `docker compose -f ../docker-compose.test.yml up -d`. Remove the `build` script (Bun runs TypeScript directly; `tsc` is only the type check). Change test imports from jest globals to `bun:test`; `jest.mock` becomes `mock.module`.
 - Check that `bunx prisma generate` and `bunx prisma migrate reset` work. If they need Node, keep Node for the Prisma CLI only and write that down in §5.
-- `setup.ts` sets `dotenv` to `.env.test`. It throws an error if `DATABASE_URL` does not contain `_test`. It runs `prisma migrate reset --force` once for each run.
+- `setup.ts` sets `dotenv` to `.env.test`. It throws an error if `DATABASE_URL` does not contain `_test` or `PLAID_ENV` is not `sandbox`. It runs `prisma migrate deploy` (Prisma blocks `migrate reset` when an AI agent runs it). Tests delete their own rows. **Done 2026-11-02.** The old tests were kept. 3 tests that depend on the Sept 2025 date are skipped until W4.3.
 - Fix the existing tests: put `beforeEach` inside `describe`, and remove the duplicate `afterAll`.
 - Done when: `bun run test:db:up && bun test` passes, and running the tests with the dev URL fails at once.
 
@@ -86,7 +86,7 @@ cd frontend && bunx tsc --noEmit && bun run build && bun run test
 - `jwt.sign(..., { expiresIn: JWT_EXPIRES_IN })`. Default `30d`.
 - Admin route: return 503 if `ADMIN_API_KEY` is not set.
 - Invite-only registration: the first user can register freely. After that, the body must contain `inviteCode` equal to `process.env.INVITE_CODE`, or the server returns 403. *Shortcut: one shared code in env. Upgrade to per-invite codes only if a household member must be revoked.*
-- Frontend: add an invite code field to the register form. Remove `plaidAccessToken` from the `User` type and from all `updateUser` calls.
+- Frontend: add an invite code field to the register form. Remove `plaidAccessToken` from the `User` type and from all `updateUser` calls. On a 401, the axios interceptor must clear `userData` as well as `authToken` (now it clears only the token). *Shortcut: the JWT stays in `localStorage`; the app is reachable only on the tailnet. Move to an httpOnly cookie if it is ever exposed to the public internet.*
 - Done when: the standard checks pass. New tests check that the login response has no `plaidAccessToken`, that the token has `exp`, and that the second registration without a code gets 403.
 
 ### W1.4 Analytics date and timezone fixes (agent)

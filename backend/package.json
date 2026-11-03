@@ -1,16 +1,15 @@
 {
   "name": "money-backend",
   "version": "1.0.0",
-  "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon src/index.ts",
-    "build": "tsc",
-    "test": "jest --runInBand",
-    "start": "node dist/index.js",
-    "db:migrate": "npx prisma migrate dev",
-    "db:generate": "npx prisma generate",
-    "db:reset": "npx prisma migrate reset",
-    "db:seed": "npx ts-node prisma/seed.ts"
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:db:up": "docker compose -f ../docker-compose.test.yml up -d --wait",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:deploy": "prisma migrate deploy"
   },
   "keywords": [],
   "author": "",
@@ -34,19 +33,18 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/bun": "^1.3.0",
     "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
-    "@types/jest": "^30.0.0",
+    "@types/express": "5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.1.0",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.15.5",
     "@types/supertest": "^6.0.3",
-    "jest": "^30.1.3",
-    "nodemon": "^3.1.10",
     "supertest": "^7.1.4",
-    "ts-jest": "^29.4.4",
-    "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "@types/express-serve-static-core": "5.0.7"
   }
 }
