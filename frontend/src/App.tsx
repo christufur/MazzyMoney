@@ -14,6 +14,7 @@ import './App.css';
 import InsightsPage from './pages/Insights';
 import TransactionsPage from './pages/Transactions';
 import BudgetsPage from './pages/Budgets';
+import ConnectionsPage from './pages/Connections';
 
 // Loading spinner
 const LoadingSpinner: React.FC = () => (
@@ -148,6 +149,15 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <InsightsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/connections"
+            element={
+              <ProtectedRoute>
+                <ConnectionsPage />
               </ProtectedRoute>
             }
           />

@@ -4,7 +4,6 @@ export interface User {
     fullName: string;
     createdAt: string;
     updatedAt: string;
-    plaidItemId?: string | null;
   }
   
   export interface AuthResponse {

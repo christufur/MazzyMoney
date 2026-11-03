@@ -98,39 +98,56 @@ export const authAPI = {
   },
 };
 
+export interface PlaidAccountSummary {
+  id: string;
+  name: string;
+  mask: string | null;
+  type: string;
+  subtype: string;
+}
+
+export type PlaidItemStatus = 'ACTIVE' | 'SYNCING' | 'LOGIN_REQUIRED' | 'ERROR';
+
+export interface PlaidItem {
+  id: string;
+  institutionName: string;
+  status: PlaidItemStatus;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  accounts: PlaidAccountSummary[];
+}
+
+export interface PlaidItemsResponse {
+  items: PlaidItem[];
+  used: number;
+  limit: number;
+}
+
 export const plaidAPI = {
-  createLinkToken: async () => {
-    const response = await api.post('/api/plaid/create_link_token');
-    return response.data;
+  /**
+   * Link token for a new Item, or update mode when `itemId` is given
+   * (a re-login must never use another of the free Items).
+   */
+  createLinkToken: async (itemId?: string) => {
+    const response = await api.post('/api/plaid/link-token', itemId ? { itemId } : {});
+    return response.data as { link_token: string };
   },
-  
+
   exchangePublicToken: async (publicToken: string) => {
-    const response = await api.post('/api/plaid/exchange_public_token', {
+    const response = await api.post('/api/plaid/exchange', {
       public_token: publicToken
     });
-    return response.data;
+    return response.data as { item: Pick<PlaidItem, 'id' | 'institutionName' | 'status'> };
   },
 
-  disconnectBank: async () => {
-    const response = await api.delete('/api/plaid/disconnect');
-    return response.data;
+  getItems: async () => {
+    const response = await api.get('/api/plaid/items');
+    return response.data as PlaidItemsResponse;
   },
 
-  refreshConnection: async () => {
-    const response = await api.post('/api/plaid/refresh');
-    return response.data;
-  },
-
-  getAccounts: async () => {
-    const response = await api.get('/api/plaid/accounts');
-    return response.data;
-  },
-  
-  // Legacy endpoint - kept for backward compatibility
-  getTransactions: async () => {
-    console.warn('Using legacy getTransactions - consider migrating to transactionAPI.getTransactions');
-    const response = await api.get('/api/plaid/transactions');
-    return response.data;
+  removeItem: async (id: string) => {
+    const response = await api.delete(`/api/plaid/items/${id}`);
+    return response.data as { success: true };
   },
 };
 
