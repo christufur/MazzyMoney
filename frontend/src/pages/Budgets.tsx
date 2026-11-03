@@ -364,7 +364,7 @@ const BudgetPage: React.FC = () => {
             <div className="text-gray-600 mb-4">{error}</div>
             <button
               onClick={() => window.location.reload()}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-sm"
             >
               Retry
             </button>
@@ -401,7 +401,7 @@ const BudgetPage: React.FC = () => {
     <SidebarLayout title="Budgets">
       <div className="space-y-6">
         {/* Budget Hero Section */}
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl shadow-lg text-white p-8">
+        <div className="bg-linear-to-r from-purple-600 to-blue-600 rounded-xl shadow-lg text-white p-8">
           <div className="text-center">
             <h2 className="text-2xl font-bold mb-2">Budget Overview</h2>
             <p className="text-purple-100 mb-6">Track your spending and achieve your financial goals</p>
@@ -459,7 +459,7 @@ const BudgetPage: React.FC = () => {
 
         {/* Budget Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Active Budgets</p>
@@ -473,7 +473,7 @@ const BudgetPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">On Track</p>
@@ -487,7 +487,7 @@ const BudgetPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Overspent</p>
@@ -501,7 +501,7 @@ const BudgetPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-500">Avg. Usage</p>
@@ -549,7 +549,7 @@ const BudgetPage: React.FC = () => {
             const progressOffset = circumference - (budget.percentUsed / 100) * circumference;
             
             return (
-              <div key={budget.id} className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200 ${isDeleting ? 'opacity-50' : ''}`}>
+              <div key={budget.id} className={`bg-white rounded-xl shadow-xs border border-gray-200 p-6 hover:shadow-md transition-all duration-200 ${isDeleting ? 'opacity-50' : ''}`}>
                 {/* Header */}
                 <div className="flex items-start justify-between mb-6">
                   <div className="flex items-center space-x-3">
@@ -778,7 +778,7 @@ const BudgetPage: React.FC = () => {
               </h3>
               
               {formErrors.general && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm mb-4">
                   {formErrors.general}
                 </div>
               )}
@@ -925,7 +925,7 @@ const BudgetPage: React.FC = () => {
               </div>
 
               {alertError && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm">
                   {alertError}
                 </div>
               )}
@@ -1052,7 +1052,7 @@ const BudgetPage: React.FC = () => {
                                 setSavingToggle(null);
                               }
                             }}
-                            className={`text-xs px-2 py-1 rounded ${alert.isEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                            className={`text-xs px-2 py-1 rounded-sm ${alert.isEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
                             disabled={savingToggle === alert.id + '-enabled'}
                           >
                             {savingToggle === alert.id + '-enabled' ? 'Updating...' : alert.isEnabled ? 'Enabled' : 'Disabled'}
@@ -1078,7 +1078,7 @@ const BudgetPage: React.FC = () => {
                                 setSavingToggle(null);
                               }
                             }}
-                            className={`text-xs px-2 py-1 rounded ${alert.emailEnabled ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}
+                            className={`text-xs px-2 py-1 rounded-sm ${alert.emailEnabled ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}
                             disabled={savingToggle === alert.id + '-email'}
                           >
                             {savingToggle === alert.id + '-email' ? 'Updating...' : alert.emailEnabled ? 'Email on' : 'Email off'}
@@ -1115,9 +1115,9 @@ const BudgetPage: React.FC = () => {
 
         {/* Empty State */}
         {budgets.length === 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-12">
             <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-purple-100 to-blue-100 rounded-xl flex items-center justify-center">
+              <div className="w-20 h-20 mx-auto mb-6 bg-linear-to-br from-purple-100 to-blue-100 rounded-xl flex items-center justify-center">
                 <svg className="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>

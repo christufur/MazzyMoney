@@ -120,7 +120,7 @@ const BalanceRow: React.FC<BalanceRowProps> = ({ account, onSaved }) => {
           step="0.01"
           value={balance}
           onChange={(event) => setBalance(event.target.value)}
-          className="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <label className="sr-only" htmlFor={`balance-date-${account.id}`}>
           Balance date for {account.name}
@@ -131,7 +131,7 @@ const BalanceRow: React.FC<BalanceRowProps> = ({ account, onSaved }) => {
           value={date}
           max={todayIsoDate()}
           onChange={(event) => setDate(event.target.value)}
-          className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
       <div className="flex items-center space-x-3">
@@ -249,7 +249,7 @@ const ManualAccounts: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-white rounded-lg shadow-sm p-6">
       <div className="mb-4">
         <h3 className="text-xl font-semibold text-gray-900">Manual accounts</h3>
         <p className="text-sm text-gray-500 mt-1">
@@ -265,7 +265,7 @@ const ManualAccounts: React.FC = () => {
       ) : (
         <>
           {loadError && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm mb-4">
               <div className="flex justify-between items-center">
                 <span>{loadError}</span>
                 <button
@@ -279,7 +279,7 @@ const ManualAccounts: React.FC = () => {
           )}
 
           {actionError && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm mb-4 text-sm">
               {actionError}
             </div>
           )}
@@ -335,7 +335,7 @@ const ManualAccounts: React.FC = () => {
                   maxLength={80}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Fidelity 401(k)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
@@ -346,7 +346,7 @@ const ManualAccounts: React.FC = () => {
                   id="manual-kind"
                   value={kind}
                   onChange={(event) => handleKindChange(event.target.value as ManualAccountKind)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {KIND_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -366,7 +366,7 @@ const ManualAccounts: React.FC = () => {
                   value={balance}
                   onChange={(event) => setBalance(event.target.value)}
                   placeholder="0.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div className="flex items-end">
@@ -375,7 +375,7 @@ const ManualAccounts: React.FC = () => {
                     type="checkbox"
                     checked={isLiability}
                     onChange={(event) => setIsLiability(event.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <span>This is a liability</span>
                 </label>

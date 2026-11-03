@@ -127,7 +127,7 @@ const ConnectionsPage: React.FC = () => {
         <SidebarLayout title="Connections">
             <div className="space-y-6">
                 {error && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm">
                         <div className="flex justify-between items-center">
                             <span>{error}</span>
                             <button
@@ -141,7 +141,7 @@ const ConnectionsPage: React.FC = () => {
                 )}
 
                 {/* Bank limit */}
-                <div className="bg-white rounded-lg shadow p-6">
+                <div className="bg-white rounded-lg shadow-sm p-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex-1">
                             <p className="text-sm font-medium text-gray-500">Banks used</p>
@@ -155,7 +155,7 @@ const ConnectionsPage: React.FC = () => {
                                 />
                             </div>
                             {atLimit && (
-                                <p className="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                                <p className="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-sm px-3 py-2">
                                     All {limit} free bank connections are in use. Remove one to connect another bank.
                                 </p>
                             )}
@@ -166,7 +166,7 @@ const ConnectionsPage: React.FC = () => {
                 </div>
 
                 {items.length === 0 ? (
-                    <div className="bg-white rounded-lg shadow p-8 text-center">
+                    <div className="bg-white rounded-lg shadow-sm p-8 text-center">
                         <h3 className="text-xl font-semibold text-gray-900 mb-2">No banks connected yet</h3>
                         <p className="text-gray-600 mb-6 max-w-md mx-auto">
                             Connect a bank to see its accounts, balances, and transactions in Mazzy Money.
@@ -176,7 +176,7 @@ const ConnectionsPage: React.FC = () => {
                 ) : (
                     <div className="space-y-4">
                         {items.map((item) => (
-                            <div key={item.id} className="bg-white rounded-lg shadow p-6">
+                            <div key={item.id} className="bg-white rounded-lg shadow-sm p-6">
                                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                                     <div>
                                         <div className="flex items-center space-x-3">

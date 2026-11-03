@@ -134,7 +134,7 @@ const Overview: React.FC = () => {
     <SidebarLayout title="Overview">
       <div className="space-y-6">
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm">
             <div className="flex justify-between items-center">
               <span>{error}</span>
               <button 
@@ -149,7 +149,7 @@ const Overview: React.FC = () => {
 
         {!dashboardData?.accounts?.connected ? (
           // No bank connected state
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl shadow-lg border border-blue-200 p-8">
+          <div className="bg-linear-to-br from-blue-50 to-indigo-100 rounded-xl shadow-lg border border-blue-200 p-8">
             <div className="text-center">
               <div className="mx-auto h-20 w-20 text-blue-500 mb-6">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 48 48" className="w-full h-full">
@@ -213,7 +213,7 @@ const Overview: React.FC = () => {
 
             {/* Financial Health Cards */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2 bg-green-100 rounded-lg">
                     <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -230,7 +230,7 @@ const Overview: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-2 bg-red-100 rounded-lg">
                     <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,7 +247,7 @@ const Overview: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className={`p-2 rounded-lg ${metrics && metrics.netAmount >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
                     <svg className={`w-6 h-6 ${metrics && metrics.netAmount >= 0 ? 'text-blue-600' : 'text-orange-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -273,7 +273,7 @@ const Overview: React.FC = () => {
               <div className="lg:col-span-2 space-y-6">
                 
                 {/* Smart Insights Section */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-semibold text-gray-900">💡 Smart Insights</h2>
                     <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</button>
@@ -323,7 +323,7 @@ const Overview: React.FC = () => {
                 </div>
 
                 {/* Recent Transactions Feed */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
                     <a href="/transactions" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
@@ -354,7 +354,7 @@ const Overview: React.FC = () => {
                               {transaction.primaryCategory && (
                                 <>
                                   <span>•</span>
-                                  <span className="bg-gray-100 px-2 py-1 rounded text-xs">{transaction.primaryCategory}</span>
+                                  <span className="bg-gray-100 px-2 py-1 rounded-sm text-xs">{transaction.primaryCategory}</span>
                                 </>
                               )}
                             </div>
@@ -382,7 +382,7 @@ const Overview: React.FC = () => {
 
                 {/* Quick Spending Overview */}
                 {dashboardData?.spendingByCategory?.length > 0 && (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                     <div className="flex items-center justify-between mb-6">
                       <h2 className="text-lg font-semibold text-gray-900">Spending This Month</h2>
                       <a href="/insights" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
@@ -415,7 +415,7 @@ const Overview: React.FC = () => {
               <div className="space-y-6">
                 
                 {/* Account Summary Cards */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-semibold text-gray-900">Your Accounts</h2>
                     <span className="text-sm text-gray-500">
@@ -472,7 +472,7 @@ const Overview: React.FC = () => {
                 </div>
 
                 {/* Monthly Summary */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                   <h2 className="text-lg font-semibold text-gray-900 mb-6">This Month</h2>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
@@ -520,7 +520,7 @@ const Overview: React.FC = () => {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                   <h2 className="text-lg font-semibold text-gray-900 mb-6">Quick Actions</h2>
                   <div className="space-y-3">
                     <a 

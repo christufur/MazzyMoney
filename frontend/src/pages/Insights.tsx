@@ -270,7 +270,7 @@ const InsightsPage: React.FC = () => {
     if (error) {
         return (
             <SidebarLayout title="Insights">
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm mb-4">
                     {error}
                     <button 
                         onClick={fetchAllData}
@@ -315,7 +315,7 @@ const InsightsPage: React.FC = () => {
         <SidebarLayout title="Insights">
             <div className="space-y-6">
                 {/* Header Section */}
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-lg text-white p-8">
+                <div className="bg-linear-to-r from-indigo-600 to-purple-600 rounded-xl shadow-lg text-white p-8">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold mb-2">Financial Insights</h2>
                         <p className="text-indigo-100 mb-6">Understand your spending patterns and financial health</p>
@@ -342,7 +342,7 @@ const InsightsPage: React.FC = () => {
 
                         {/* Period Selector */}
                         <div className="mt-6 flex justify-center">
-                            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-1 flex space-x-1">
+                            <div className="bg-white/10 backdrop-blur-xs rounded-lg p-1 flex space-x-1">
                                 {[
                                     { value: '7', label: '7D' },
                                     { value: '30', label: '30D' },
@@ -367,7 +367,7 @@ const InsightsPage: React.FC = () => {
                 </div>
 
                 {/* Navigation Tabs */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="bg-white rounded-xl shadow-xs border border-gray-200">
                     <div className="px-6 py-4">
                         <div className="flex space-x-8 overflow-x-auto">
                             {[
@@ -401,7 +401,7 @@ const InsightsPage: React.FC = () => {
                         {/* Financial Health Dashboard */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Financial Health Score */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <div className="text-center">
                                     <h3 className="text-lg font-semibold mb-4">Financial Health</h3>
                                     
@@ -461,7 +461,7 @@ const InsightsPage: React.FC = () => {
                             </div>
 
                             {/* Spending Breakdown Donut */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <h3 className="text-lg font-semibold mb-4">Spending Breakdown</h3>
                                 <div className="relative">
                                     <ResponsiveContainer width="100%" height={250}>
@@ -503,7 +503,7 @@ const InsightsPage: React.FC = () => {
                             </div>
 
                             {/* Monthly Trends */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <h3 className="text-lg font-semibold mb-4">Income vs Expenses</h3>
                                 <ResponsiveContainer width="100%" height={250}>
                                     <BarChart data={monthlyTrendsData.slice(-6)}>
@@ -540,7 +540,7 @@ const InsightsPage: React.FC = () => {
                         {/* Detailed Analytics Grid */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Top Categories List */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-lg font-semibold">Top Spending Categories</h3>
                                     <span className="text-sm text-gray-500">{getPeriodText()}</span>
@@ -548,7 +548,7 @@ const InsightsPage: React.FC = () => {
                                 <div className="space-y-4">
                                     {spendingData.slice(0, 6).map((category, index) => (
                                         <div key={category.category} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                                            <div className="flex-shrink-0">
+                                            <div className="shrink-0">
                                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${category.color}20` }}>
                                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }} />
                                                 </div>
@@ -577,10 +577,10 @@ const InsightsPage: React.FC = () => {
                             </div>
 
                             {/* Key Metrics */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <h3 className="text-lg font-semibold mb-6">Key Financial Metrics</h3>
                                 <div className="space-y-6">
-                                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
+                                    <div className="flex items-center justify-between p-4 bg-linear-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100">
                                         <div className="flex items-center space-x-3">
                                             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                                                 <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -597,7 +597,7 @@ const InsightsPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-50 to-rose-50 rounded-lg border border-red-100">
+                                    <div className="flex items-center justify-between p-4 bg-linear-to-r from-red-50 to-rose-50 rounded-lg border border-red-100">
                                         <div className="flex items-center space-x-3">
                                             <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
                                                 <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -614,7 +614,7 @@ const InsightsPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className={`flex items-center justify-between p-4 rounded-lg border ${summary.netAmount >= 0 ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100' : 'bg-gradient-to-r from-orange-50 to-red-50 border-orange-100'}`}>
+                                    <div className={`flex items-center justify-between p-4 rounded-lg border ${summary.netAmount >= 0 ? 'bg-linear-to-r from-blue-50 to-indigo-50 border-blue-100' : 'bg-linear-to-r from-orange-50 to-red-50 border-orange-100'}`}>
                                         <div className="flex items-center space-x-3">
                                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${summary.netAmount >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
                                                 <svg className={`w-5 h-5 ${summary.netAmount >= 0 ? 'text-blue-600' : 'text-orange-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -657,7 +657,7 @@ const InsightsPage: React.FC = () => {
                         {/* Spending Overview */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Spending Chart */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <h3 className="text-lg font-semibold mb-4">Spending by Category</h3>
                                 <ResponsiveContainer width="100%" height={400}>
                                     <PieChart>
@@ -691,7 +691,7 @@ const InsightsPage: React.FC = () => {
                             </div>
 
                             {/* Category Details */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-lg font-semibold">Category Breakdown</h3>
                                     <span className="text-sm text-gray-500">
@@ -726,7 +726,7 @@ const InsightsPage: React.FC = () => {
                 {activeTab === 'trends' && (
                     <div className="space-y-6">
                         {/* Monthly Trends */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <div>
                                     <h3 className="text-lg font-semibold">Income vs Expenses Trend</h3>
@@ -790,7 +790,7 @@ const InsightsPage: React.FC = () => {
 
                         {/* Trend Insights */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <div className="flex items-center space-x-3 mb-4">
                                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                                         <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -809,7 +809,7 @@ const InsightsPage: React.FC = () => {
                                 <p className="text-sm text-gray-600">vs last month</p>
                             </div>
 
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <div className="flex items-center space-x-3 mb-4">
                                     <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
                                         <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -828,7 +828,7 @@ const InsightsPage: React.FC = () => {
                                 <p className="text-sm text-gray-600">vs last month</p>
                             </div>
 
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <div className="flex items-center space-x-3 mb-4">
                                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -853,7 +853,7 @@ const InsightsPage: React.FC = () => {
 
                 {/* Cash Flow Tab */}
                 {activeTab === 'cashflow' && (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                         <CustomSankeyFlow
                             income={summary.income}
                             savings={summary.netAmount}
@@ -868,7 +868,7 @@ const InsightsPage: React.FC = () => {
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* AI Insights */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <div className="flex items-center space-x-3 mb-6">
                                     <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                                         <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -920,7 +920,7 @@ const InsightsPage: React.FC = () => {
                             </div>
 
                             {/* Recommendations */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                                 <div className="flex items-center space-x-3 mb-6">
                                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -973,7 +973,7 @@ const InsightsPage: React.FC = () => {
 
                 {/* Top Merchants Tab */}
                 {activeTab === 'merchants' && (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-semibold">Top Merchants</h3>
                             <span className="text-sm text-gray-500">{getPeriodText()}</span>

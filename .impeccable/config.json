@@ -1,0 +1,53 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-11-03T03:45:57.614Z",
+        "reason": "decision-round sketch, spent hand, not shipping code"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/assigned.html"
+        ],
+        "createdAt": "2026-11-03T03:45:57.644Z",
+        "reason": "decision-round sketch, spent hand, not shipping code"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/pick2.html"
+        ],
+        "createdAt": "2026-11-03T03:45:57.661Z",
+        "reason": "decision-round sketch, spent hand, not shipping code"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/challenger-annual.html"
+        ],
+        "createdAt": "2026-11-03T03:45:57.679Z",
+        "reason": "decision-round sketch, spent hand, not shipping code"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/model-pick.html"
+        ],
+        "createdAt": "2026-11-03T03:45:57.696Z",
+        "reason": "user chose this card on the decision page; sketch is a reference, the build must earn the ground per the contract"
+      }
+    ]
+  }
+}

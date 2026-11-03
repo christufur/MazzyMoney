@@ -315,15 +315,15 @@ const TransactionsPage: React.FC = () => {
 
         {/* Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" role="group" aria-label="Summary">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-5">
             <p className="text-sm font-medium text-gray-500">Income</p>
             <p className="text-2xl font-bold text-green-600">+{formatMoney(summary?.income ?? 0)}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-5">
             <p className="text-sm font-medium text-gray-500">Spending</p>
             <p className="text-2xl font-bold text-red-600">−{formatMoney(summary?.expenses ?? 0)}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-5">
             <p className="text-sm font-medium text-gray-500">Net</p>
             <p className={`text-2xl font-bold ${netPositive ? 'text-green-600' : 'text-red-600'}`}>
               {netPositive ? '+' : '−'}
@@ -333,7 +333,7 @@ const TransactionsPage: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <div className="lg:col-span-2">
               <label htmlFor="transaction-search" className="sr-only">
@@ -345,7 +345,7 @@ const TransactionsPage: React.FC = () => {
                 value={searchInput}
                 onChange={event => setSearchInput(event.target.value)}
                 placeholder="Search name, merchant, or notes..."
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
@@ -357,7 +357,7 @@ const TransactionsPage: React.FC = () => {
                 id="filter-category"
                 value={category}
                 onChange={event => applyFilter(() => setCategory(event.target.value))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All categories</option>
                 {categories.map(name => (
@@ -376,7 +376,7 @@ const TransactionsPage: React.FC = () => {
                 id="filter-account"
                 value={accountId}
                 onChange={event => applyFilter(() => setAccountId(event.target.value))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All accounts</option>
                 {accounts.map(account => (
@@ -397,7 +397,7 @@ const TransactionsPage: React.FC = () => {
                   id="filter-range"
                   value={dateRange}
                   onChange={event => applyFilter(() => setDateRange(event.target.value as DateRange))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="30">Last 30 days</option>
                   <option value="90">Last 90 days</option>
@@ -414,7 +414,7 @@ const TransactionsPage: React.FC = () => {
                   id="filter-type"
                   value={type}
                   onChange={event => applyFilter(() => setType(event.target.value as TypeFilter))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">All types</option>
                   <option value="income">Income</option>
@@ -452,7 +452,7 @@ const TransactionsPage: React.FC = () => {
                   if (!nextCategory) return;
                   runBulk({ category: nextCategory }, 'set the category');
                 }}
-                className="border border-blue-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-blue-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Set category...</option>
                 {categories.map(name => (
@@ -506,7 +506,7 @@ const TransactionsPage: React.FC = () => {
         )}
 
         {/* List */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl shadow-xs border border-gray-200">
           <div className="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="flex items-center gap-3">
               <input
@@ -515,7 +515,7 @@ const TransactionsPage: React.FC = () => {
                 checked={allOnPageSelected}
                 onChange={toggleAllOnPage}
                 disabled={rows.length === 0}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded-sm focus:ring-blue-500"
               />
               <h2 className="text-sm font-semibold text-gray-700">
                 {pagination.totalCount} transaction{pagination.totalCount === 1 ? '' : 's'}
@@ -576,7 +576,7 @@ const TransactionsPage: React.FC = () => {
                           aria-label={`Select ${displayName}`}
                           checked={selected.has(row.id)}
                           onChange={() => toggleRow(row.id)}
-                          className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded-sm focus:ring-blue-500"
                         />
 
                         <div className="min-w-0">
@@ -596,12 +596,12 @@ const TransactionsPage: React.FC = () => {
                               </>
                             )}
                             {row.pending && (
-                              <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">
+                              <span className="px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-800 font-medium">
                                 Pending
                               </span>
                             )}
                             {row.isTransfer && (
-                              <span className="px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-800 font-medium">
+                              <span className="px-1.5 py-0.5 rounded-sm bg-cyan-100 text-cyan-800 font-medium">
                                 Transfer
                               </span>
                             )}

@@ -95,7 +95,7 @@ const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, title = "Overvi
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r flex flex-col shadow-sm">
+      <aside className="w-64 bg-white border-r flex flex-col shadow-xs">
         <div className="p-6">
           <h1 className="font-bold text-xl text-gray-900">💰 Mazzy Money</h1>
           <p className="text-sm text-gray-500 mt-1">Personal Finance</p>
@@ -117,7 +117,7 @@ const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, title = "Overvi
               <span className="flex-1">{item.label}</span>
               {item.to === "/transactions" && reviewCount > 0 && (
                 <span
-                  className="ml-2 min-w-[1.25rem] px-1.5 py-0.5 rounded-full bg-blue-600 text-white text-xs font-semibold text-center"
+                  className="ml-2 min-w-5 px-1.5 py-0.5 rounded-full bg-blue-600 text-white text-xs font-semibold text-center"
                   aria-label={`${reviewCount} transactions need review`}
                 >
                   {reviewCount > 99 ? "99+" : reviewCount}

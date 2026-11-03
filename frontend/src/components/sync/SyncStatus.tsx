@@ -180,7 +180,7 @@ export const SyncStatus: React.FC<SyncStatusProps> = ({
               <button
                 onClick={() => handleSync()}
                 disabled={syncing}
-                className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-sm text-sm font-medium transition-colors"
               >
                 {syncing ? 'Syncing...' : 'Sync Now'}
               </button>
@@ -188,7 +188,7 @@ export const SyncStatus: React.FC<SyncStatusProps> = ({
               <button
                 onClick={() => handleSync(true)}
                 disabled={syncing}
-                className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-sm text-sm font-medium transition-colors"
                 title="Force full resync"
               >
                 Full Sync

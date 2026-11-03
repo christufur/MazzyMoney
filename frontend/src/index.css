@@ -1,17 +1,94 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/hanken-grotesk';
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Kakeibo Household Ledger tokens. Contract: .impeccable/surfaces/frontend-src-app-tsx.md
+   sage = saved / on track; terra = over budget or needs attention only; ink = primary action. */
+:root {
+  --radius: 10px;
+  --background: #f6f4ef;          /* paper */
+  --foreground: #22252b;          /* ink */
+  --card: #ffffff;                /* the spread */
+  --card-foreground: #22252b;
+  --popover: #ffffff;
+  --popover-foreground: #22252b;
+  --primary: #22252b;
+  --primary-foreground: #f8f7f3;
+  --secondary: #efece4;
+  --secondary-foreground: #22252b;
+  --muted: #efece4;               /* bar tracks */
+  --muted-foreground: #5a5d64;    /* AA on paper and on white */
+  --accent: #efece4;
+  --accent-foreground: #22252b;
+  --destructive: #a75c3a;         /* terra, AA as text */
+  --border: #e4e0d6;              /* hairline rule */
+  --input: #d8d3c7;
+  --ring: #4f7a6a;
+  --sage: #4f7a6a;
+  --sage-ink: #3d6355;            /* sage as text, AA on white */
+  --sage-tint: #e6eee9;
+  --terra: #a75c3a;
+  --terra-tint: #f6e7de;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+@theme inline {
+  --font-sans: 'Hanken Grotesk Variable', system-ui, -apple-system, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-paper: var(--background);
+  --color-sheet: var(--card);
+  --color-ink: var(--foreground);
+  --color-ink-soft: var(--muted-foreground);
+  --color-rule: var(--border);
+  --color-sage: var(--sage);
+  --color-sage-ink: var(--sage-ink);
+  --color-sage-tint: var(--sage-tint);
+  --color-terra: var(--terra);
+  --color-terra-tint: var(--terra-tint);
+  --radius-sm: 4px;
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  /* Short scale: rank by weight and figures; one strong step for titles and key figures. */
+  --text-label: 0.75rem;
+  --text-label--line-height: 1rem;
+  --text-label--letter-spacing: 0.06em;
+  --text-figure: 1.75rem;
+  --text-figure--line-height: 2.1rem;
+  --text-title: 2.125rem;
+  --text-title--line-height: 2.5rem;
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'tnum' 1;
+  }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+@layer components {
+  .sheet { @apply bg-card rounded-lg border border-rule; }
+  .ledger-line { border-bottom: 1px dashed var(--border); }
+  .section-label { @apply text-label font-semibold uppercase text-muted-foreground; }
 }

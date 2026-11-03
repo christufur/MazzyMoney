@@ -187,7 +187,7 @@ const RecurringPage: React.FC = () => {
     <SidebarLayout title="Recurring">
       <div className="space-y-6">
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm">
             <div className="flex justify-between items-center">
               <span>{error}</span>
               <button onClick={load} className="ml-4 text-red-600 hover:text-red-800 underline">
@@ -198,7 +198,7 @@ const RecurringPage: React.FC = () => {
         )}
 
         {/* Monthly total */}
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl shadow-lg text-white p-8">
+        <div className="bg-linear-to-r from-purple-600 to-blue-600 rounded-xl shadow-lg text-white p-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <p className="text-purple-100 text-sm">Recurring charges</p>
@@ -221,7 +221,7 @@ const RecurringPage: React.FC = () => {
         </div>
 
         {/* Next 30 days */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl shadow-xs border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">Next 30 days</h3>
             <p className="text-sm text-gray-500 mt-1">Bills the detector expects to see soon.</p>
@@ -246,7 +246,7 @@ const RecurringPage: React.FC = () => {
         </div>
 
         {/* All recurring */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl shadow-xs border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">All recurring</h3>
             <p className="text-sm text-gray-500 mt-1">
@@ -256,7 +256,7 @@ const RecurringPage: React.FC = () => {
 
           {(data?.series.length ?? 0) === 0 ? (
             <div className="px-6 py-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-100 to-blue-100 rounded-xl flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-linear-to-br from-purple-100 to-blue-100 rounded-xl flex items-center justify-center">
                 <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M5.5 9a7 7 0 0111.9-2.6L20 9M4 15l2.6 2.6A7 7 0 0018.5 15" />
                 </svg>

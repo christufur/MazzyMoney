@@ -97,7 +97,7 @@ const ChartTooltip: React.FC<ChartTooltipProps> = ({ active, label, payload }) =
   if (!point) return null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm px-3 py-2 text-sm">
+    <div className="bg-white border border-gray-200 rounded-lg shadow-xs px-3 py-2 text-sm">
       <p className="font-medium text-gray-900 mb-1">{formatLongDate(String(label))}</p>
       <p className="text-gray-900">Net worth: {formatMoney(point.netWorth ?? 0)}</p>
       <p className="text-gray-600">Assets: {formatMoney(point.assets ?? 0)}</p>
@@ -177,7 +177,7 @@ const NetWorthChart: React.FC = () => {
 
   return (
     <section
-      className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+      className="bg-white rounded-xl shadow-xs border border-gray-200 p-6"
       aria-label="Net worth"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">

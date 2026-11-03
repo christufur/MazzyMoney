@@ -45,7 +45,7 @@ export const RegisterForm: React.FC = () => {
       <h2 className="text-2xl font-bold mb-4">Create Account</h2>
       
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm mb-4">
           {error}
         </div>
       )}
@@ -59,7 +59,7 @@ export const RegisterForm: React.FC = () => {
           name="fullName"
           value={formData.fullName}
           onChange={handleChange}
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          className="shadow-sm appearance-none border rounded-sm w-full py-2 px-3 text-gray-700 leading-tight focus:outline-hidden focus:shadow-outline"
           required
         />
       </div>
@@ -73,7 +73,7 @@ export const RegisterForm: React.FC = () => {
           name="email"
           value={formData.email}
           onChange={handleChange}
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          className="shadow-sm appearance-none border rounded-sm w-full py-2 px-3 text-gray-700 leading-tight focus:outline-hidden focus:shadow-outline"
           required
         />
       </div>
@@ -87,7 +87,7 @@ export const RegisterForm: React.FC = () => {
           name="password"
           value={formData.password}
           onChange={handleChange}
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          className="shadow-sm appearance-none border rounded-sm w-full py-2 px-3 text-gray-700 leading-tight focus:outline-hidden focus:shadow-outline"
           required
         />
       </div>
@@ -102,14 +102,14 @@ export const RegisterForm: React.FC = () => {
           value={formData.inviteCode}
           onChange={handleChange}
           placeholder="Not needed for the first account"
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          className="shadow-sm appearance-none border rounded-sm w-full py-2 px-3 text-gray-700 leading-tight focus:outline-hidden focus:shadow-outline"
         />
       </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 w-full"
+        className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-sm focus:outline-hidden focus:shadow-outline disabled:opacity-50 w-full"
       >
         {loading ? 'Creating Account...' : 'Create Account'}
       </button>
