@@ -11,12 +11,17 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String @id @default(cuid())
+  email        String @unique
   fullName     String
   passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+
+  // Notifications through a self-hosted ntfy server (E2). Topic is per user; null = off.
+  ntfyTopic       String?
+  notifyLargeOver Float? // push for any single charge above this amount
+  notifyWeekly    Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relationships
   accounts                 Account[]
@@ -26,6 +31,8 @@ model User {
   plaidItems               PlaidItem[]
   rules                    Rule[]
   recurringSeries          RecurringSeries[]
+  monthNotes               MonthNote[]
+  notificationLogs         NotificationLog[]
   budgetAlerts             BudgetAlert[]
   budgetAlertNotifications BudgetAlertNotification[]
 
@@ -107,8 +114,9 @@ model BalanceSnapshot {
 }
 
 model Transaction {
-  id                 String @id @default(cuid())
-  plaidTransactionId String @unique
+  id                 String  @id @default(cuid())
+  plaidTransactionId String? @unique // null for imported (CSV) rows
+  importHash         String? // E3: stable hash of an imported row, for de-duplication
   userId             String
   accountId          String
 
@@ -151,6 +159,7 @@ model Transaction {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
+  @@unique([accountId, importHash])
   @@index([userId, date])
   @@index([accountId, date])
   @@index([primaryCategory])
@@ -187,17 +196,20 @@ model Rule {
 }
 
 model RecurringSeries {
-  id            String          @id @default(cuid())
-  userId        String
-  merchantKey   String
-  displayName   String
-  averageAmount Float
-  intervalDays  Int
-  lastDate      DateTime        @db.Date
-  nextDate      DateTime        @db.Date
-  status        RecurringStatus @default(ACTIVE)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id              String          @id @default(cuid())
+  userId          String
+  merchantKey     String
+  displayName     String
+  averageAmount   Float
+  intervalDays    Int
+  lastDate        DateTime        @db.Date
+  nextDate        DateTime        @db.Date
+  status          RecurringStatus @default(ACTIVE)
+  // E8: the amount before the latest price change, and when it changed.
+  previousAmount  Float?
+  amountChangedAt DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -306,4 +318,35 @@ model BudgetAlertNotification {
   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("budget_alert_notifications")
+}
+
+// E7: the monthly close (kakeibo reflection): one note and next month's savings target per month.
+model MonthNote {
+  id            String    @id @default(cuid())
+  userId        String
+  month         String // YYYY-MM
+  note          String?
+  savingsTarget Float?
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month])
+  @@map("month_notes")
+}
+
+// E2: one row per notification sent, so a push is never repeated (kind + key, e.g. "budget-90" + budgetId:month).
+model NotificationLog {
+  id     String   @id @default(cuid())
+  userId String
+  kind   String
+  key    String
+  sentAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, key])
+  @@map("notification_logs")
 }
