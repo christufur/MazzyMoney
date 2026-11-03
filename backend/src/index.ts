@@ -18,6 +18,7 @@ import analyticsRoutes from './routes/analytics';
 import recurringRoutes from './routes/recurring';
 import rulesRoutes from './routes/rules';
 import { netWorthRouter } from './routes/networth';
+import { importRouter } from './routes/import';
 
 dotenv.config();
 
@@ -29,6 +30,8 @@ const webDir = process.env.WEB_DIR ?? path.resolve(__dirname, '../../frontend/di
 const hasWebBuild = fs.existsSync(path.join(webDir, 'index.html'));
 
 // Middleware
+// CSV import parses its own 6 MB body, so its router mounts ahead of the app-wide parser.
+app.use('/api/accounts/manual', importRouter);
 app.use(express.json());
 
 // Routes
