@@ -44,6 +44,9 @@ const CUT_MARKERS: RegExp[] = [
   /\scard\s*(?:no\.?|number|#|ending\s+in|ending)?\s*\d/i,
   // A store number: "MAVERIK #752".
   /#\s*\d/,
+  // The bank's field separator and rates: "NTESS, LLC %% ACH ECC", "Dividend 0.150% / %% APY".
+  /\s*%%/,
+  /\s\d+(?:\.\d+)?%/,
 ];
 
 /** Trailing street numbers ("… EL PASO TX" leaves "1225"), never a name. */
@@ -94,7 +97,18 @@ const LEGAL_SUFFIX =
   /[\s,.]*\b(?:L\.?L\.?C\.?|INC\.?|INCORPORATED|CORP\.?|CORPORATION|CO\.?|COMPANY|LTD\.?|LIMITED|L\.?L\.?P\.?|L\.?P\.?|P\.?C\.?|PLLC|N\.?A\.?)$/i;
 
 /** `Transfer To Share 0070 …` is money between the household's own accounts. */
-const SHARE_TRANSFER = /\btransfer\s+(to|from)\s+(?:share|savings)\b/i;
+const SHARE_TRANSFER = /\btransfer\s*\/?\s*(to|from)\s+(?:share|savings)\b/i;
+
+/** Bank lines whose memo is only a place or a code: a fixed label reads better. */
+const FIXED_LABELS: Array<[RegExp, string]> = [
+  [/\bnon\s+fl\s+atm\s+fee\b|\batm\s+fee\b/i, 'ATM fee'],
+  [/^withdrawal\s+(?:at\s+atm|cash)\b/i, 'ATM withdrawal'],
+  [/^deposit\s+by\s+check\b/i, 'Check deposit'],
+  [/^debit\s+card\s+fee\b/i, 'Card fee'],
+  [/^comment\s*\/\s*inq\b/i, 'Balance inquiry'],
+];
+
+const ZELLE = /\bzelle\s+(.+?)\s+ref:/i;
 
 /**
  * The name to show for a bank memo.
@@ -112,6 +126,16 @@ export function cleanMerchantName(raw: string): string {
   const transfer = SHARE_TRANSFER.exec(original);
   if (transfer) {
     return transfer[1].toLowerCase() === 'to' ? 'Transfer to savings' : 'Transfer from savings';
+  }
+
+  const zelle = ZELLE.exec(original);
+  if (zelle) {
+    return `Zelle ${titleCase(zelle[1])}`;
+  }
+
+  const fixed = FIXED_LABELS.find(([pattern]) => pattern.test(original));
+  if (fixed) {
+    return fixed[1];
   }
 
   // A bank ACH line names the counterparty in its own field ("TYPE: PAYROLL … CO: NTESS, LLC").
@@ -159,7 +183,8 @@ function dropPrefixes(input: string): string {
 
   // A terminal id sits between the channel word and the merchant ("CHECKCARD 1031 SQ *…").
   // Only 3+ digits: a leading "7" is far more likely the start of "7 ELEVEN".
-  return text.replace(/^\d{3,8}\s+/, '');
+  // 4+ digits only: "365 VEND" (365 Retail Markets) keeps its 365.
+  return text.replace(/^\d{4,8}\s+/, '');
 }
 
 /** Remove date tokens anywhere: "07/12", "10/31/26", "2026-10-31", "31 OCT 26". */
@@ -299,6 +324,10 @@ function titleCase(input: string): string {
       if (!parts) return token;
 
       const [, lead, core, trail] = parts;
+      // "APP*SHOKHINA": case each side of a processor star separately.
+      if (core.includes('*')) {
+        return `${lead}${core.split('*').map((piece) => titleCase(piece)).join('*')}${trail}`;
+      }
       const letters = core.replace(/[^A-Za-z]/g, '');
 
       if (!letters) return token;

@@ -241,6 +241,10 @@ describe('Plaid connections API', () => {
     });
     expect(response.body.item.accessToken).toBeUndefined();
 
+    // The item starts ACTIVE, so wait for the background sync to begin before waiting for it to end.
+    for (let attempt = 0; attempt < 250 && accountsGet.mock.calls.length < 2; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
     const item = await waitForSyncToSettle(response.body.item.id);
     expect(item.accessToken).toBe(`access-new-${stamp}`);
     expect(item.itemId).toBe(NEW_PLAID_ITEM_ID);

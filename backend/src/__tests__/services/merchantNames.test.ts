@@ -37,11 +37,25 @@ const TABLE: Array<[string, string]> = [
   // Brand acronyms stay in capitals; ordinary words do not.
   ['AWS AMAZON WEB SERVICES', 'AWS Amazon Web Services'],
   ['GNC 0456', 'GNC'],
+  // Real FirstLight memos found on the first backfill.
+  ['Deposit NTESS, LLC / TYPE: PAYROLL ID: A850097942 CO: NTESS, LLC %% ACH ECC CCD %% ACH Trace 0000', 'NTESS'],
+  ['Deposit Home Banking Transfer / From Share 0001 Internet Access 09:37', 'Transfer from savings'],
+  ['Deposit Dividend 0.150% / %% APY Earned 0.15% 07/01/26 to 09/30/26 %% APYE Avg Daily Bal 911.40', 'Dividend'],
+  ['Withdrawal / CASH APP*SHOKHINA JALI Oakland CA Date 10/15/26 0000006304', 'Cash App*Shokhina Jali'],
+  ['Withdrawal / 365 VEND 4 TROY MI Date 10/14/26 1 6287581310 0', '365 Vend'],
+  ['Deposit NEW MEXICO STATE / TYPE: INVOICE ID: 9856000401 CO: NEW MEXICO STATE %% ACH ECC', 'New Mexico State'],
   // A source name that is already readable must come through untouched.
   ['Blue Bottle Coffee', 'Blue Bottle Coffee'],
   ['Transfer from savings', 'Transfer from savings'],
   // The one-time savings transfer the other way.
   ['Withdrawal / Transfer From Share 0070 Internet Access 10/1', 'Transfer from savings'],
+  ['Withdrawal Home Banking / Internet Access 04/22/2026 11:55 828597 Zelle RUPAK DEY Ref:611200F072GM', 'Zelle Rupak Dey'],
+  ['Withdrawal at ATM FIRSTLIGHT / 2001 E LOHMAN LAS CRUCES NM %% Card 25 #1924 #000000005893', 'ATM withdrawal'],
+  ['Withdrawal Cash / 3105 Del Rey,Las Cruces NM. Card 1924', 'ATM withdrawal'],
+  ['NON FL ATM FEE / Canna Co 3510 NORTHRISE DR STE Las Cruces NM %% Card 25 #1924', 'ATM fee'],
+  ['Deposit by Check / 3105 Del Rey Blvd, Las Cruces, NM. Card 1924', 'Check deposit'],
+  ['Debit Card Fee / VISA INTERNATIONAL SERVICE ASSESSMENT Date 09/03/26 %% Card 25 #1924', 'Card fee'],
+  ['COMMENT / INQ FIRSTLIGHT 3105 DEL REY BLVD', 'Balance inquiry'],
   // Nothing to clean: the raw text comes back rather than an empty row.
   ['Withdrawal', 'Withdrawal'],
 ];
