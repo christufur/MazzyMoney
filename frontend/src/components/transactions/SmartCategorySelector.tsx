@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Check, ChevronDown } from 'lucide-react';
 import { transactionAPI, categoryAPI } from '../../services/api';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface SmartCategorySelectorProps {
   transactionId: string;
@@ -8,6 +11,7 @@ interface SmartCategorySelectorProps {
   compact?: boolean;
   /** A page that already has the list passes it in; otherwise the selector loads it. */
   categories?: string[];
+  className?: string;
 }
 
 // One request for the whole app: the list is owned by the backend and never changes
@@ -29,32 +33,17 @@ const loadCategories = (): Promise<string[]> => {
   return categoriesPromise;
 };
 
-const getCategoryColor = (category: string) => {
-  const colors: Record<string, string> = {
-    'Food & Dining': 'bg-orange-100 text-orange-800',
-    'Groceries': 'bg-lime-100 text-lime-800',
-    'Transportation': 'bg-blue-100 text-blue-800',
-    'Shopping': 'bg-purple-100 text-purple-800',
-    'Entertainment': 'bg-pink-100 text-pink-800',
-    'Bills & Utilities': 'bg-yellow-100 text-yellow-800',
-    'Healthcare': 'bg-red-100 text-red-800',
-    'Travel': 'bg-green-100 text-green-800',
-    'Loan Payments': 'bg-slate-100 text-slate-800',
-    'Fees & Charges': 'bg-gray-100 text-gray-800',
-    'Housing': 'bg-indigo-100 text-indigo-800',
-    'Income': 'bg-emerald-100 text-emerald-800',
-    'Transfer': 'bg-cyan-100 text-cyan-800',
-    'Other': 'bg-gray-100 text-gray-600',
-  };
-  return colors[category] || colors['Other'];
-};
-
+/**
+ * The category on a ledger row, as a quiet pill. One list for every row, one muted
+ * treatment for every category: the ledger never paints categories in a rainbow.
+ */
 export const SmartCategorySelector: React.FC<SmartCategorySelectorProps> = ({
   transactionId,
   currentCategory,
   onUpdate,
   compact = false,
-  categories: presetCategories
+  categories: presetCategories,
+  className,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loaded, setLoaded] = useState<string[]>([]);
@@ -87,6 +76,11 @@ export const SmartCategorySelector: React.FC<SmartCategorySelectorProps> = ({
   }, [isOpen, categories.length]);
 
   const handleCategoryChange = async (category: string) => {
+    if (category === currentCategory) {
+      setIsOpen(false);
+      return;
+    }
+
     try {
       setUpdating(true);
       setError(null);
@@ -94,55 +88,58 @@ export const SmartCategorySelector: React.FC<SmartCategorySelectorProps> = ({
       onUpdate(category);
       setIsOpen(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update category');
+      setError(err.response?.data?.error || 'Could not change the category. Try again.');
     } finally {
       setUpdating(false);
     }
   };
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setIsOpen(open => !open)}
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger
         disabled={updating}
-        className={`inline-flex items-center rounded-full font-medium ${getCategoryColor(
-          currentCategory
-        )} hover:opacity-80 disabled:opacity-50 ${
-          compact ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm'
-        }`}
+        aria-label={`Category: ${currentCategory}`}
+        className={cn(
+          'inline-flex max-w-full items-center gap-1 rounded-full bg-muted text-ink transition-colors hover:bg-secondary disabled:opacity-50',
+          compact ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm',
+          className
+        )}
       >
-        {updating ? 'Saving...' : currentCategory}
-        <svg className="ml-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+        <span className="truncate">{updating ? 'Saving…' : currentCategory}</span>
+        <ChevronDown className="size-3 shrink-0 text-muted-foreground" strokeWidth={1.75} />
+      </PopoverTrigger>
 
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-56 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-20">
-          <div className="p-2">
-            {error && <p className="text-xs text-red-600 px-2 py-1">{error}</p>}
-            {loading ? (
-              <div className="text-center py-2 text-sm text-gray-500">Loading categories...</div>
-            ) : categories.length === 0 ? (
-              <div className="text-center py-2 text-sm text-gray-500">No categories available</div>
-            ) : (
-              categories.map(category => (
+      <PopoverContent align="start" className="w-56 p-1">
+        {error && <p className="px-2 py-1.5 text-xs text-terra">{error}</p>}
+
+        {loading ? (
+          <p className="px-2 py-1.5 text-sm text-muted-foreground">Loading categories…</p>
+        ) : categories.length === 0 ? (
+          <p className="px-2 py-1.5 text-sm text-muted-foreground">No categories available</p>
+        ) : (
+          <div className="max-h-64 overflow-y-auto">
+            {categories.map(category => {
+              const isCurrent = category === currentCategory;
+
+              return (
                 <button
                   type="button"
                   key={category}
+                  aria-pressed={isCurrent}
                   onClick={() => handleCategoryChange(category)}
-                  className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-gray-100 ${
-                    category === currentCategory ? 'bg-blue-50 font-medium' : ''
-                  }`}
+                  className={cn(
+                    'flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-ink hover:bg-paper',
+                    isCurrent && 'font-medium'
+                  )}
                 >
-                  {category}
+                  <span className="truncate">{category}</span>
+                  {isCurrent && <Check className="size-4 shrink-0 text-sage-ink" strokeWidth={1.75} />}
                 </button>
-              ))
-            )}
+              );
+            })}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 };
