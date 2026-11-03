@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { vi, beforeEach, afterEach, beforeAll, describe, it, expect } from 'vitest';
 import type { ReactNode } from 'react';
 import TransactionsPage from './Transactions';
-import { accountAPI, categoryAPI, transactionAPI } from '../services/api';
+import { accountAPI, categoryAPI, rulesAPI, transactionAPI } from '../services/api';
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ logout: vi.fn(), user: null }),
@@ -25,7 +25,15 @@ vi.mock('../services/api', () => ({
   accountAPI: {
     getAccounts: vi.fn(),
   },
+  rulesAPI: {
+    fromTransaction: vi.fn(),
+    apply: vi.fn(),
+  },
 }));
+
+// Capture toasts so the "Always do this" action can be pressed in the test.
+const toastMock = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }));
+vi.mock('sonner', () => ({ toast: toastMock }));
 
 const getTransactions = vi.mocked(transactionAPI.getTransactions);
 const getReviewCount = vi.mocked(transactionAPI.getReviewCount);
@@ -316,6 +324,26 @@ describe('Transactions page', () => {
     expect(await screen.findByRole('button', { name: 'Travel' })).toBeInTheDocument();
 
     expect(getAllCategories).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers a rule after a category change and applies it to past rows', async () => {
+    vi.mocked(transactionAPI.updateCategory).mockResolvedValue({});
+    vi.mocked(rulesAPI.fromTransaction).mockResolvedValue({ rule: { id: 'rule-1' } as any, matchCount: 3 });
+    vi.mocked(rulesAPI.apply).mockResolvedValue({ updated: 3, skippedUserCategory: 0 });
+    renderPage();
+
+    await screen.findByText('Whole Foods');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Category: Groceries' })[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Travel' }));
+
+    await waitFor(() => expect(toastMock).toHaveBeenCalled());
+    const [message, options] = toastMock.mock.calls.at(-1)!;
+    expect(message).toBe('Whole Foods is now Travel.');
+    await options.action.onClick();
+
+    expect(rulesAPI.fromTransaction).toHaveBeenCalledWith(expect.any(String), 'Travel');
+    expect(rulesAPI.apply).toHaveBeenCalledWith('rule-1');
+    expect(toastMock.success).toHaveBeenCalledWith('Rule saved. 3 past transactions updated.');
   });
 
   it('saves an inline note', async () => {

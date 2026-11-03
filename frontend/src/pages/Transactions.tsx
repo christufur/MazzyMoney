@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, CircleCheck, Search } from 'lucide-react';
 import SidebarLayout from '../components/layout/SidebarLayout';
-import { accountAPI, categoryAPI, transactionAPI } from '../services/api';
+import { accountAPI, categoryAPI, rulesAPI, transactionAPI } from '../services/api';
+import { toast } from 'sonner';
 import type { TransactionListParams } from '../services/api';
 import { TransactionNotes } from '../components/transactions/TransactionNotes';
 import { SmartCategorySelector } from '../components/transactions/SmartCategorySelector';
@@ -163,6 +164,33 @@ const TransactionsPage: React.FC = () => {
   const [accounts, setAccounts] = useState<Array<{ id: string; name: string; mask: string | null }>>([]);
 
   const reload = useCallback(() => setRefreshKey(key => key + 1), []);
+
+  // Monarch-style follow-up: one category fix can become a rule for this merchant, past and future.
+  const offerRule = useCallback(
+    (transactionId: string, merchant: string, category: string) => {
+      toast(`${merchant} is now ${category}.`, {
+        duration: 8000,
+        action: {
+          label: 'Always do this',
+          onClick: async () => {
+            try {
+              const { rule, matchCount } = await rulesAPI.fromTransaction(transactionId, category);
+              const result = matchCount > 0 ? await rulesAPI.apply(rule.id) : { updated: 0, skippedUserCategory: 0 };
+              toast.success(
+                result.updated > 0
+                  ? `Rule saved. ${result.updated} past transaction${result.updated === 1 ? '' : 's'} updated.`
+                  : 'Rule saved. It applies to new transactions.'
+              );
+              reload();
+            } catch (err: any) {
+              toast.error(err.response?.data?.error || 'Could not save the rule. Try again from the Rules page.');
+            }
+          },
+        },
+      });
+    },
+    [reload]
+  );
 
   /** Any filter change goes back to page one and drops a selection of rows you can no longer see. */
   const applyFilter = (apply: () => void) => {
@@ -659,6 +687,7 @@ const TransactionsPage: React.FC = () => {
                       compact
                       className="shrink-0 md:col-start-5 md:row-start-1 md:justify-self-start"
                       onUpdate={nextCategory => {
+                        offerRule(row.id, displayName, nextCategory);
                         setRows(previous =>
                           previous.map(entry =>
                             entry.id === row.id ? { ...entry, primaryCategory: nextCategory } : entry
