@@ -403,12 +403,12 @@ const CsvImportDialog: React.FC<{
                   <ul>
                     {previewRows.map((row, index) => (
                       <li
-                        key={`${row.date}-${row.name}-${index}`}
+                        key={`${row.date}-${row.description}-${index}`}
                         className="ledger-line grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-baseline gap-2 px-3 py-2 text-sm last:border-b-0"
                       >
                         <span className="text-muted-foreground">{shortDate(row.date)}</span>
                         <span className="min-w-0">
-                          <span className="block truncate">{row.name}</span>
+                          <span className="block truncate">{row.merchant ?? row.description}</span>
                           <span className="block text-xs text-muted-foreground">
                             {row.isTransfer ? 'Transfer · ' : ''}
                             {row.category}

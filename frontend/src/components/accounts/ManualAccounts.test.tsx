@@ -415,10 +415,11 @@ describe('ManualAccounts', () => {
 
     const previewResponse = {
       preview: [
-        { date: '2026-10-08', name: 'ICLOUD STORAGE', amount: 2.99, category: 'Software', isTransfer: false },
-        { date: '2026-10-07', name: 'BLUE BOTTLE COFFEE', amount: 6.75, category: 'Food & Drinks', isTransfer: false },
+        { row: 2, date: '2026-10-08', description: 'ICLOUD STORAGE', merchant: null, amount: 2.99, category: 'Software', isTransfer: false },
+        { row: 3, date: '2026-10-07', description: 'BLUE BOTTLE COFFEE', merchant: null, amount: 6.75, category: 'Food & Drinks', isTransfer: false },
       ],
       total: 3,
+      duplicates: 0,
       errors: [{ row: 4, message: 'Missing amount' }],
     };
 

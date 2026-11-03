@@ -386,8 +386,10 @@ export interface CsvImportRequest {
 
 /** One row a dry run would write. */
 export interface CsvImportPreviewRow {
+  row: number;
   date: string;
-  name: string;
+  description: string;
+  merchant: string | null;
   amount: number;
   category: string;
   isTransfer: boolean;
@@ -397,6 +399,8 @@ export interface CsvImportPreviewRow {
 export interface CsvImportPreview {
   preview: CsvImportPreviewRow[];
   total: number;
+  /** Rows already in the account; a re-import skips them. */
+  duplicates: number;
   errors: Array<{ row: number; message: string }>;
 }
 
@@ -406,8 +410,8 @@ export interface CsvImportResult {
   skipped: number;
   /** Card payments stored as transfers, not spending. */
   payments: number;
-  firstDate: string;
-  lastDate: string;
+  firstDate: string | null;
+  lastDate: string | null;
   note?: string;
 }
 

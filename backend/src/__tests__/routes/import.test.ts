@@ -219,17 +219,16 @@ describe('POST /api/accounts/manual/:id/import (apple-card)', () => {
     expect(await prisma.transaction.count({ where: { accountId } })).toBe(4);
   });
 
-  it('collapses an identical purchase that appears twice in one file', async () => {
+  it('keeps two identical purchases in one file, and still dedupes a re-import of it', async () => {
     const csv = appleCsv().split('\r\n');
-    const duplicate = csv[2];
+    const twoCoffees = [...csv, csv[2]].join('\r\n');
 
-    const response = await importCsv(accountId, {
-      csv: [...csv, duplicate].join('\r\n'),
-      format: 'apple-card',
-    });
+    const first = await importCsv(accountId, { csv: twoCoffees, format: 'apple-card' });
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ imported: 5, skipped: 0 });
 
-    expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({ imported: 4, skipped: 1 });
+    const again = await importCsv(accountId, { csv: twoCoffees, format: 'apple-card' });
+    expect(again.body).toMatchObject({ imported: 0, skipped: 5 });
   });
 
   it('previews without writing on a dry run', async () => {

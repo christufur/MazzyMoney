@@ -242,6 +242,18 @@ export class ImportService {
     const rules: RuleLike[] = await prisma.rule.findMany({ where: { userId: request.userId } });
     const candidates = parsed.rows.map((row) => buildTransaction(row, request.userId, request.accountId, rules));
 
+    // Two real purchases can share date, amount, and description (two coffees in one day). Number
+    // repeats within the file, so both are kept while a re-import of the same file still dedupes.
+    const occurrences = new Map<string, number>();
+    for (const candidate of candidates) {
+      const n = occurrences.get(candidate.importHash) ?? 0;
+      occurrences.set(candidate.importHash, n + 1);
+      if (n > 0) {
+        candidate.importHash = createHash('sha256').update(`${candidate.importHash}#${n}`).digest('hex');
+        candidate.data.importHash = candidate.importHash;
+      }
+    }
+
     const hashes = candidates.map((candidate) => candidate.importHash);
     const existing = await prisma.transaction.findMany({
       where: { userId: request.userId, accountId: request.accountId, importHash: { in: hashes } },
@@ -250,7 +262,7 @@ export class ImportService {
     const existingHashes = new Set(existing.map((row) => row.importHash));
     const seen = new Set<string>();
 
-    // The same receipt twice in one file hashes the same, so it is skipped like an earlier import.
+    // A row already imported (same file again, or an overlapping statement) is skipped.
     const toInsert = candidates.filter((candidate) => {
       if (existingHashes.has(candidate.importHash) || seen.has(candidate.importHash)) {
         return false;
