@@ -632,3 +632,105 @@ export const recurringAPI = {
     return response.data;
   },
 };
+
+// --- Rules (W4.2) -------------------------------------------------------
+
+/** A saved rule. The schema fields only; `matchCount` comes from the list endpoint. */
+export interface Rule {
+  id: string;
+  priority: number;
+  matchMerchant: string | null;
+  matchAmountMin: number | null;
+  matchAmountMax: number | null;
+  matchAccountId: string | null;
+  setCategory: string | null;
+  setMerchant: string | null;
+  setTransfer: boolean | null;
+  setHidden: boolean | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RuleWithMatchCount = Rule & { matchCount: number };
+
+/** What the user can set on a rule. A missing or null field means "not set". */
+export interface RuleDraft {
+  priority?: number;
+  matchMerchant?: string | null;
+  matchAmountMin?: number | null;
+  matchAmountMax?: number | null;
+  matchAccountId?: string | null;
+  setCategory?: string | null;
+  setMerchant?: string | null;
+  setTransfer?: boolean | null;
+  setHidden?: boolean | null;
+}
+
+/** One row a draft matches, as the preview returns it. */
+export interface RuleMatchSample {
+  id: string;
+  date: string;
+  name: string;
+  merchantName: string | null;
+  amount: number;
+  primaryCategory: string | null;
+}
+
+/** A dry run: the count and up to the ten most recent matches. Writes nothing. */
+export interface RulePreview {
+  matchCount: number;
+  sample: RuleMatchSample[];
+}
+
+export interface RuleApplyResult {
+  updated: number;
+  /** Rows left alone because the user picked that category themselves. */
+  skippedUserCategory: number;
+}
+
+export const rulesAPI = {
+  /** The user's rules, highest priority first, each with how many rows it matches now. */
+  list: async (): Promise<{ rules: RuleWithMatchCount[] }> => {
+    const response = await api.get('/api/rules');
+    return response.data;
+  },
+
+  create: async (draft: RuleDraft): Promise<{ rule: Rule }> => {
+    const response = await api.post('/api/rules', draft);
+    return response.data;
+  },
+
+  /** The whole rule is replaced, so always send every field. */
+  update: async (id: string, draft: RuleDraft): Promise<{ rule: Rule }> => {
+    const response = await api.put(`/api/rules/${id}`, draft);
+    return response.data;
+  },
+
+  remove: async (id: string): Promise<{ success: true }> => {
+    const response = await api.delete(`/api/rules/${id}`);
+    return response.data;
+  },
+
+  preview: async (draft: RuleDraft): Promise<RulePreview> => {
+    const response = await api.post('/api/rules/preview', draft);
+    return response.data;
+  },
+
+  /** Applies a saved rule to the rows that already exist. */
+  apply: async (id: string): Promise<RuleApplyResult> => {
+    const response = await api.post(`/api/rules/${id}/apply`);
+    return response.data;
+  },
+
+  /**
+   * Builds a rule from one transaction's merchant, unapplied. Call `apply` once the
+   * user confirms the match count.
+   */
+  fromTransaction: async (
+    transactionId: string,
+    setCategory?: string
+  ): Promise<{ rule: Rule; matchCount: number }> => {
+    const response = await api.post('/api/rules/from-transaction', { transactionId, setCategory });
+    return response.data;
+  },
+};
