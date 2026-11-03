@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -9,16 +9,20 @@ import {
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
-import Overview from "./pages/Overview";
-import InsightsPage from './pages/Insights';
-import TransactionsPage from './pages/Transactions';
-import BudgetsPage from './pages/Budgets';
-import RecurringPage from './pages/Recurring';
-import RulesPage from './pages/Rules';
-import ConnectionsPage from './pages/Connections';
-import NetWorthPage from './pages/NetWorth';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+
+// Each page is its own chunk, so a first load pays for the shell and one page,
+// not the whole product. The Suspense fallback below covers those chunks; the
+// route guards keep their own fallback while the session is being read.
+const Overview = lazy(() => import('./pages/Overview'));
+const InsightsPage = lazy(() => import('./pages/Insights'));
+const TransactionsPage = lazy(() => import('./pages/Transactions'));
+const BudgetsPage = lazy(() => import('./pages/Budgets'));
+const RecurringPage = lazy(() => import('./pages/Recurring'));
+const RulesPage = lazy(() => import('./pages/Rules'));
+const ConnectionsPage = lazy(() => import('./pages/Connections'));
+const NetWorthPage = lazy(() => import('./pages/NetWorth'));
 
 const LoadingSpinner: React.FC = () => (
   <div className="flex h-screen items-center justify-center bg-paper" role="status">
@@ -61,122 +65,124 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <TooltipProvider>
-      <Router>
-        <Routes>
-          {/* Login */}
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <AuthLayout
-                  title="Sign in"
-                  footer={<>New to this server? <Link to="/register" className="font-medium text-ink underline underline-offset-4">Create an account</Link></>}
-                >
-                  <LoginForm />
-                </AuthLayout>
-              </PublicRoute>
-            }
-          />
+        <Router>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes>
+              {/* Login */}
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute>
+                    <AuthLayout
+                      title="Sign in"
+                      footer={<>New to this server? <Link to="/register" className="font-medium text-ink underline underline-offset-4">Create an account</Link></>}
+                    >
+                      <LoginForm />
+                    </AuthLayout>
+                  </PublicRoute>
+                }
+              />
 
-          {/* Register */}
-          <Route
-            path="/register"
-            element={
-              <PublicRoute>
-                <AuthLayout
-                  title="Create an account"
-                  footer={<>Already have an account? <Link to="/login" className="font-medium text-ink underline underline-offset-4">Sign in</Link></>}
-                >
-                  <RegisterForm />
-                </AuthLayout>
-              </PublicRoute>
-            }
-          />
+              {/* Register */}
+              <Route
+                path="/register"
+                element={
+                  <PublicRoute>
+                    <AuthLayout
+                      title="Create an account"
+                      footer={<>Already have an account? <Link to="/login" className="font-medium text-ink underline underline-offset-4">Sign in</Link></>}
+                    >
+                      <RegisterForm />
+                    </AuthLayout>
+                  </PublicRoute>
+                }
+              />
 
-          {/* Overview (main dashboard) */}
-          <Route
-            path="/overview"
-            element={
-              <ProtectedRoute>
-                <Overview />
-              </ProtectedRoute>
-            }
-          />
+              {/* Overview (main dashboard) */}
+              <Route
+                path="/overview"
+                element={
+                  <ProtectedRoute>
+                    <Overview />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/transactions"
-            element={
-              <ProtectedRoute>
-                <TransactionsPage />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/transactions"
+                element={
+                  <ProtectedRoute>
+                    <TransactionsPage />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/budgets"
-            element={
-              <ProtectedRoute>
-                <BudgetsPage />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/budgets"
+                element={
+                  <ProtectedRoute>
+                    <BudgetsPage />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/recurring"
-            element={
-              <ProtectedRoute>
-                <RecurringPage />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/recurring"
+                element={
+                  <ProtectedRoute>
+                    <RecurringPage />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/rules"
-            element={
-              <ProtectedRoute>
-                <RulesPage />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/rules"
+                element={
+                  <ProtectedRoute>
+                    <RulesPage />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/insights"
-            element={
-              <ProtectedRoute>
-                <InsightsPage />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/insights"
+                element={
+                  <ProtectedRoute>
+                    <InsightsPage />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/net-worth"
-            element={
-              <ProtectedRoute>
-                <NetWorthPage />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/net-worth"
+                element={
+                  <ProtectedRoute>
+                    <NetWorthPage />
+                  </ProtectedRoute>
+                }
+              />
 
-          <Route
-            path="/connections"
-            element={
-              <ProtectedRoute>
-                <ConnectionsPage />
-              </ProtectedRoute>
-            }
-          />
+              <Route
+                path="/connections"
+                element={
+                  <ProtectedRoute>
+                    <ConnectionsPage />
+                  </ProtectedRoute>
+                }
+              />
 
-          {/* Legacy redirects */}
-          <Route path="/dashboard" element={<Navigate to="/overview" replace />} />
-          <Route path="/reports" element={<Navigate to="/insights" replace />} />
-          <Route path="/analytics" element={<Navigate to="/insights" replace />} />
-          <Route path="/budget" element={<Navigate to="/budgets" replace />} />
+              {/* Legacy redirects */}
+              <Route path="/dashboard" element={<Navigate to="/overview" replace />} />
+              <Route path="/reports" element={<Navigate to="/insights" replace />} />
+              <Route path="/analytics" element={<Navigate to="/insights" replace />} />
+              <Route path="/budget" element={<Navigate to="/budgets" replace />} />
 
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/overview" replace />} />
-        </Routes>
-      </Router>
-      <Toaster position="bottom-right" />
+              {/* Default redirect */}
+              <Route path="/" element={<Navigate to="/overview" replace />} />
+            </Routes>
+          </Suspense>
+        </Router>
+        <Toaster position="bottom-right" />
       </TooltipProvider>
     </AuthProvider>
   );
