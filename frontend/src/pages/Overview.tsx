@@ -1,554 +1,305 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { PlaidLink } from "../components/plaid/PlaidLink";
-import { SyncStatus } from "../components/sync/SyncStatus";
-import SidebarLayout from "../components/layout/SidebarLayout";
-import NetWorthChart from "../components/charts/NetWorthChart";
-import { accountAPI, transactionAPI } from "../services/api";
-import { TransactionNotes } from "../components/transactions/TransactionNotes";
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import SidebarLayout from '../components/layout/SidebarLayout';
 import {
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from "recharts";
+  accountAPI,
+  budgetAPI,
+  networthAPI,
+  recurringAPI,
+  transactionAPI,
+  type Budget,
+  type NetWorthResponse,
+  type RecurringSeries,
+} from '../services/api';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import { addMonths, isoDay, money, moneyWhole, monthKey, monthName, parseMonth } from '@/lib/money';
+import { reflectOnMonth } from '@/lib/reflection';
+
+interface Summary { income: number; expenses: number }
+interface ReviewRow { id: string; date: string; name: string; merchantName?: string | null; merchantDisplay?: string | null; amount: number; primaryCategory?: string | null }
+interface SyncInfo { connected: boolean; status: string; lastSyncAt: string | null }
+
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+const since = (iso: string | null) => {
+  if (!iso) return 'Not synced yet';
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return 'Synced just now';
+  if (min < 60) return `Synced ${min} min ago`;
+  const h = Math.round(min / 60);
+  return h < 24 ? `Synced ${h} h ago` : `Synced ${new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+};
+
+function rangeFor(month: string, cutDay?: number) {
+  const start = parseMonth(month);
+  const lastDay = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+  const end = new Date(start.getFullYear(), start.getMonth(), Math.min(cutDay ?? lastDay, lastDay));
+  return { dateFrom: isoDay(start), dateTo: isoDay(end) };
+}
+
+const Figure: React.FC<{ label: string; value: string; tone?: 'sage' | 'terra' }> = ({ label, value, tone }) => (
+  <div className="border-b border-rule pb-3">
+    <div className="text-sm text-muted-foreground">{label}</div>
+    <div className={cn('mt-1 text-figure font-semibold tabular-nums', tone === 'sage' && 'text-sage-ink', tone === 'terra' && 'text-terra')}>
+      {value}
+    </div>
+  </div>
+);
+
+const PlanLine: React.FC<{ b: Budget }> = ({ b }) => {
+  const over = b.spent > b.available;
+  const pct = b.available > 0 ? Math.min(100, (b.spent / b.available) * 100) : b.spent > 0 ? 100 : 0;
+  return (
+    <li className="ledger-line grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-4 py-3 text-[15px]">
+      <span className="truncate">{b.category}</span>
+      <span className="h-2 rounded-sm bg-muted" aria-hidden>
+        <span className={cn('block h-2 rounded-sm', over ? 'bg-terra' : 'bg-sage')} style={{ width: `${pct}%` }} />
+      </span>
+      <span className={cn('text-right tabular-nums', over ? 'text-terra' : 'text-muted-foreground')}>
+        <span className={cn('font-medium', !over && 'text-ink')}>{moneyWhole(b.spent)}</span> / {moneyWhole(b.available)}
+      </span>
+    </li>
+  );
+};
 
 const Overview: React.FC = () => {
-  const { user } = useAuth();
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [dashboardData, setDashboardData] = useState<any>(null);
+  const thisMonth = monthKey(new Date());
+  const [month, setMonth] = useState(thisMonth);
+  const isCurrent = month === thisMonth;
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<Summary>({ income: 0, expenses: 0 });
+  const [lastSaved, setLastSaved] = useState<number | null>(null);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [review, setReview] = useState<{ rows: ReviewRow[]; total: number }>({ rows: [], total: 0 });
+  const [upcoming, setUpcoming] = useState<RecurringSeries[]>([]);
+  const [netWorth, setNetWorth] = useState<NetWorthResponse | null>(null);
+  const [sync, setSync] = useState<SyncInfo | null>(null);
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
-  // Fetch all dashboard data
-  const fetchDashboardData = async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const today = new Date().getDate();
     try {
-      setLoading(true);
-      setError(null);
+      const [monthTx, budgetRes, accounts] = await Promise.all([
+        transactionAPI.getTransactions({ ...rangeFor(month), limit: 1 }),
+        budgetAPI.getBudgets(month),
+        accountAPI.getAccounts(),
+      ]);
+      setSummary({ income: monthTx.summary?.income ?? 0, expenses: monthTx.summary?.expenses ?? 0 });
+      setBudgets(budgetRes.budgets ?? []);
+      setConnected(Boolean(accounts?.connected));
 
-      // Fetch accounts data
-      const accountsData = await accountAPI.getAccounts();
-      
-      let transactionsData = null;
-      let spendingByCategory = [];
-      let monthlyTrends = [];
-
-      if (accountsData.connected) {
-        try {
-          // Fetch transaction summary
-          transactionsData = await transactionAPI.getTransactions({ limit: 10 });
-          
-          // Fetch spending by category
-          spendingByCategory = await transactionAPI.getSpendingByCategory({
-            dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Last 30 days
-          });
-
-          // Fetch monthly trends
-          monthlyTrends = await transactionAPI.getMonthlyTrends(6); // Last 6 months
-        } catch (transactionError) {
-          console.log('Transactions not yet synced, using account data only');
-        }
-      }
-
-      setDashboardData({
-        accounts: accountsData,
-        transactions: transactionsData,
-        spendingByCategory,
-        monthlyTrends
-      });
-
+      // Secondary panels: a failure here leaves the panel empty instead of failing the page.
+      const [prevTx, reviewTx, rec, nw, st] = await Promise.allSettled([
+        transactionAPI.getTransactions({ ...rangeFor(addMonths(month, -1), isCurrent ? today : undefined), limit: 1 }),
+        transactionAPI.getTransactions({ reviewed: false, limit: 6 }),
+        recurringAPI.getAll(),
+        networthAPI.get('6m'),
+        transactionAPI.getSyncStatus(),
+      ]);
+      setLastSaved(prevTx.status === 'fulfilled' && prevTx.value.summary
+        ? (prevTx.value.summary.income ?? 0) - (prevTx.value.summary.expenses ?? 0)
+        : null);
+      setReview(reviewTx.status === 'fulfilled'
+        ? { rows: reviewTx.value.transactions ?? [], total: reviewTx.value.pagination?.totalCount ?? 0 }
+        : { rows: [], total: 0 });
+      setUpcoming(rec.status === 'fulfilled' ? rec.value.upcoming.slice(0, 5) : []);
+      setNetWorth(nw.status === 'fulfilled' ? nw.value : null);
+      setSync(st.status === 'fulfilled' ? st.value : null);
     } catch (err: any) {
-      console.error('Error fetching dashboard data:', err);
-      setError(err.response?.data?.error || 'Failed to load dashboard data');
+      setError(err.response?.data?.error || 'Could not load this month. Check that the server is running, then try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [month, isCurrent]);
 
+  useEffect(() => { load(); }, [load]);
+
+  // While a sync runs, check every 3 s and reload the month when it finishes.
   useEffect(() => {
-    fetchDashboardData();
-  }, [refreshKey]);
+    if (!syncing) return;
+    const t = setInterval(async () => {
+      const st = await transactionAPI.getSyncStatus().catch(() => null);
+      if (st && st.status !== 'SYNCING') {
+        setSyncing(false);
+        load();
+      }
+    }, 3000);
+    return () => clearInterval(t);
+  }, [syncing, load]);
 
-  const handlePlaidSuccess = () => {
-    setRefreshKey(prev => prev + 1);
+  const startSync = async () => {
+    try {
+      await transactionAPI.syncTransactions(false);
+      setSyncing(true);
+    } catch (err: any) {
+      if (err.response?.status === 409) setSyncing(true);
+      else setError(err.response?.data?.error || 'Could not start a sync. Try again in a minute.');
+    }
   };
 
-  const handleSyncComplete = () => {
-    setRefreshKey(prev => prev + 1);
-  };
+  const saved = summary.income - summary.expenses;
+  const start = parseMonth(month);
+  const daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  // Cash flow metrics for the health cards. Net worth is its own card (W4.5), because
-  // summing account balances here would count debt as positive.
-  const getDashboardMetrics = () => {
-    const transactionSummary = dashboardData?.transactions?.summary;
-
-    // Use real transaction data if available, otherwise show account-based metrics
-    const income = transactionSummary?.income || 0;
-    const expenses = transactionSummary?.expenses || 0;
-    const netAmount = income - expenses;
-    const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
-
-    return {
-      income,
-      expenses,
-      netAmount,
-      savingsRate,
-    };
-  };
-
-  const metrics = dashboardData ? getDashboardMetrics() : null;
-
-  const COLORS = [
-    "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", 
-    "#06b6d4", "#f97316", "#84cc16", "#64748b", "#ec4899"
-  ];
-
-  if (loading) {
-    return (
-      <SidebarLayout title="Overview">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3">Loading overview...</span>
-        </div>
-      </SidebarLayout>
-    );
-  }
+  const reflection = useMemo(
+    () =>
+      reflectOnMonth({
+        isCurrentMonth: isCurrent,
+        monthLabel: monthName(month, false),
+        nextMonthLabel: monthName(addMonths(month, 1), false),
+        income: summary.income,
+        spent: summary.expenses,
+        lastMonthSaved: lastSaved,
+        overLines: budgets.map((b) => ({ category: b.category, over: b.spent - b.available, rollover: b.rollover })),
+        hasBudgets: budgets.length > 0,
+      }),
+    [isCurrent, month, summary, lastSaved, budgets]
+  );
 
   return (
-    <SidebarLayout title="Overview">
-      <div className="space-y-6">
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm">
-            <div className="flex justify-between items-center">
-              <span>{error}</span>
-              <button 
-                onClick={fetchDashboardData}
-                className="ml-4 text-red-600 hover:text-red-800 underline"
-              >
-                Retry
-              </button>
-            </div>
+    <SidebarLayout title={monthName(month)} showTitle={false}>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => setMonth(addMonths(month, -1))}>
+            <ChevronLeft />
+          </Button>
+          <div>
+            <h1 className="text-title font-semibold text-ink">{monthName(month)}</h1>
+            <p className="text-sm text-muted-foreground">
+              {isCurrent ? `Day ${new Date().getDate()} of ${daysInMonth}` : 'Closed month'}
+            </p>
           </div>
-        )}
-
-        {!dashboardData?.accounts?.connected ? (
-          // No bank connected state
-          <div className="bg-linear-to-br from-blue-50 to-indigo-100 rounded-xl shadow-lg border border-blue-200 p-8">
-            <div className="text-center">
-              <div className="mx-auto h-20 w-20 text-blue-500 mb-6">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 48 48" className="w-full h-full">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                    d="M12 8v8.01M12 8c0 1.105.895 2 2 2s2-.895 2-2-2-2-2-2c-1.105 0-2 .895-2 2z" />
-                </svg>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                Welcome to Your Financial Hub
-              </h3>
-              <p className="text-gray-600 mb-8 max-w-lg mx-auto text-lg">
-                Connect your bank account to unlock powerful insights, track spending patterns, 
-                and take control of your financial future.
-              </p>
-              <div className="mb-6">
-                <PlaidLink onSuccess={handlePlaidSuccess} />
-              </div>
-              <div className="grid grid-cols-2 gap-4 max-w-md mx-auto text-sm text-gray-600">
-                <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <span>Real-time balances</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <span>Smart categorization</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <span>Budget tracking</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <span>Financial insights</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Sync Status */}
-            <SyncStatus onSyncComplete={handleSyncComplete} />
-
-            {/* Net Worth: history chart with liabilities counted negative (W4.5) */}
-            <NetWorthChart />
-
-            {/* Financial Health Cards */}
-            <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                    </svg>
-                  </div>
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">This month</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Income</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {metrics && metrics.income > 0 ? `+${formatCurrency(metrics.income)}` : '--'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
-                    </svg>
-                  </div>
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">This month</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Expenses</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {metrics && metrics.expenses > 0 ? `-${formatCurrency(metrics.expenses)}` : '--'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`p-2 rounded-lg ${metrics && metrics.netAmount >= 0 ? 'bg-blue-100' : 'bg-orange-100'}`}>
-                    <svg className={`w-6 h-6 ${metrics && metrics.netAmount >= 0 ? 'text-blue-600' : 'text-orange-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  </div>
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                    {metrics && metrics.savingsRate >= 20 ? 'Great!' : metrics && metrics.savingsRate >= 10 ? 'Good' : 'Can improve'}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">Savings Rate</p>
-                  <p className={`text-2xl font-bold ${metrics && metrics.netAmount >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                    {metrics ? `${metrics.savingsRate.toFixed(1)}%` : '--'}
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {/* Main Content Grid */}
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column - Key Insights & Actions */}
-              <div className="lg:col-span-2 space-y-6">
-                
-                {/* Smart Insights Section */}
-                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900">💡 Smart Insights</h2>
-                    <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</button>
-                  </div>
-                  <div className="space-y-4">
-                    {dashboardData?.spendingByCategory?.length > 0 ? (
-                      <>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <div className="flex items-start space-x-3">
-                            <div className="p-1 bg-blue-100 rounded-full">
-                              <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-blue-900">Top spending category this month</p>
-                              <p className="text-sm text-blue-700">
-                                {dashboardData.spendingByCategory[0]?.category}: {formatCurrency(dashboardData.spendingByCategory[0]?.amount || 0)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        {metrics && metrics.savingsRate < 10 && (
-                          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                            <div className="flex items-start space-x-3">
-                              <div className="p-1 bg-orange-100 rounded-full">
-                                <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-orange-900">Low savings rate</p>
-                                <p className="text-sm text-orange-700">
-                                  Your savings rate is {metrics.savingsRate.toFixed(1)}%. Consider setting up a budget to save more.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <p className="text-sm">Insights will appear here once you have transaction data.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Recent Transactions Feed */}
-                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
-                    <a href="/transactions" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                      View All →
-                    </a>
-                  </div>
-                  {dashboardData?.transactions?.transactions?.length > 0 ? (
-                    <div className="space-y-4">
-                      {dashboardData.transactions.transactions.slice(0, 6).map((transaction: any) => (
-                        <div key={transaction.id} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            transaction.amount > 0 ? 'bg-red-100' : 'bg-green-100'
-                          }`}>
-                            {transaction.amount > 0 ? (
-                              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
-                              </svg>
-                            ) : (
-                              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                              </svg>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{transaction.name}</p>
-                            <div className="flex items-center space-x-2 text-sm text-gray-500">
-                              <span>{new Date(transaction.date).toLocaleDateString()}</span>
-                              {transaction.primaryCategory && (
-                                <>
-                                  <span>•</span>
-                                  <span className="bg-gray-100 px-2 py-1 rounded-sm text-xs">{transaction.primaryCategory}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className={`font-semibold ${transaction.amount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              {transaction.amount > 0 ? '-' : '+'}{formatCurrency(Math.abs(transaction.amount))}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-gray-500">
-                      <div className="w-12 h-12 mx-auto mb-4 text-gray-300">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 48 48" className="w-full h-full">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5l3-3m0 0l3 3m-3-3v12" />
-                        </svg>
-                      </div>
-                      <p className="font-medium">No transactions yet</p>
-                      <p className="text-sm mt-1">Transactions will appear here after they sync from your bank.</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Quick Spending Overview */}
-                {dashboardData?.spendingByCategory?.length > 0 && (
-                  <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-lg font-semibold text-gray-900">Spending This Month</h2>
-                      <a href="/insights" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                        View Details →
-                      </a>
-                    </div>
-                    <div className="space-y-4">
-                      {dashboardData.spendingByCategory.slice(0, 5).map((category: any, index: number) => (
-                        <div key={category.category} className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div 
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                            />
-                            <span className="text-sm font-medium text-gray-700">{category.category}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm font-semibold text-gray-900">
-                              {formatCurrency(category.amount)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right Column - Accounts & Actions */}
-              <div className="space-y-6">
-                
-                {/* Account Summary Cards */}
-                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-semibold text-gray-900">Your Accounts</h2>
-                    <span className="text-sm text-gray-500">
-                      {dashboardData?.accounts?.institution?.name || 'Bank'}
-                    </span>
-                  </div>
-                  <div className="space-y-4">
-                    {dashboardData?.accounts?.accounts?.length > 0 ? (
-                      dashboardData.accounts.accounts.map((account: any) => (
-                        <div key={account.account_id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                account.subtype === 'checking' ? 'bg-blue-100' :
-                                account.subtype === 'savings' ? 'bg-green-100' :
-                                account.subtype === 'credit' ? 'bg-purple-100' : 'bg-gray-100'
-                              }`}>
-                                <svg className={`w-4 h-4 ${
-                                  account.subtype === 'checking' ? 'text-blue-600' :
-                                  account.subtype === 'savings' ? 'text-green-600' :
-                                  account.subtype === 'credit' ? 'text-purple-600' : 'text-gray-600'
-                                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                </svg>
-                              </div>
-                              <div>
-                                <p className="font-medium text-gray-900 text-sm">{account.name}</p>
-                                <p className="text-xs text-gray-500 capitalize">{account.subtype}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-gray-900">{formatCurrency(account.balances.current)}</p>
-                              {account.balances.available !== null && account.balances.available !== account.balances.current && (
-                                <p className="text-xs text-gray-500">
-                                  Avail: {formatCurrency(account.balances.available)}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-6 text-gray-500">
-                        <div className="w-12 h-12 mx-auto mb-3 text-gray-300">
-                          <svg fill="none" stroke="currentColor" viewBox="0 0 48 48" className="w-full h-full">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                          </svg>
-                        </div>
-                        <p className="text-sm font-medium">No accounts connected</p>
-                        <p className="text-xs mt-1">Connect your bank to see accounts</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Monthly Summary */}
-                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-6">This Month</h2>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                          </svg>
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">Income</span>
-                      </div>
-                      <span className="text-sm font-semibold text-green-600">
-                        +{formatCurrency(metrics?.income || 0)}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                          <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
-                          </svg>
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">Expenses</span>
-                      </div>
-                      <span className="text-sm font-semibold text-red-600">
-                        -{formatCurrency(metrics?.expenses || 0)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                          </svg>
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">Transactions</span>
-                      </div>
-                      <span className="text-sm font-semibold text-gray-700">
-                        {dashboardData?.transactions?.summary?.totalTransactions || 0}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-6">Quick Actions</h2>
-                  <div className="space-y-3">
-                    <a 
-                      href="/budgets" 
-                      className="w-full flex items-center justify-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                      </svg>
-                      <span>Manage Budgets</span>
-                    </a>
-                    
-                    <a 
-                      href="/insights" 
-                      className="w-full flex items-center justify-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                      <span>View Insights</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </section>
+          <Button variant="ghost" size="icon" aria-label="Next month" disabled={isCurrent} onClick={() => setMonth(addMonths(month, 1))}>
+            <ChevronRight />
+          </Button>
+        </div>
+        {sync?.connected && (
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span aria-live="polite">{syncing || sync.status === 'SYNCING' ? 'Syncing your banks…' : sync.status === 'TOKEN_EXPIRED'
+              ? <Link to="/connections" className="text-terra underline underline-offset-4">A bank needs you to log in again</Link>
+              : since(sync.lastSyncAt)}</span>
+            <Button variant="outline" size="sm" onClick={startSync} disabled={syncing}>
+              <RefreshCw className={cn(syncing && 'animate-spin')} /> Sync now
+            </Button>
           </div>
         )}
       </div>
+
+      {error && (
+        <div role="alert" className="mb-6 flex items-center justify-between gap-4 rounded-md bg-terra-tint px-4 py-3 text-sm text-terra">
+          {error}
+          <Button variant="outline" size="sm" onClick={load}>Try again</Button>
+        </div>
+      )}
+
+      {connected === false && !loading && (
+        <p className="mb-6 rounded-md border border-rule bg-card px-4 py-3 text-sm">
+          No bank is connected yet. <Link to="/connections" className="font-medium underline underline-offset-4">Connect a bank</Link> to fill this ledger, or add a manual account there.
+        </p>
+      )}
+
+      <section
+        aria-label={`${monthName(month)} ledger`}
+        className="sheet flex flex-col md:grid md:grid-cols-2"
+      >
+        <div className="contents md:block">
+        <div className="order-1 p-6 md:p-8">
+          {loading ? <Skeleton className="h-20" /> : (
+            <div className="grid grid-cols-3 gap-5">
+              <Figure label="Income" value={moneyWhole(summary.income)} />
+              <Figure label="Spent" value={moneyWhole(summary.expenses)} />
+              <Figure
+                label={saved >= 0 ? (isCurrent ? 'Saved so far' : 'Saved') : (isCurrent ? 'Net so far' : 'Net')}
+                value={saved >= 0 ? moneyWhole(saved) : `−${moneyWhole(-saved)}`}
+                tone={saved > 0 ? 'sage' : undefined}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="order-3 border-t border-rule p-6 md:p-8">
+          <h2 className="section-label mb-1">Plan for the month</h2>
+          {loading ? <Skeleton className="mt-3 h-40" /> : budgets.length === 0 ? (
+            <p className="mt-3 text-[15px] text-muted-foreground">
+              No budgets yet. <Link to="/budgets" className="font-medium text-ink underline underline-offset-4">Plan this month</Link> to see each line here.
+            </p>
+          ) : (
+            <ul>{budgets.map((b) => <PlanLine key={b.id} b={b} />)}</ul>
+          )}
+          {!loading && (
+            <p className="mt-6 rounded-md bg-paper px-5 py-4 text-[15px] leading-relaxed">{reflection}</p>
+          )}
+        </div>
+
+        </div>
+        <div className="contents md:block md:border-l md:border-rule">
+        <div className="order-2 border-t border-rule p-6 md:border-t-0 md:p-8">
+          <h2 className="section-label mb-3">
+            {review.total > 0 ? `To review · ${review.total} new` : 'To review'}
+          </h2>
+          {loading ? <Skeleton className="h-40" /> : review.total === 0 ? (
+            <p className="text-[15px] text-muted-foreground">Everything is reviewed. New transactions appear here after each sync.</p>
+          ) : (
+            <>
+              <ul>
+                {review.rows.map((t) => (
+                  <li key={t.id} className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-muted py-2.5 text-sm">
+                    <span className="text-muted-foreground">{shortDate(t.date)}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-terra" />
+                      <span className="truncate">{t.merchantDisplay ?? t.merchantName ?? t.name}</span>
+                    </span>
+                    <span className={cn('text-right font-medium tabular-nums', t.amount < 0 && 'text-sage-ink')}>
+                      {t.amount < 0 ? `+${money(-t.amount)}` : money(t.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Button asChild className="mt-5">
+                <Link to="/transactions">Review {review.total} transaction{review.total === 1 ? '' : 's'}</Link>
+              </Button>
+            </>
+          )}
+        </div>
+
+        <div className="order-4 border-t border-rule p-6 md:p-8">
+          <h2 className="section-label mb-1">Coming up</h2>
+          {loading ? <Skeleton className="mt-3 h-24" /> : upcoming.length === 0 ? (
+            <p className="mt-3 text-[15px] text-muted-foreground">No repeating bills due in the next 30 days.</p>
+          ) : (
+            <ul>
+              {upcoming.map((s) => (
+                <li key={s.id} className="ledger-line grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 py-2.5 text-sm">
+                  <span className="text-muted-foreground">{shortDate(s.nextDate)}</span>
+                  <span className="truncate">{s.displayName}</span>
+                  <span className="text-right font-medium tabular-nums">{money(s.averageAmount)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {netWorth && netWorth.points.length > 0 && (
+            <Link to="/net-worth" className="mt-6 flex items-baseline justify-between gap-4 rounded-md px-1 py-1 text-sm hover:bg-paper">
+              <span className="text-muted-foreground">Net worth</span>
+              <span className="tabular-nums">
+                <span className="font-semibold">{moneyWhole(netWorth.current.netWorth)}</span>{' '}
+                <span className={netWorth.change.amount >= 0 ? 'text-sage-ink' : 'text-terra'}>
+                  {netWorth.change.amount >= 0 ? '+' : '−'}{moneyWhole(Math.abs(netWorth.change.amount))} since {shortDate(netWorth.points[0].date)}
+                </span>
+              </span>
+            </Link>
+          )}
+        </div>
+        </div>
+      </section>
     </SidebarLayout>
   );
 };

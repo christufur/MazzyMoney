@@ -302,6 +302,26 @@ describe('TransactionSyncService', () => {
     expect(saved!.categorySource).toBe('PLAID');
   });
 
+  it('adds history older than 14 days as already reviewed, recent rows as needing review', async () => {
+    const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+    queuedPages([
+      {
+        added: [
+          plaidTransaction({ transaction_id: `sync-old-${stamp}`, date: daysAgo(60) }),
+          plaidTransaction({ transaction_id: `sync-new-${stamp}`, date: daysAgo(2) }),
+        ],
+        next: 'cursor-review-window',
+      },
+    ]);
+
+    await TransactionSyncService.syncItem(ITEM_ID);
+
+    const old = await prisma.transaction.findUnique({ where: { plaidTransactionId: `sync-old-${stamp}` } });
+    const recent = await prisma.transaction.findUnique({ where: { plaidTransactionId: `sync-new-${stamp}` } });
+    expect(old!.reviewed).toBe(true);
+    expect(recent!.reviewed).toBe(false);
+  });
+
   it('applies a user rule and records the RULE category source', async () => {
     await prisma.rule.create({
       data: {

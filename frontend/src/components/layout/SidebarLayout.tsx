@@ -105,13 +105,7 @@ const UserMenu: React.FC = () => {
 };
 
 const Wordmark: React.FC = () => (
-  <NavLink to="/overview" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight text-ink">
-    {/* Two ruled lines: the ledger, not a logo. The product name is still undecided. */}
-    <span aria-hidden className="flex h-4 w-5 flex-col justify-between">
-      <span className="h-px w-full bg-ink" />
-      <span className="h-px w-full bg-ink" />
-      <span className="h-px w-3/5 bg-sage" />
-    </span>
+  <NavLink to="/overview" className="text-[15px] font-semibold tracking-tight text-ink">
     Mazzy Money
   </NavLink>
 );

@@ -20,6 +20,8 @@ import type { PlaidItem } from '../../prisma/generated/prisma';
 const PAGE_SIZE = 500;
 /** Pause between Items so a server-wide sweep stays under Plaid's rate limits. */
 const ITEM_PAUSE_MS = 1000;
+// History older than this arrives already reviewed: the queue is for what is new, not the past year.
+const REVIEW_WINDOW_DAYS = 14;
 
 type ItemStatusName = 'ACTIVE' | 'SYNCING' | 'LOGIN_REQUIRED' | 'ERROR';
 type CategorySourceName = 'PLAID' | 'RULE' | 'USER';
@@ -441,7 +443,7 @@ export class TransactionSyncService {
             hidden: categorized.hidden,
             merchantDisplay: categorized.merchantDisplay,
             notes: carried?.notes ?? null,
-            reviewed: carried?.reviewed ?? false,
+            reviewed: carried?.reviewed ?? isOlderThanReviewWindow(fields.date),
           },
         });
       } else {
@@ -651,6 +653,10 @@ function plaidFields(transaction: PlaidTransactionLike, accountId: string) {
 }
 
 /** Money stays Float in the schema, so every stored amount is rounded to cents. */
+function isOlderThanReviewWindow(date: Date, now: Date = new Date()): boolean {
+  return date.getTime() < startOfUtcDay(now).getTime() - REVIEW_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+}
+
 function roundCents(amount: number): number {
   return Math.round(amount * 100) / 100;
 }
