@@ -73,6 +73,26 @@ const renderPage = () =>
     </MemoryRouter>
   );
 
+/**
+ * Pretend a viewport `matches` the query. jsdom has no layout, so the chart reads the media
+ * query itself; this is the only way to prove the phone branch is what a phone gets.
+ */
+const stubViewport = (matches: boolean) => {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: query.includes('max-width') ? matches : false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+  );
+};
+
 /** The start of the period the page asks for, counted from the same clock the page uses. */
 const monthsAgoStart = (monthsBack: number) => {
   const now = new Date();
@@ -88,6 +108,34 @@ describe('Reports page', () => {
     getMonthlyTrends.mockResolvedValue(trends);
     getInsights.mockResolvedValue({ insights: [] });
     getMerchants.mockResolvedValue({ merchants: [] });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('draws the whole report as one sheet with ruled sections, not a stack of cards', async () => {
+    const { container } = renderPage();
+    await screen.findByTestId('category-ledger');
+
+    const sheets = container.querySelectorAll('.sheet');
+    expect(sheets).toHaveLength(1);
+    expect(sheets[0].textContent).toContain('Where the money went');
+    expect(sheets[0].textContent).toContain('Month by month');
+    expect(sheets[0].textContent).toContain('Cash flow');
+    expect(sheets[0].textContent).toContain('Changes this month');
+    expect(sheets[0].textContent).toContain('Top merchants');
+
+    // Every section after the figures is divided by a hairline rule.
+    const sections = sheets[0].querySelectorAll(':scope > section');
+    expect(sections.length).toBe(6);
+    Array.from(sections)
+      .slice(1)
+      .forEach((section) => expect(section.className).toContain('border-t border-rule'));
+
+    // One title only, and it comes from the layout.
+    expect(container.querySelectorAll('h1')).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Reports');
   });
 
   it('renders income, spending, and net from the summary', async () => {
@@ -129,6 +177,37 @@ describe('Reports page', () => {
     expect(within(first as HTMLElement).getByText('64%')).toBeInTheDocument();
   });
 
+  it('draws the spending bars in ink, never sage', async () => {
+    renderPage();
+
+    const ledger = await screen.findByTestId('category-ledger');
+    const bars = Array.from(ledger.querySelectorAll<HTMLElement>('[data-bar-fill="spending"]'));
+
+    // Spending is ink everywhere; sage is only money in and money kept.
+    expect(bars).toHaveLength(3);
+    bars.forEach((bar) => {
+      expect(bar.className).toContain('bg-ink');
+      expect(bar.className).not.toContain('bg-sage');
+    });
+  });
+
+  it('puts each category bar on its own full-width line under the name on a phone', async () => {
+    renderPage();
+
+    const ledger = await screen.findByTestId('category-ledger');
+    const row = ledger.querySelectorAll('li')[0] as HTMLElement;
+    const track = row.querySelector<HTMLElement>('[data-bar="spending"]');
+    const fill = row.querySelector<HTMLElement>('[data-bar-fill="spending"]');
+
+    // The bar spans the whole row below md and shares the line above it.
+    expect(track?.className).toContain('w-full');
+    expect(track?.className).toContain('order-last');
+    expect(track?.className).toContain('md:w-auto');
+    expect(track?.className).toContain('md:order-none');
+    // The fill is spending, so it is ink.
+    expect(fill?.className).toContain('bg-ink');
+  });
+
   it('rolls categories past the eighth into Other', async () => {
     const rows = Array.from({ length: 9 }, (_, index) => ({
       category: `Category ${index + 1}`,
@@ -163,18 +242,30 @@ describe('Reports page', () => {
     expect(within(ledger).getByText('$500.00')).toBeInTheDocument();
   });
 
-  it('prints no NaN when last month had no spending to compare with', async () => {
+  it('says a category is new when last month had no baseline to compare with', async () => {
     getInsights.mockResolvedValue({
-      insights: [{ category: 'Groceries', change: 82, percentChange: null }],
+      insights: [{ category: 'Food & Dining', change: 49, percentChange: null }],
     });
     renderPage();
 
     await screen.findByTestId('category-ledger');
-    await waitFor(() => {
-      expect(screen.getByText(/Groceries is up \$82/)).toBeInTheDocument();
-    });
+    const sentence = await screen.findByText('Food & Dining is new this month ($49).');
+    // No baseline means no percentage: "up 100%" would be invented.
+    expect(sentence.textContent).not.toContain('100%');
+    expect(sentence.textContent).not.toContain('up');
     expect(document.body.textContent).not.toContain('NaN');
     expect(document.body.textContent).not.toContain('Infinity');
+  });
+
+  it('does not print a dash for a category that has a real baseline', async () => {
+    getInsights.mockResolvedValue({
+      insights: [{ category: 'Groceries', change: 82, percentChange: 24.4 }],
+    });
+    renderPage();
+
+    expect(
+      await screen.findByText('Groceries is up $82 (24%) on last month.')
+    ).toBeInTheDocument();
   });
 
   it('asks for the new date range when the period changes', async () => {
@@ -204,6 +295,79 @@ describe('Reports page', () => {
       await screen.findByText('No transactions in this period. Try a longer period.')
     ).toBeInTheDocument();
     expect(screen.getByText('No spending recorded in this period.')).toBeInTheDocument();
+  });
+
+  it('shows a ranked cash-flow list instead of the diagram below 640 px', async () => {
+    stubViewport(true);
+    renderPage();
+
+    const list = await screen.findByTestId('cash-flow-list');
+    const rows = Array.from(list.querySelectorAll('li')).map((row) => row.textContent ?? '');
+
+    // Largest flow first, labelled "source → category" with its share and amount.
+    expect(rows[0]).toContain('Income → Housing');
+    expect(rows[0]).toContain('28%');
+    expect(rows[0]).toContain('$1,400.00');
+    expect(rows[1]).toContain('Income → Groceries');
+    expect(rows[1]).toContain('12%');
+
+    // No diagram at all, and the list bars are thin and ink for spending.
+    expect(screen.queryByTestId('cash-flow-diagram')).not.toBeInTheDocument();
+    expect(document.querySelector('svg[role="img"]')).toBeNull();
+    const bars = Array.from(list.querySelectorAll<HTMLElement>('[data-bar-fill="spending"]'));
+    expect(bars.length).toBeGreaterThan(0);
+    bars.forEach((bar) => {
+      expect(bar.className).toContain('h-1.5');
+      expect(bar.className).toContain('bg-ink');
+    });
+  });
+
+  it('keeps the diagram on a wide screen', async () => {
+    stubViewport(false);
+    renderPage();
+
+    expect(await screen.findByTestId('cash-flow-diagram')).toBeInTheDocument();
+    expect(screen.queryByTestId('cash-flow-list')).not.toBeInTheDocument();
+  });
+
+  it('puts every desktop label outside the bands, never on one', async () => {
+    stubViewport(false);
+    renderPage();
+
+    const svg = await screen.findByTestId('cash-flow-diagram');
+    await waitFor(() => {
+      expect(svg.querySelectorAll('[data-role="label-name"]').length).toBeGreaterThan(0);
+    });
+
+    const nodes = Array.from(
+      svg.querySelectorAll<SVGRectElement>('[data-layer="nodes"] rect')
+    );
+    // The node blocks are the only ink rectangles: the bands are paths.
+    const blocks = nodes.map((rect) => ({
+      x0: Number(rect.getAttribute('x')),
+      x1: Number(rect.getAttribute('x')) + Number(rect.getAttribute('width')),
+    }));
+    const leftBlock = Math.min(...blocks.map((b) => b.x0));
+    const rightBlock = Math.max(...blocks.map((b) => b.x1));
+
+    const names = Array.from(svg.querySelectorAll<SVGTextElement>('[data-role="label-name"]'));
+    expect(names.length).toBeGreaterThan(1);
+
+    names.forEach((label) => {
+      const x = Number(label.getAttribute('x'));
+      const anchor = label.getAttribute('text-anchor');
+      // Every label sits in a gutter: left of the left-hand node, or right of the right-hand node.
+      const inLeftGutter = anchor === 'end' && x <= leftBlock;
+      const inRightGutter = anchor === 'start' && x >= rightBlock;
+      expect(inLeftGutter || inRightGutter).toBe(true);
+    });
+
+    // The right-hand labels use the empty right side of the spread.
+    const rightLabels = names.filter((label) => label.getAttribute('text-anchor') === 'start');
+    expect(rightLabels.length).toBeGreaterThan(1);
+    rightLabels.forEach((label) => {
+      expect(Number(label.getAttribute('x'))).toBeGreaterThan(rightBlock);
+    });
   });
 
   it('shows an inline error with a retry', async () => {

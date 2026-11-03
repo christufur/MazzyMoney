@@ -62,6 +62,10 @@ export class AnalyticsService {
    * Compares the current calendar month so far (UTC day 1 up to now) with the
    * same day range of the previous month (UTC day 1 up to the same day of the
    * month, capped at the last day of that month).
+   *
+   * `percentChange` is `null` when the category had no spending in that stretch
+   * of last month: there is no baseline, so there is no percentage. The change
+   * itself is still returned, and the screen reads it as "new this month".
    */
   static async getSpendingInsights(userId: string) {
     const now = new Date();
@@ -83,26 +87,32 @@ export class AnalyticsService {
     ]);
 
     const insights = [];
-    
+
     // Compare spending by category
     for (const [category, thisMonthAmount] of Object.entries(thisMonthData)) {
       const lastMonthAmount = lastMonthData[category] || 0;
       const change = cents(thisMonthAmount - lastMonthAmount);
-      // Spending with no baseline last month counts as a 100% increase.
+      // No spending last month means no percentage to compute: the category is new,
+      // and calling that "up 100%" would invent a baseline. The screen says "new this month".
       const percentChange =
         lastMonthAmount > 0
           ? Math.round((change / lastMonthAmount) * 10000) / 100
-          : thisMonthAmount > 0
-            ? 100
-            : 0;
-      
-      if (Math.abs(percentChange) > 20) { // Significant change
+          : null;
+
+      // A new category is news once it is more than pocket change; a category with a
+      // baseline is news when it moved by more than a fifth.
+      const significant =
+        percentChange === null
+          ? thisMonthAmount > 20
+          : Math.abs(percentChange) > 20;
+
+      if (significant) {
         insights.push({
           category,
           change,
           percentChange,
           type: change > 0 ? 'increase' : 'decrease',
-          severity: Math.abs(percentChange) > 50 ? 'high' : 'medium'
+          severity: percentChange === null || Math.abs(percentChange) > 50 ? 'high' : 'medium'
         });
       }
     }
