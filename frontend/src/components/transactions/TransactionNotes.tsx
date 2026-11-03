@@ -1,18 +1,28 @@
 import React, { useState } from 'react';
 import { transactionAPI } from '../../services/api';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 interface TransactionNotesProps {
   transactionId: string;
   initialNotes?: string;
   onUpdate: (notes: string) => void;
   compact?: boolean;
+  className?: string;
 }
 
+/**
+ * A note on a ledger row: one quiet line when there is something to say, and a muted
+ * "Add a note" link that shows on hover (or on touch, where there is no hover).
+ * Editing stays inline with a small Save and Cancel.
+ */
 export const TransactionNotes: React.FC<TransactionNotesProps> = ({
   transactionId,
   initialNotes = '',
   onUpdate,
-  compact = false
+  compact = false,
+  className,
 }) => {
   const [notes, setNotes] = useState(initialNotes);
   const [isEditing, setIsEditing] = useState(false);
@@ -27,7 +37,7 @@ export const TransactionNotes: React.FC<TransactionNotesProps> = ({
       onUpdate(notes);
       setIsEditing(false);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to save notes');
+      setError(err.response?.data?.error || 'Could not save the note. Try again.');
     } finally {
       setSaving(false);
     }
@@ -41,62 +51,44 @@ export const TransactionNotes: React.FC<TransactionNotesProps> = ({
 
   if (isEditing) {
     return (
-      <div className="space-y-2">
-        <textarea
+      <span className={cn('block w-full max-w-md space-y-1.5 pt-1.5', className)}>
+        <Textarea
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Add notes..."
-          className={`w-full p-2 border rounded-md resize-none ${
-            compact ? 'text-sm' : 'text-base'
-          } ${error ? 'border-red-500' : 'border-gray-300'}`}
+          onChange={event => setNotes(event.target.value)}
+          placeholder="What should you remember about this?"
+          aria-label="Note"
           rows={compact ? 2 : 3}
           maxLength={500}
+          aria-invalid={Boolean(error)}
+          className="min-h-0 resize-none text-sm"
         />
-        {error && (
-          <p className="text-red-500 text-xs">{error}</p>
-        )}
-        <div className="flex space-x-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className={`px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:opacity-50 ${
-              compact ? 'px-2 py-1 text-xs' : ''
-            }`}
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-          <button
-            onClick={handleCancel}
-            className={`px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400 ${
-              compact ? 'px-2 py-1 text-xs' : ''
-            }`}
-          >
+
+        {error && <span className="block text-xs text-terra">{error}</span>}
+
+        <span className="flex items-center gap-2">
+          <Button size="xs" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
+          <Button size="xs" variant="ghost" onClick={handleCancel} disabled={saving}>
             Cancel
-          </button>
-        </div>
-      </div>
+          </Button>
+        </span>
+      </span>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {notes ? (
-        <div className={`p-2 bg-gray-50 rounded-md ${compact ? 'text-sm' : 'text-base'}`}>
-          <p className="text-gray-700 whitespace-pre-wrap">{notes}</p>
-        </div>
-      ) : (
-        <p className={`text-gray-400 italic ${compact ? 'text-sm' : 'text-base'}`}>
-          No notes
-        </p>
+    <span className={cn('inline-flex min-w-0 max-w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs', className)}>
+      {notes && (
+        <span className="min-w-0 whitespace-pre-wrap break-words text-muted-foreground">{notes}</span>
       )}
       <button
+        type="button"
         onClick={() => setIsEditing(true)}
-        className={`text-blue-600 hover:text-blue-800 ${
-          compact ? 'text-xs' : 'text-sm'
-        }`}
+        className="shrink-0 rounded-sm text-muted-foreground underline-offset-4 hover:text-ink hover:underline"
       >
-        {notes ? 'Edit notes' : 'Add notes'}
+        {notes ? 'Edit note' : 'Add a note'}
       </button>
-    </div>
+    </span>
   );
 };

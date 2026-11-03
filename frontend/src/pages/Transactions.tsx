@@ -1,9 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Check, CircleCheck, Search } from 'lucide-react';
 import SidebarLayout from '../components/layout/SidebarLayout';
 import { accountAPI, categoryAPI, transactionAPI } from '../services/api';
 import type { TransactionListParams } from '../services/api';
 import { TransactionNotes } from '../components/transactions/TransactionNotes';
 import { SmartCategorySelector } from '../components/transactions/SmartCategorySelector';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
+import { money } from '@/lib/money';
 
 const PAGE_SIZE = 50;
 
@@ -65,19 +75,68 @@ const dateFromForRange = (range: DateRange): string | undefined => {
   return cutoff.toISOString().slice(0, 10);
 };
 
-const formatMoney = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(amount));
+const toDate = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 
-const formatDate = (date: string) =>
-  new Date(date).toLocaleDateString('en-US', {
+/** Ledger dates read "Nov 2"; a row from another year carries its year so it cannot be misread. */
+const shortDay = (value: string) => {
+  const date = toDate(value);
+  if (!date) return '—';
+  const sameYear = date.getUTCFullYear() === new Date().getUTCFullYear();
+  return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
     timeZone: 'UTC',
+    ...(sameYear ? {} : { year: 'numeric' }),
   });
+};
 
-const displayNameOf = (row: TransactionRow) =>
-  row.merchantDisplay ?? row.merchantName ?? row.name;
+const dayMonth = (value: string) => {
+  const date = toDate(value);
+  if (!date) return '—';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+};
+
+const displayNameOf = (row: TransactionRow) => row.merchantDisplay ?? row.merchantName ?? row.name;
+
+const accountLabel = (account: TransactionRow['account']) =>
+  account ? `${account.name}${account.mask ? ` ••${account.mask}` : ''}` : '';
+
+/** Row money: the API stores money out as a positive amount, so out is a true minus. */
+const signedAmount = (amount: number) => {
+  if (amount === 0) return money(0);
+  return amount > 0 ? `−${money(amount)}` : `+${money(-amount)}`;
+};
+
+/** Net money: positive means more came in than went out. */
+const signedNet = (amount: number) => {
+  if (amount === 0) return money(0);
+  return amount > 0 ? `+${money(amount)}` : `−${money(-amount)}`;
+};
+
+/** A figure that is always written with a sign, except when there is nothing to sign. */
+const withSign = (amount: number, sign: '+' | '−') =>
+  amount === 0 ? money(0) : `${sign}${money(Math.abs(amount))}`;
+
+const Figure: React.FC<{ label: string; value: string; tone?: 'sage' }> = ({ label, value, tone }) => (
+  <div className="min-w-0 border-b border-rule pb-3">
+    <div className="truncate text-sm text-muted-foreground">{label}</div>
+    {/* Three figures share one phone row, so the type steps down to keep long amounts inside the column. */}
+    <div
+      className={cn(
+        'mt-1 whitespace-nowrap text-base font-semibold tabular-nums sm:text-lg md:text-figure',
+        tone === 'sage' && 'text-sage-ink'
+      )}
+    >
+      {value}
+    </div>
+  </div>
+);
+
+const tabTriggerClass =
+  'flex-none -mb-px h-9 rounded-none border-b-2 border-transparent px-0 text-sm font-normal text-muted-foreground after:hidden hover:text-ink data-[state=active]:border-sage data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-ink data-[state=active]:shadow-none';
 
 const TransactionsPage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('all');
@@ -201,7 +260,10 @@ const TransactionsPage: React.FC = () => {
         setSummary(response.summary ?? null);
       } catch (err: any) {
         if (!active) return;
-        setError(err.response?.data?.error || 'Failed to load transactions.');
+        setError(
+          err.response?.data?.error ||
+            'Could not load these transactions. Check that the server is running, then try again.'
+        );
         setRows([]);
       } finally {
         if (active) setLoading(false);
@@ -242,7 +304,7 @@ const TransactionsPage: React.FC = () => {
       setSelected(new Set());
       reload();
     } catch (err: any) {
-      setActionError(err.response?.data?.error || `Failed to ${message}.`);
+      setActionError(err.response?.data?.error || `Could not ${message}. Try again.`);
     } finally {
       setBusy(false);
     }
@@ -258,7 +320,9 @@ const TransactionsPage: React.FC = () => {
       setSelected(new Set());
       reload();
     } catch (err: any) {
-      setActionError(err.response?.data?.error || 'Failed to mark these transactions as reviewed.');
+      setActionError(
+        err.response?.data?.error || 'Could not mark these transactions as reviewed. Try again.'
+      );
     } finally {
       setBusy(false);
     }
@@ -270,7 +334,7 @@ const TransactionsPage: React.FC = () => {
       await transactionAPI.update(row.id, { reviewed: !row.reviewed });
       reload();
     } catch (err: any) {
-      setActionError(err.response?.data?.error || 'Failed to update the review status.');
+      setActionError(err.response?.data?.error || 'Could not update the review status. Try again.');
     }
   };
 
@@ -278,432 +342,448 @@ const TransactionsPage: React.FC = () => {
     setRows(previous => previous.map(row => (row.id === id ? { ...row, notes } : row)));
   };
 
-  const netPositive = (summary?.netAmount ?? 0) >= 0;
+  /** Guide words: the span of dates on screen, then where the reader is in the ledger. */
+  const guideWords = useMemo(() => {
+    const days = rows
+      .map(row => row.date)
+      .filter(value => !Number.isNaN(new Date(value).getTime()))
+      .sort();
+    if (days.length === 0) return null;
 
-  return (
-    <SidebarLayout title="Transactions">
-      <div className="space-y-4">
-        {/* Tabs */}
-        <div className="flex items-center gap-1 border-b border-gray-200" role="tablist" aria-label="Transaction views">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'all'}
-            onClick={() => applyFilter(() => setTab('all'))}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === 'all'
-                ? 'border-blue-600 text-blue-700'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === 'review'}
-            onClick={() => applyFilter(() => setTab('review'))}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === 'review'
-                ? 'border-blue-600 text-blue-700'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Needs review ({reviewCount})
-          </button>
+    const oldest = dayMonth(days[0]);
+    const newest = dayMonth(days[days.length - 1]);
+    const span = oldest === newest ? oldest : `${newest} – ${oldest}`;
+    return pagination.totalPages > 0
+      ? `${span} · page ${pagination.currentPage} of ${pagination.totalPages}`
+      : span;
+  }, [rows, pagination]);
+
+  const ledger = (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
+        <div className="relative col-span-2 md:w-64">
+          <Search
+            aria-hidden
+            strokeWidth={1.75}
+            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            aria-label="Search transactions"
+            value={searchInput}
+            onChange={event => setSearchInput(event.target.value)}
+            placeholder="Search name, merchant, or notes"
+            className="h-8 w-full pl-8"
+          />
         </div>
 
-        {/* Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" role="group" aria-label="Summary">
-          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-5">
-            <p className="text-sm font-medium text-gray-500">Income</p>
-            <p className="text-2xl font-bold text-green-600">+{formatMoney(summary?.income ?? 0)}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-5">
-            <p className="text-sm font-medium text-gray-500">Spending</p>
-            <p className="text-2xl font-bold text-red-600">−{formatMoney(summary?.expenses ?? 0)}</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-5">
-            <p className="text-sm font-medium text-gray-500">Net</p>
-            <p className={`text-2xl font-bold ${netPositive ? 'text-green-600' : 'text-red-600'}`}>
-              {netPositive ? '+' : '−'}
-              {formatMoney(summary?.netAmount ?? 0)}
-            </p>
-          </div>
+        <Select value={category} onValueChange={value => applyFilter(() => setCategory(value))}>
+          <SelectTrigger size="sm" aria-label="Category" className="w-full md:w-44">
+            <SelectValue placeholder="All categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {categories.map(name => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={accountId} onValueChange={value => applyFilter(() => setAccountId(value))}>
+          <SelectTrigger size="sm" aria-label="Account" className="w-full md:w-48">
+            <SelectValue placeholder="All accounts" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All accounts</SelectItem>
+            {accounts.map(account => (
+              <SelectItem key={account.id} value={account.id}>
+                {account.name}
+                {account.mask ? ` ••${account.mask}` : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={dateRange}
+          onValueChange={value => applyFilter(() => setDateRange(value as DateRange))}
+        >
+          <SelectTrigger size="sm" aria-label="Date range" className="w-full md:w-40">
+            <SelectValue placeholder="Last 90 days" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="30">Last 30 days</SelectItem>
+            <SelectItem value="90">Last 90 days</SelectItem>
+            <SelectItem value="365">Last 365 days</SelectItem>
+            <SelectItem value="all">All time</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={type} onValueChange={value => applyFilter(() => setType(value as TypeFilter))}>
+          <SelectTrigger size="sm" aria-label="Type" className="w-full md:w-36">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="income">Income</SelectItem>
+            <SelectItem value="expense">Expense</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {guideWords && <p className="text-xs text-muted-foreground">{guideWords}</p>}
+
+      {actionError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-terra-tint px-4 py-3 text-sm text-terra"
+        >
+          <span>{actionError}</span>
+          <Button variant="outline" size="sm" onClick={() => setActionError(null)}>
+            Dismiss
+          </Button>
         </div>
+      )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            <div className="lg:col-span-2">
-              <label htmlFor="transaction-search" className="sr-only">
-                Search transactions
-              </label>
-              <input
-                id="transaction-search"
-                type="search"
-                value={searchInput}
-                onChange={event => setSearchInput(event.target.value)}
-                placeholder="Search name, merchant, or notes..."
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="filter-category" className="sr-only">
-                Category
-              </label>
-              <select
-                id="filter-category"
-                value={category}
-                onChange={event => applyFilter(() => setCategory(event.target.value))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All categories</option>
-                {categories.map(name => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="filter-account" className="sr-only">
-                Account
-              </label>
-              <select
-                id="filter-account"
-                value={accountId}
-                onChange={event => applyFilter(() => setAccountId(event.target.value))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All accounts</option>
-                {accounts.map(account => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                    {account.mask ? ` ••${account.mask}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label htmlFor="filter-range" className="sr-only">
-                  Date range
-                </label>
-                <select
-                  id="filter-range"
-                  value={dateRange}
-                  onChange={event => applyFilter(() => setDateRange(event.target.value as DateRange))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="30">Last 30 days</option>
-                  <option value="90">Last 90 days</option>
-                  <option value="365">Last 365 days</option>
-                  <option value="all">All time</option>
-                </select>
-              </div>
-
-              <div className="flex-1">
-                <label htmlFor="filter-type" className="sr-only">
-                  Type
-                </label>
-                <select
-                  id="filter-type"
-                  value={type}
-                  onChange={event => applyFilter(() => setType(event.target.value as TypeFilter))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All types</option>
-                  <option value="income">Income</option>
-                  <option value="expense">Expense</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {actionError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
-            {actionError}
-          </div>
-        )}
-
-        {/* Bulk bar */}
+      <div className="sheet">
         {selectedIds.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center gap-3">
-            <span className="text-sm font-medium text-blue-900">
-              {selectedIds.length} selected
-            </span>
+          <div className="sticky top-14 z-10 flex flex-wrap items-center gap-2 rounded-t-lg border-b border-rule bg-card px-4 py-2.5">
+            <span className="text-sm font-medium text-ink">{selectedIds.length} selected</span>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <label htmlFor="bulk-category" className="sr-only">
-                Set category for selected transactions
-              </label>
-              <select
-                id="bulk-category"
-                aria-label="Set category for selected transactions"
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Select
                 value=""
                 disabled={busy}
-                onChange={event => {
-                  const nextCategory = event.target.value;
-                  if (!nextCategory) return;
-                  runBulk({ category: nextCategory }, 'set the category');
+                onValueChange={value => {
+                  if (value) runBulk({ category: value }, 'set the category');
                 }}
-                className="border border-blue-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Set category...</option>
-                {categories.map(name => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  size="sm"
+                  aria-label="Set category for selected transactions"
+                  className="w-40"
+                >
+                  <SelectValue placeholder="Set category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(name => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={busy}
                 onClick={() => runBulk({ reviewed: true }, 'mark these transactions reviewed')}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-blue-300 text-blue-800 hover:bg-blue-100 disabled:opacity-50"
               >
                 Mark reviewed
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={busy}
                 onClick={() => runBulk({ hidden: true }, 'hide these transactions')}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-blue-300 text-blue-800 hover:bg-blue-100 disabled:opacity-50"
               >
                 Hide
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={busy}
                 onClick={() => runBulk({ isTransfer: true }, 'mark these transactions as transfers')}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-blue-300 text-blue-800 hover:bg-blue-100 disabled:opacity-50"
               >
                 Mark as transfer
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={busy}
                 onClick={() => runBulk({ isTransfer: false }, 'mark these transactions as not transfers')}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-blue-300 text-blue-800 hover:bg-blue-100 disabled:opacity-50"
               >
                 Not a transfer
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelected(new Set())}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"
-              >
+              </Button>
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => setSelected(new Set())}>
                 Clear
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
-        {/* List */}
-        <div className="bg-white rounded-xl shadow-xs border border-gray-200">
-          <div className="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                aria-label="Select all on this page"
-                checked={allOnPageSelected}
-                onChange={toggleAllOnPage}
-                disabled={rows.length === 0}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded-sm focus:ring-blue-500"
-              />
-              <h2 className="text-sm font-semibold text-gray-700">
-                {pagination.totalCount} transaction{pagination.totalCount === 1 ? '' : 's'}
-              </h2>
-            </div>
-
-            {tab === 'review' && rows.length > 0 && (
-              <button
-                type="button"
-                onClick={markAllOnPageReviewed}
-                disabled={busy}
-                className="text-sm font-medium text-blue-700 hover:text-blue-800 disabled:opacity-50"
-              >
-                Mark all on this page reviewed
-              </button>
-            )}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-rule px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              aria-label="Select all on this page"
+              checked={allOnPageSelected}
+              onCheckedChange={toggleAllOnPage}
+              disabled={rows.length === 0}
+            />
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-ink">{pagination.totalCount}</span>{' '}
+              transaction{pagination.totalCount === 1 ? '' : 's'}
+            </p>
           </div>
 
-          {/* Column labels: the rows stack on a narrow screen, so the header only shows when they line up. */}
-          <div className="hidden md:grid md:grid-cols-[auto_minmax(0,1fr)_11rem_12rem_7rem_4rem] md:gap-4 md:items-center px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wide">
-            <span className="w-4" />
-            <span>Description</span>
-            <span>Account</span>
-            <span>Category</span>
-            <span className="text-right">Amount</span>
-            <span className="text-right">Reviewed</span>
-          </div>
-
-          {loading ? (
-            <div className="px-4 py-12 text-center text-gray-500">Loading transactions...</div>
-          ) : error ? (
-            <div className="px-4 py-12 text-center">
-              <p className="text-red-600 mb-3">{error}</p>
-              <button
-                type="button"
-                onClick={reload}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
-              >
-                Try again
-              </button>
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="px-4 py-12 text-center text-gray-500">
-              No transactions match these filters.
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {rows.map(row => {
-                const displayName = displayNameOf(row);
-                const moneyOut = row.amount > 0;
-
-                return (
-                  <div key={row.id} className={selected.has(row.id) ? 'bg-blue-50' : undefined}>
-                    <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${displayName}`}
-                          checked={selected.has(row.id)}
-                          onChange={() => toggleRow(row.id)}
-                          className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded-sm focus:ring-blue-500"
-                        />
-
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
-                          {row.name !== displayName && (
-                            <p className="text-xs text-gray-400 truncate">{row.name}</p>
-                          )}
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-gray-500">
-                            <span>{formatDate(row.date)}</span>
-                            {row.account && (
-                              <>
-                                <span className="text-gray-300">•</span>
-                                <span>
-                                  {row.account.name}
-                                  {row.account.mask ? ` ••${row.account.mask}` : ''}
-                                </span>
-                              </>
-                            )}
-                            {row.pending && (
-                              <span className="px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-800 font-medium">
-                                Pending
-                              </span>
-                            )}
-                            {row.isTransfer && (
-                              <span className="px-1.5 py-0.5 rounded-sm bg-cyan-100 text-cyan-800 font-medium">
-                                Transfer
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3 pl-7 sm:pl-0 sm:justify-end">
-                        <div className="sm:w-44">
-                          <SmartCategorySelector
-                            transactionId={row.id}
-                            currentCategory={row.primaryCategory || 'Other'}
-                            categories={categories}
-                            compact
-                            onUpdate={nextCategory => {
-                              setRows(previous =>
-                                previous.map(entry =>
-                                  entry.id === row.id ? { ...entry, primaryCategory: nextCategory } : entry
-                                )
-                              );
-                            }}
-                          />
-                        </div>
-
-                        <span
-                          className={`sm:w-28 text-right text-sm font-semibold tabular-nums ${
-                            moneyOut ? 'text-red-600' : 'text-green-600'
-                          }`}
-                        >
-                          {moneyOut ? '−' : '+'}
-                          {formatMoney(row.amount)}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => toggleReviewed(row)}
-                          aria-label={
-                            row.reviewed
-                              ? `Mark ${displayName} as not reviewed`
-                              : `Mark ${displayName} as reviewed`
-                          }
-                          aria-pressed={row.reviewed}
-                          title={row.reviewed ? 'Reviewed' : 'Mark reviewed'}
-                          className={`w-8 h-8 flex items-center justify-center rounded-full border transition-colors ${
-                            row.reviewed
-                              ? 'bg-green-100 border-green-300 text-green-700'
-                              : 'bg-white border-gray-300 text-gray-300 hover:text-gray-500'
-                          }`}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="pl-11 pr-4 pb-3">
-                      <TransactionNotes
-                        transactionId={row.id}
-                        initialNotes={row.notes ?? ''}
-                        compact
-                        onUpdate={notes => setNotes(row.id, notes)}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {tab === 'review' && rows.length > 0 && (
+            <Button variant="outline" size="sm" onClick={markAllOnPageReviewed} disabled={busy}>
+              Mark all on this page reviewed
+            </Button>
           )}
+        </div>
 
-          {/* Pager */}
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
-            <span className="text-sm text-gray-500">
-              Page {pagination.totalPages === 0 ? 0 : pagination.currentPage} of {pagination.totalPages}
+        <div
+          aria-hidden
+          className="hidden items-center gap-4 border-b border-rule px-4 py-2 md:grid md:grid-cols-[auto_3.25rem_minmax(0,1fr)_8.5rem_10rem_6.5rem_2.25rem]"
+        >
+          <span className="size-4" />
+          <span className="section-label">Date</span>
+          <span className="section-label">Description</span>
+          <span className="section-label">Account</span>
+          <span className="section-label">Category</span>
+          <span className="section-label text-right">Amount</span>
+          <span />
+        </div>
+
+        {loading ? (
+          <div aria-busy="true" aria-label="Loading transactions">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="ledger-line grid grid-cols-[minmax(0,1fr)_5rem] items-center gap-4 px-4 py-4"
+              >
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-2/5 max-w-56" />
+                  <Skeleton className="h-3 w-1/4 max-w-32" />
+                </div>
+                <Skeleton className="h-4 w-16 justify-self-end" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div
+            role="alert"
+            className="m-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-terra-tint px-4 py-3 text-sm text-terra"
+          >
+            <span>{error}</span>
+            <Button variant="outline" size="sm" onClick={reload}>
+              Try again
+            </Button>
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="px-4 py-12 text-center text-[15px] text-muted-foreground">
+            No transactions match these filters.
+          </p>
+        ) : (
+          <div role="list" aria-label="Transactions">
+            {rows.map(row => {
+              const displayName = displayNameOf(row);
+              const moneyOut = row.amount > 0;
+              const rawName = row.name !== displayName ? row.name : null;
+
+              return (
+                <div
+                  key={row.id}
+                  role="listitem"
+                  className={cn(
+                    'ledger-line grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors md:grid-cols-[auto_3.25rem_minmax(0,1fr)_8.5rem_10rem_6.5rem_2.25rem] md:gap-x-4 md:gap-y-0',
+                    selected.has(row.id) ? 'bg-paper' : 'hover:bg-paper'
+                  )}
+                >
+                  <Checkbox
+                    aria-label={`Select ${displayName}`}
+                    checked={selected.has(row.id)}
+                    onCheckedChange={() => toggleRow(row.id)}
+                    className="md:col-start-1 md:row-start-1"
+                  />
+
+                  <div className="min-w-0 md:col-start-3 md:row-start-1">
+                    <p className="flex min-w-0 items-center gap-2 text-[15px] text-ink">
+                      {!row.reviewed && (
+                        <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-terra" />
+                      )}
+                      <span className="truncate">{displayName}</span>
+                    </p>
+
+                    {rawName && (
+                      <p className="hidden truncate text-xs text-muted-foreground md:block">{rawName}</p>
+                    )}
+
+                    {(row.pending || row.isTransfer) && (
+                      <p className="mt-1 flex flex-wrap items-center gap-1.5">
+                        {row.pending && (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Pending
+                          </Badge>
+                        )}
+                        {row.isTransfer && (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Transfer
+                          </Badge>
+                        )}
+                      </p>
+                    )}
+                  </div>
+
+                  <span
+                    className={cn(
+                      'self-start whitespace-nowrap text-right text-sm font-medium tabular-nums md:col-start-6 md:row-start-1 md:self-center',
+                      moneyOut ? 'text-ink' : 'text-sage-ink'
+                    )}
+                  >
+                    {signedAmount(row.amount)}
+                  </span>
+
+                  <div className="col-span-2 col-start-2 row-start-2 flex min-w-0 flex-nowrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground md:contents">
+                    <span className="shrink-0 whitespace-nowrap md:col-start-2 md:row-start-1">
+                      {shortDay(row.date)}
+                    </span>
+
+                    {row.account && (
+                      <span className="flex min-w-0 items-center gap-2 md:col-start-4 md:row-start-1">
+                        <span aria-hidden className="md:hidden">
+                          ·
+                        </span>
+                        <span className="truncate">{accountLabel(row.account)}</span>
+                      </span>
+                    )}
+
+                    <SmartCategorySelector
+                      transactionId={row.id}
+                      currentCategory={row.primaryCategory || 'Other'}
+                      categories={categories}
+                      compact
+                      className="shrink-0 md:col-start-5 md:row-start-1 md:justify-self-start"
+                      onUpdate={nextCategory => {
+                        setRows(previous =>
+                          previous.map(entry =>
+                            entry.id === row.id ? { ...entry, primaryCategory: nextCategory } : entry
+                          )
+                        );
+                      }}
+                    />
+
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={
+                        row.reviewed
+                          ? `Mark ${displayName} as not reviewed`
+                          : `Mark ${displayName} as reviewed`
+                      }
+                      aria-pressed={row.reviewed}
+                      title={row.reviewed ? 'Reviewed' : 'Mark reviewed'}
+                      onClick={() => toggleReviewed(row)}
+                      className={cn(
+                        'ml-auto shrink-0 rounded-full md:col-start-7 md:row-start-1 md:ml-0 md:justify-self-end',
+                        row.reviewed
+                          ? 'text-sage-ink hover:bg-sage-tint hover:text-sage-ink'
+                          : 'text-muted-foreground/60 hover:bg-muted hover:text-ink'
+                      )}
+                    >
+                      {row.reviewed ? <CircleCheck /> : <Check />}
+                    </Button>
+                  </div>
+
+                  <TransactionNotes
+                    transactionId={row.id}
+                    initialNotes={row.notes ?? ''}
+                    compact
+                    className="col-span-2 col-start-2 row-start-3 md:col-span-1 md:col-start-3 md:row-start-2"
+                    onUpdate={notes => setNotes(row.id, notes)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!loading && !error && pagination.totalCount > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <span className="text-sm text-muted-foreground">
+              Page {pagination.currentPage} of {pagination.totalPages}
             </span>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={!pagination.hasPrev || loading}
                 onClick={() => {
                   setPage(current => Math.max(1, current - 1));
                   setSelected(new Set());
                 }}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
-                Previous
-              </button>
-              <button
-                type="button"
+                Prev
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={!pagination.hasNext || loading}
                 onClick={() => {
                   setPage(current => current + 1);
                   setSelected(new Set());
                 }}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 Next
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+        )}
       </div>
+    </div>
+  );
+
+  return (
+    <SidebarLayout title="Transactions">
+      <div className="grid grid-cols-3 gap-4 md:gap-6" role="group" aria-label="Summary">
+        {loading && !summary ? (
+          <>
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+          </>
+        ) : (
+          <>
+            <Figure label="Income" value={withSign(summary?.income ?? 0, '+')} tone="sage" />
+            <Figure label="Spending" value={withSign(summary?.expenses ?? 0, '−')} />
+            <Figure
+              label="Net"
+              value={signedNet(summary?.netAmount ?? 0)}
+              tone={(summary?.netAmount ?? 0) > 0 ? 'sage' : undefined}
+            />
+          </>
+        )}
+      </div>
+
+      <Tabs
+        value={tab}
+        onValueChange={value => applyFilter(() => setTab(value as Tab))}
+        className="mt-8"
+      >
+        <TabsList
+          variant="line"
+          aria-label="Transaction views"
+          className="w-full justify-start gap-6 rounded-none border-b border-rule p-0"
+        >
+          <TabsTrigger value="all" className={tabTriggerClass}>
+            All
+          </TabsTrigger>
+          <TabsTrigger value="review" className={tabTriggerClass}>
+            Needs review ({reviewCount})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all" className="mt-4 outline-none">
+          {tab === 'all' && ledger}
+        </TabsContent>
+        <TabsContent value="review" className="mt-4 outline-none">
+          {tab === 'review' && ledger}
+        </TabsContent>
+      </Tabs>
     </SidebarLayout>
   );
 };
