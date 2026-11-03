@@ -60,6 +60,22 @@ export interface BudgetMonthResponse {
   totals: BudgetTotals;
 }
 
+/** One category the last few months say is worth a budget. */
+export interface BudgetSuggestion {
+  category: string;
+  /** Net spending averaged over the months read, in dollars. */
+  average: number;
+  /** `average` rounded up to the next $10, the amount to offer. */
+  suggested: number;
+  monthsWithSpending: number;
+}
+
+export interface BudgetSuggestionsResponse {
+  /** The full calendar months read, oldest first, as `YYYY-MM`. */
+  months: string[];
+  suggestions: BudgetSuggestion[];
+}
+
 interface CreateBudgetRequest {
   name: string;
   category: string;
@@ -558,6 +574,12 @@ export const budgetAPI = {
 
   createBudget: async (budgetData: CreateBudgetRequest): Promise<{ budget: Budget }> => {
     const response = await api.post('/api/budgets', budgetData);
+    return response.data;
+  },
+
+  /** What the last three full months say to budget, one row per category. */
+  getSuggestions: async (): Promise<BudgetSuggestionsResponse> => {
+    const response = await api.get('/api/budgets/suggestions');
     return response.data;
   },
 

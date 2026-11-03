@@ -201,7 +201,7 @@ const BudgetRow: React.FC<BudgetRowProps> = ({
           </span>
           <span className="order-3 col-span-2 h-2 rounded-sm bg-muted md:order-none md:col-span-1" aria-hidden>
             <span
-              className={cn('block h-2 rounded-sm', over ? 'bg-terra' : 'bg-sage')}
+              className={cn('block h-2 rounded-sm', over ? 'bg-terra' : 'bg-ink')}
               style={{ width: `${pct}%` }}
             />
           </span>
@@ -261,7 +261,7 @@ const BudgetRow: React.FC<BudgetRowProps> = ({
                   {points.map((point) => (
                     <Cell
                       key={point.month}
-                      fill={point.spent > point.budgeted ? 'var(--terra)' : 'var(--sage)'}
+                      fill={point.spent > point.budgeted ? 'var(--terra)' : 'var(--foreground)'}
                     />
                   ))}
                 </Bar>
@@ -292,7 +292,7 @@ const BudgetRow: React.FC<BudgetRowProps> = ({
               size="sm"
               onClick={onDelete}
               disabled={busy}
-              className="text-terra hover:bg-terra-tint hover:text-terra"
+              className="text-ink"
             >
               Delete
             </Button>
@@ -302,6 +302,17 @@ const BudgetRow: React.FC<BudgetRowProps> = ({
     </li>
   );
 };
+
+/** One row in the suggestions dialog: a category, what it costs, and what to create. */
+interface SuggestionDraft {
+  category: string;
+  average: number;
+  suggested: number;
+  monthsWithSpending: number;
+  checked: boolean;
+  /** The amount as typed, so a half-typed value is not thrown away. */
+  amount: string;
+}
 
 const BudgetPage: React.FC = () => {
   const [month, setMonth] = useState(currentMonthKey());
@@ -336,6 +347,16 @@ const BudgetPage: React.FC = () => {
   const [alertError, setAlertError] = useState<string | null>(null);
   const [savingAlert, setSavingAlert] = useState(false);
   const [savingToggle, setSavingToggle] = useState<string | null>(null);
+
+  // Suggestions: one row per category the last three full months say is worth a budget.
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+  const [suggestionRows, setSuggestionRows] = useState<SuggestionDraft[]>([]);
+  const [suggestionMonths, setSuggestionMonths] = useState<string[]>([]);
+  const [suggestionRollover, setSuggestionRollover] = useState(false);
+  const [suggestionRowErrors, setSuggestionRowErrors] = useState<Record<string, string>>({});
+  const [creatingSuggestions, setCreatingSuggestions] = useState(false);
 
   const thisMonth = currentMonthKey();
   const nextMonthKey = shiftMonth(thisMonth, 1);
@@ -465,6 +486,122 @@ const BudgetPage: React.FC = () => {
   const openCreateForm = () => {
     resetForm();
     setShowCreateForm(true);
+  };
+
+  /** Load what the last three full months say, then show the dialog. */
+  const openSuggestions = async () => {
+    setSuggestionsOpen(true);
+    setSuggestionsLoading(true);
+    setSuggestionsError(null);
+    setSuggestionRowErrors({});
+    setSuggestionRollover(false);
+    setSuggestionRows([]);
+    setSuggestionMonths([]);
+
+    try {
+      const response = await budgetAPI.getSuggestions();
+      setSuggestionMonths(response.months ?? []);
+      setSuggestionRows(
+        (response.suggestions ?? []).map((suggestion) => ({
+          ...suggestion,
+          checked: true,
+          amount: String(suggestion.suggested),
+        }))
+      );
+    } catch (err: any) {
+      setSuggestionsError(
+        err.response?.data?.error ||
+          'Could not load suggestions. Check that the server is running, then try again.'
+      );
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  const closeSuggestions = () => {
+    setSuggestionsOpen(false);
+    setSuggestionRows([]);
+    setSuggestionRowErrors({});
+    setSuggestionsError(null);
+  };
+
+  const patchSuggestion = (category: string, patch: Partial<SuggestionDraft>) => {
+    setSuggestionRows((rows) =>
+      rows.map((row) => (row.category === category ? { ...row, ...patch } : row))
+    );
+    setSuggestionRowErrors((errors) => {
+      if (!errors[category]) return errors;
+      const { [category]: _dropped, ...rest } = errors;
+      return rest;
+    });
+  };
+
+  /**
+   * Create every checked row, one at a time, each starting this month. A row that
+   * fails (a duplicate, a bad amount) keeps its error and the others still go in.
+   */
+  const createSuggestedBudgets = async () => {
+    const selected = suggestionRows.filter((row) => row.checked);
+
+    const errors: Record<string, string> = {};
+    for (const row of selected) {
+      const amount = parseFloat(row.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        errors[row.category] = 'Enter an amount above $0.';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setSuggestionRowErrors(errors);
+      return;
+    }
+
+    setCreatingSuggestions(true);
+    setSuggestionRowErrors({});
+
+    const startMonth = currentMonthKey();
+    let created = 0;
+    const failures: Record<string, string> = {};
+
+    for (const row of selected) {
+      try {
+        await budgetAPI.createBudget({
+          name: row.category,
+          category: row.category,
+          amount: parseFloat(row.amount),
+          rollover: suggestionRollover,
+          startMonth,
+        });
+        created += 1;
+      } catch (err: any) {
+        failures[row.category] =
+          err.response?.data?.error || 'Could not create this budget. Try again.';
+      }
+    }
+
+    setCreatingSuggestions(false);
+
+    if (created > 0) {
+      // The visible month decides whether the new budgets belong on the page.
+      try {
+        await reloadMonth();
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'The budgets were created, but this page could not reload them.');
+      }
+      setCategories((current) =>
+        [...new Set([...current, ...selected.map((row) => row.category)])].sort()
+      );
+    }
+
+    if (Object.keys(failures).length > 0) {
+      setSuggestionRowErrors(failures);
+      setSuggestionRows((rows) => rows.filter((row) => failures[row.category]));
+      if (created > 0) toast.success(`Created ${created} ${created === 1 ? 'budget' : 'budgets'}.`);
+      return;
+    }
+
+    closeSuggestions();
+    toast.success(`Created ${created} ${created === 1 ? 'budget' : 'budgets'}.`);
   };
 
   const closeForm = () => {
@@ -637,7 +774,7 @@ const BudgetPage: React.FC = () => {
             <ChevronLeft />
           </Button>
           <div>
-            <h2 className="text-figure font-semibold text-ink" data-testid="budget-month">
+            <h2 className="text-lg font-semibold text-ink" data-testid="budget-month">
               {formatMonth(month)}
             </h2>
             <p className="text-sm text-muted-foreground" data-testid="budget-month-position">
@@ -655,7 +792,12 @@ const BudgetPage: React.FC = () => {
           </Button>
         </div>
 
-        <Button onClick={openCreateForm}>New budget</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={openSuggestions}>
+            Suggest budgets
+          </Button>
+          <Button onClick={openCreateForm}>New budget</Button>
+        </div>
       </div>
 
       {error && (
@@ -707,9 +849,12 @@ const BudgetPage: React.FC = () => {
             No budgets in {formatMonth(month)} — a budget is a monthly amount for one category that repeats every month
             until you delete it.
           </p>
-          <Button className="mt-5" onClick={openCreateForm}>
-            Plan a budget
-          </Button>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <Button onClick={openCreateForm}>Plan a budget</Button>
+            <Button variant="outline" onClick={openSuggestions}>
+              Suggest budgets
+            </Button>
+          </div>
         </div>
       ) : (
         <section aria-label={`Budgets for ${formatMonth(month)}`} className="sheet">
@@ -883,6 +1028,130 @@ const BudgetPage: React.FC = () => {
               <Button type="submit">{editingBudget ? 'Save changes' : 'Save budget'}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={suggestionsOpen}
+        onOpenChange={(open) => {
+          if (!open) closeSuggestions();
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Suggest budgets</DialogTitle>
+            <DialogDescription>
+              From your last {suggestionMonths.length || 3} full months of spending. Untick what you do not want, and
+              change any amount before creating it.
+            </DialogDescription>
+          </DialogHeader>
+
+          {suggestionsError && (
+            <p role="alert" className="rounded-md bg-terra-tint px-3 py-2 text-sm text-terra">
+              {suggestionsError}
+            </p>
+          )}
+
+          {suggestionsLoading ? (
+            <div className="space-y-3 py-2" data-testid="suggestions-loading">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : suggestionRows.length === 0 ? (
+            <p className="py-2 text-[15px] leading-relaxed text-ink">
+              No suggestions: every category with regular spending already has a budget.
+            </p>
+          ) : (
+            <ul className="max-h-80 overflow-y-auto" data-testid="suggestion-rows">
+              {suggestionRows.map((row) => (
+                <li
+                  key={row.category}
+                  data-testid={`suggestion-${row.category}`}
+                  className="ledger-line py-3 last:border-b-0"
+                >
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id={`suggestion-${row.category}-on`}
+                      aria-label={row.category}
+                      checked={row.checked}
+                      onCheckedChange={(value) => patchSuggestion(row.category, { checked: value === true })}
+                      className="mt-1"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[15px] text-ink">{row.category}</span>
+                      <span className="mt-0.5 block text-sm text-muted-foreground">
+                        about {moneyWhole(row.average)} a month over the last {suggestionMonths.length || 3} months
+                      </span>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="relative w-32">
+                          <span
+                            aria-hidden
+                            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground"
+                          >
+                            $
+                          </span>
+                          <Input
+                            aria-label={`${row.category} monthly amount`}
+                            type="text"
+                            inputMode="decimal"
+                            value={row.amount}
+                            disabled={!row.checked}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                patchSuggestion(row.category, { amount: value });
+                              }
+                            }}
+                            className="pl-7"
+                          />
+                        </div>
+                        <span className="text-sm text-muted-foreground">a month</span>
+                      </div>
+                      {suggestionRowErrors[row.category] && (
+                        <p className="mt-1 text-sm text-terra">{suggestionRowErrors[row.category]}</p>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {suggestionRows.length > 0 && (
+            <div className="flex items-center gap-3 border-t border-rule pt-4">
+              <Checkbox
+                id="suggestion-rollover"
+                checked={suggestionRollover}
+                onCheckedChange={(value) => setSuggestionRollover(value === true)}
+              />
+              <Label htmlFor="suggestion-rollover" className="font-normal">
+                Roll over unused money
+              </Label>
+            </div>
+          )}
+
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={closeSuggestions}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={createSuggestedBudgets}
+              disabled={
+                creatingSuggestions ||
+                suggestionsLoading ||
+                suggestionRows.filter((row) => row.checked).length === 0
+              }
+            >
+              {(() => {
+                const count = suggestionRows.filter((row) => row.checked).length;
+                return creatingSuggestions
+                  ? 'Creating…'
+                  : `Create ${count} ${count === 1 ? 'budget' : 'budgets'}`;
+              })()}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

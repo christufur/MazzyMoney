@@ -61,6 +61,8 @@ async function addSpending(options: {
   category?: string;
   monthOffset?: number;
   userId?: string;
+  isTransfer?: boolean;
+  hidden?: boolean;
 }) {
   const index = counter++;
   await prisma.transaction.create({
@@ -73,7 +75,9 @@ async function addSpending(options: {
       amount: options.amount,
       date: dayIn(options.monthOffset ?? 0),
       primaryCategory: options.category ?? 'Groceries',
-      categories: []
+      categories: [],
+      isTransfer: options.isTransfer ?? false,
+      hidden: options.hidden ?? false
     }
   });
 }
@@ -514,4 +518,134 @@ describe('Budgets API', () => {
     expect(response.status).toBe(200);
     expect(response.body.categories).toContain('Groceries');
   });
+
+  describe('GET /api/budgets/suggestions', () => {
+    /** Three full months back from this one, oldest first: the window read. */
+    const lastThreeFullMonths = [-3, -2, -1].map((offset) => monthOffset(offset));
+
+    it('requires authentication', async () => {
+      const response = await request(app).get('/api/budgets/suggestions');
+      expect(response.status).toBe(401);
+    });
+
+    it('averages the last three full months, not the month in progress', async () => {
+      // Groceries: 300 + 400 + 0 over three months = 700 / 3 = 233.33 a month.
+      await addSpending({ amount: 300, category: 'Groceries', monthOffset: -1 });
+      await addSpending({ amount: 400, category: 'Groceries', monthOffset: -2 });
+      // A big month in progress must not change the average.
+      await addSpending({ amount: 5000, category: 'Groceries', monthOffset: 0 });
+      // Neither does anything older than the window.
+      await addSpending({ amount: 5000, category: 'Groceries', monthOffset: -4 });
+
+      const response = await request(app)
+        .get('/api/budgets/suggestions')
+        .set('Authorization', authHeader());
+
+      expect(response.status).toBe(200);
+      expect(response.body.months).toEqual(lastThreeFullMonths);
+      expect(response.body.suggestions).toEqual([
+        { category: 'Groceries', average: 233.33, suggested: 240, monthsWithSpending: 2 }
+      ]);
+    });
+
+    it('nets refunds against spending and floors a month at zero', async () => {
+      // Food & Dining: 200 - 50 in month -1 (net 150), 60 in month -2, all refunds in -3.
+      await addSpending({ amount: 200, category: 'Food & Dining', monthOffset: -1 });
+      await addSpending({ amount: -50, category: 'Food & Dining', monthOffset: -1 });
+      await addSpending({ amount: 60, category: 'Food & Dining', monthOffset: -2 });
+      await addSpending({ amount: -40, category: 'Food & Dining', monthOffset: -3 });
+
+      const response = await request(app)
+        .get('/api/budgets/suggestions')
+        .set('Authorization', authHeader());
+
+      expect(response.status).toBe(200);
+      // (150 + 60 + 0) / 3 = 70, not (150 + 60 - 40) / 3 = 56.67.
+      expect(response.body.suggestions[0]).toEqual({
+        category: 'Food & Dining',
+        average: 70,
+        suggested: 70,
+        monthsWithSpending: 2
+      });
+    });
+
+    it('leaves out transfers, income, categories with a budget, and small averages', async () => {
+      await addSpending({ amount: 400, category: 'Shopping', monthOffset: -1 });
+      // Already budgeted.
+      await prisma.budget.create({
+        data: {
+          userId: USER_ID,
+          name: 'Shopping',
+          category: 'Shopping',
+          amount: 400,
+          period: 'MONTHLY',
+          startDate: startOfMonth(-1),
+          isActive: true
+        }
+      });
+      await addSpending({ amount: 600, category: 'Income', monthOffset: -1 });
+      await addSpending({ amount: 600, category: 'Transfer', monthOffset: -1 });
+      // Under $20 a month.
+      await addSpending({ amount: 30, category: 'Fees & Charges', monthOffset: -1 });
+
+      const response = await request(app)
+        .get('/api/budgets/suggestions')
+        .set('Authorization', authHeader());
+
+      expect(response.status).toBe(200);
+      expect(response.body.suggestions).toEqual([]);
+    });
+
+    it('ignores rows a budget never counts: transfers and hidden ones', async () => {
+      await addSpending({ amount: 300, category: 'Travel', monthOffset: -1 });
+      await addSpending({ amount: 300, category: 'Travel', monthOffset: -2 });
+      // These sit in a spending category but are not counted money out.
+      await addSpending({ amount: 900, category: 'Pets', monthOffset: -1, hidden: true });
+      await addSpending({ amount: 900, category: 'Pets', monthOffset: -2, isTransfer: true });
+
+      const response = await request(app)
+        .get('/api/budgets/suggestions')
+        .set('Authorization', authHeader());
+
+      expect(response.status).toBe(200);
+      expect(response.body.suggestions).toEqual([
+        { category: 'Travel', average: 200, suggested: 200, monthsWithSpending: 2 }
+      ]);
+    });
+
+    it('rounds the suggested amount up to the next $10 and sorts by average', async () => {
+      // 100 over three months = 33.33 -> 40.
+      await addSpending({ amount: 100, category: 'Entertainment', monthOffset: -1 });
+      // 260 over three months = 86.67 -> 90.
+      await addSpending({ amount: 260, category: 'Healthcare', monthOffset: -1 });
+      // Exactly $20 a month stays on the 20 line and rounds to itself.
+      await addSpending({ amount: 60, category: 'Pets', monthOffset: -2 });
+      // Exactly 100 a month must not round up another step.
+      await addSpending({ amount: 300, category: 'Personal Care', monthOffset: -3 });
+
+      const response = await request(app)
+        .get('/api/budgets/suggestions')
+        .set('Authorization', authHeader());
+
+      expect(response.status).toBe(200);
+      expect(response.body.suggestions).toEqual([
+        { category: 'Personal Care', average: 100, suggested: 100, monthsWithSpending: 1 },
+        { category: 'Healthcare', average: 86.67, suggested: 90, monthsWithSpending: 1 },
+        { category: 'Entertainment', average: 33.33, suggested: 40, monthsWithSpending: 1 },
+        { category: 'Pets', average: 20, suggested: 20, monthsWithSpending: 1 }
+      ]);
+    });
+
+    it("never reads another user's spending", async () => {
+      await addSpending({ amount: 900, category: 'Groceries', monthOffset: -1, userId: OTHER_USER_ID });
+
+      const response = await request(app)
+        .get('/api/budgets/suggestions')
+        .set('Authorization', authHeader());
+
+      expect(response.status).toBe(200);
+      expect(response.body.suggestions).toEqual([]);
+    });
+  });
 });
+
