@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
-import cors from 'cors'; 
+import path from 'path';
+import fs from 'fs';
 import cron from 'node-cron';
 import { prisma } from './lib/prisma';
 import { TransactionSyncService } from './services/transactionSyncService';
@@ -18,12 +19,12 @@ dotenv.config();
 export const app = express();
 const port = process.env.PORT || 8000;
 
+// Built frontend (served by this process so there is one origin, one port, no CORS).
+const webDir = process.env.WEB_DIR ?? path.resolve(__dirname, '../../frontend/dist');
+const hasWebBuild = fs.existsSync(path.join(webDir, 'index.html'));
+
 // Middleware
 app.use(express.json());
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
-  credentials: true,
-}));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -32,16 +33,6 @@ app.use('/api/transactions', transactionRoutes); // New cached transactions rout
 app.use('/api/accounts', accountsRouter); // New cached accounts route
 app.use('/api/budgets', budgets);
 app.use('/api/analytics', analyticsRoutes);
-
-
-// Root endpoint
-app.get('/', (req: Request, res: Response) => {
-  res.json({ 
-    message: 'Money App Backend is running!',
-    version: '2.0.0',
-    features: ['sync', 'caching', 'background-jobs']
-  });
-});
 
 // Health check endpoint
 app.get('/health', async (req: Request, res: Response) => {
@@ -185,6 +176,18 @@ app.post('/api/admin/sync-all', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to start sync' });
   }
 });
+
+// Frontend: static assets plus the SPA fallback for client-side routes (/overview, /budgets, ...).
+if (hasWebBuild) {
+  app.use(express.static(webDir));
+
+  // Any GET that is not an API call or the health check gets index.html so the router can take over.
+  app.get(/^(?!\/api(?:\/|$)|\/health(?:\/|$)).*/, (req: Request, res: Response) => {
+    res.sendFile(path.join(webDir, 'index.html'));
+  });
+} else {
+  console.log(`⚠️  No frontend build found at ${webDir}; serving API only`);
+}
 
 // Start the server
 const startServer = async () => {

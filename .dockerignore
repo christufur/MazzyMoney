@@ -1,0 +1,13 @@
+# Installed/built fresh inside the image.
+**/node_modules
+frontend/dist
+backend/prisma/generated
+
+# Secrets (the example file is a placeholder and is allowed back in)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Not needed in the build context
+.git
+backups

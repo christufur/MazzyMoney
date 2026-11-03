@@ -1,0 +1,84 @@
+# Mazzy Money on a home server.
+#
+# Copy .env.example to .env, fill it in, then: docker compose up -d --build
+# The app is published on 127.0.0.1 only; `tailscale serve` puts HTTPS in front.
+
+name: mazzy-money
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mazzy_money
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d mazzy_money"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Same variables as the db service, but pointing at the service name.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/mazzy_money?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # Localhost only. Tailscale serve is the way in.
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "fetch('http://127.0.0.1:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  backup:
+    image: postgres:16
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: mazzy_money
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        echo "backup: started, one dump every 24h, keeping 14 days"
+        while true; do
+          file="/backups/mazzy_money_$$(date +%F).sql.gz"
+          # Dump to a file first so a failed pg_dump never leaves a truncated .gz behind.
+          if pg_dump --no-owner --no-privileges > /backups/.dump.sql; then
+            gzip -c /backups/.dump.sql > "$${file}.tmp"
+            mv "$${file}.tmp" "$${file}"
+            echo "backup: wrote $${file}"
+          else
+            echo "backup: pg_dump failed, keeping the previous good file" >&2
+          fi
+          rm -f /backups/.dump.sql
+          find /backups -type f -name 'mazzy_money_*.sql.gz' -mtime +14 -delete
+          sleep 86400
+        done
+
+volumes:
+  pgdata:

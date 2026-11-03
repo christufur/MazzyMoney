@@ -1,6 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "./generated/prisma"
+  provider      = "prisma-client-js"
+  output        = "./generated/prisma"
+  // Native for local work; the Debian target covers the oven/bun Debian-based image.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
