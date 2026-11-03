@@ -1,19 +1,7 @@
-import { Configuration, PlaidApi, PlaidEnvironments, CountryCode } from 'plaid';
 import { prisma } from '../lib/prisma';
+import { plaidClient } from '../lib/plaid';
 import { BudgetSyncService } from './budgetSyncService';
 import { SmartCategorizationService } from './smartCategorizationService';
-
-const configuration = new Configuration({
-  basePath: PlaidEnvironments[process.env.PLAID_ENV as keyof typeof PlaidEnvironments || 'sandbox'],
-  baseOptions: {
-    headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
-      'PLAID-SECRET': process.env.PLAID_SECRET,
-    },
-  },
-});
-
-const plaidClient = new PlaidApi(configuration);
 
 interface SyncResult {
   success: boolean;

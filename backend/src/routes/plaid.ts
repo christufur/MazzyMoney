@@ -1,379 +1,257 @@
 import { Router, Request, Response } from 'express';
-import { Configuration, PlaidApi, Products, PlaidEnvironments, CountryCode } from 'plaid';
+import { Products, CountryCode } from 'plaid';
 import { prisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/auth';
-import { TransactionSyncService } from '../services/transactionSyncService';
+import { plaidClient, ITEM_LIMIT, plaidErrorCode } from '../lib/plaid';
 
 const router = Router();
-
-// Plaid client setup
-const configuration = new Configuration({
-  basePath: PlaidEnvironments[process.env.PLAID_ENV as keyof typeof PlaidEnvironments || 'sandbox'],
-  baseOptions: {
-    headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
-      'PLAID-SECRET': process.env.PLAID_SECRET,
-    },
-  },
-});
-const plaidClient = new PlaidApi(configuration);
 
 // Protect all routes with authentication
 router.use(authenticateToken);
 
-// Create link token
-router.post('/create_link_token', async (req: Request, res: Response) => {
+/**
+ * POST /api/plaid/link-token
+ * Body: { itemId? }
+ * Without itemId: a Link token for a new Item (blocked when the server is at ITEM_LIMIT).
+ * With itemId: update mode for that Item, so a re-login never uses another free place.
+ */
+router.post('/link-token', async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const { itemId } = req.body ?? {};
+
   try {
-    console.log('Creating link token for user:', req.user!.id);
-    
+    if (itemId) {
+      const item = await prisma.plaidItem.findFirst({
+        where: { id: itemId, userId },
+      });
+
+      if (!item) {
+        return res.status(404).json({ error: 'ITEM_NOT_FOUND' });
+      }
+
+      const response = await plaidClient.linkTokenCreate({
+        user: { client_user_id: userId },
+        client_name: 'Mazzy Money',
+        country_codes: [CountryCode.Us],
+        language: 'en',
+        access_token: item.accessToken,
+      });
+
+      return res.json({ link_token: response.data.link_token });
+    }
+
+    const used = await prisma.plaidItem.count();
+    if (used >= ITEM_LIMIT) {
+      return res.status(409).json({ error: 'ITEM_LIMIT' });
+    }
+
     const response = await plaidClient.linkTokenCreate({
-      user: {
-        client_user_id: req.user!.id,
-      },
-      client_name: 'My Money App',
-      products: [Products.Transactions, Products.Auth],
+      user: { client_user_id: userId },
+      client_name: 'Mazzy Money',
+      products: [Products.Transactions],
       country_codes: [CountryCode.Us],
       language: 'en',
     });
-    
-    console.log('Link token created successfully');
-    res.json(response.data);
+
+    res.json({ link_token: response.data.link_token });
   } catch (error: any) {
-    console.error('Error creating link token:', error.response?.data || error.message);
-    res.status(500).json({
-      error: 'Failed to create link token',
-      details: error.response?.data || error.message
-    });
+    console.error('Error creating link token:', plaidErrorCode(error) ?? error.message);
+    res.status(500).json({ error: 'Failed to create link token' });
   }
 });
 
-// Exchange public token and store access token
-router.post('/exchange_public_token', async (req: Request, res: Response) => {
-  const { public_token } = req.body;
-  
-  console.log('Exchanging public token for user:', req.user!.id);
-  
+/**
+ * POST /api/plaid/exchange
+ * Body: { public_token }
+ * Stores one PlaidItem plus its accounts. One Item per institution per user.
+ */
+router.post('/exchange', async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const { public_token } = req.body ?? {};
+
   if (!public_token) {
     return res.status(400).json({ error: 'public_token is required' });
   }
 
   try {
-    // Exchange token
-    const response = await plaidClient.itemPublicTokenExchange({
-      public_token: public_token,
+    const exchangeResponse = await plaidClient.itemPublicTokenExchange({
+      public_token,
     });
-    const { access_token, item_id } = response.data;
-    console.log('Token exchanged successfully, item_id:', item_id);
+    const accessToken = exchangeResponse.data.access_token;
+    const plaidItemId = exchangeResponse.data.item_id;
 
-    // Get institution info
-    const itemResponse = await plaidClient.itemGet({
-      access_token: access_token,
-    });
-    
+    const itemResponse = await plaidClient.itemGet({ access_token: accessToken });
+    const institutionId = itemResponse.data.item.institution_id;
+
+    if (!institutionId) {
+      return res.status(502).json({ error: 'MISSING_INSTITUTION_ID' });
+    }
+
     const institutionResponse = await plaidClient.institutionsGetById({
-      institution_id: itemResponse.data.item.institution_id!,
+      institution_id: institutionId,
       country_codes: [CountryCode.Us],
     });
+    const institutionName = institutionResponse.data.institution.name;
 
-    console.log('Institution info retrieved:', institutionResponse.data.institution.name);
+    const existing = await prisma.plaidItem.findFirst({
+      where: { userId, institutionId },
+    });
 
-    // Update user with new Plaid connection
-    const updatedUser = await prisma.user.update({
-      where: { id: req.user!.id },
+    if (existing) {
+      // A second Item for the same bank costs one of the 10 free places, so revoke it.
+      try {
+        await plaidClient.itemRemove({ access_token: accessToken });
+      } catch (removeError: any) {
+        console.warn(
+          'Error removing duplicate item from Plaid:',
+          plaidErrorCode(removeError) ?? removeError?.message
+        );
+      }
+      return res.status(409).json({ error: 'DUPLICATE_INSTITUTION' });
+    }
+
+    const item = await prisma.plaidItem.create({
       data: {
-        plaidAccessToken: access_token,
-        plaidItemId: item_id,
-        plaidInstitutionId: itemResponse.data.item.institution_id!,
-        plaidInstitutionName: institutionResponse.data.institution.name,
-        syncStatus: 'NEVER_SYNCED', // Reset sync status
+        userId,
+        accessToken,
+        itemId: plaidItemId,
+        institutionId,
+        institutionName,
+        status: 'ACTIVE',
       },
     });
 
-    console.log('User updated with Plaid connection');
+    const accountsResponse = await plaidClient.accountsGet({ access_token: accessToken });
 
-    // Trigger initial sync in the background
-    console.log('Starting initial sync...');
-    TransactionSyncService.syncUserTransactions(req.user!.id)
-      .then(result => {
-        console.log('Initial sync completed:', result);
-      })
-      .catch(error => {
-        console.error('Initial sync failed:', error);
-      });
-
-    res.json({ 
-      success: true, 
-      item_id,
-      institution_name: institutionResponse.data.institution.name,
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        fullName: updatedUser.fullName,
-        plaidItemId: updatedUser.plaidItemId,
-        plaidInstitutionName: updatedUser.plaidInstitutionName,
-        // Don't send access token to frontend
-        plaidAccessToken: updatedUser.plaidAccessToken ? 'CONNECTED' : null
-      }
-    });
-  } catch (error: any) {
-    console.error('Error exchanging public token:', error);
-    res.status(500).json({ 
-      error: 'Failed to exchange public token',
-      details: error.response?.data || error.message
-    });
-  }
-});
-
-// Get account information (for backward compatibility)
-router.get('/accounts', async (req: Request, res: Response) => {
-  try {
-    console.log('Getting Plaid accounts for user:', req.user!.id);
-    
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: { 
-        id: true, 
-        plaidAccessToken: true, 
-        plaidItemId: true,
-        plaidInstitutionName: true
-      }
-    });
-
-    if (!user || !user.plaidAccessToken) {
-      return res.json({ 
-        accounts: [],
-        institution: null,
-        connected: false
-      });
-    }
-
-    // Get fresh account data from Plaid
-    const accountsResponse = await plaidClient.accountsGet({
-      access_token: user.plaidAccessToken,
-    });
-
-    // Update our cached account data
     for (const plaidAccount of accountsResponse.data.accounts) {
-      await prisma.account.upsert({
+      const accountData = {
+        plaidItemId: item.id,
+        name: plaidAccount.name,
+        officialName: plaidAccount.official_name ?? null,
+        type: plaidAccount.type,
+        subtype: plaidAccount.subtype ?? 'unknown',
+        mask: plaidAccount.mask ?? null,
+        currentBalance: plaidAccount.balances.current ?? 0,
+        availableBalance: plaidAccount.balances.available ?? null,
+        creditLimit: plaidAccount.balances.limit ?? null,
+        isLiability: plaidAccount.type === 'credit' || plaidAccount.type === 'loan',
+        isActive: true,
+      };
+
+      const existingAccount = await prisma.account.findUnique({
         where: { plaidAccountId: plaidAccount.account_id },
-        update: {
-          currentBalance: plaidAccount.balances.current || 0,
-          availableBalance: plaidAccount.balances.available,
-          creditLimit: plaidAccount.balances.limit,
-          lastUpdatedAt: new Date()
-        },
-        create: {
+      });
+
+      // plaidAccountId is unique across the table; never touch a row owned by another user.
+      if (existingAccount && existingAccount.userId !== userId) {
+        continue;
+      }
+
+      if (existingAccount) {
+        await prisma.account.update({
+          where: { id: existingAccount.id },
+          data: accountData,
+        });
+        continue;
+      }
+
+      await prisma.account.create({
+        data: {
           plaidAccountId: plaidAccount.account_id,
-          userId: user.id,
-          name: plaidAccount.name,
-          officialName: plaidAccount.official_name,
-          type: plaidAccount.type,
-          subtype: plaidAccount.subtype || 'unknown',
-          mask: plaidAccount.mask,
-          currentBalance: plaidAccount.balances.current || 0,
-          availableBalance: plaidAccount.balances.available,
-          creditLimit: plaidAccount.balances.limit
-        }
+          userId,
+          ...accountData,
+        },
       });
     }
+
+    // W2.3 starts the first transaction sync here.
 
     res.json({
-      accounts: accountsResponse.data.accounts,
-      institution: {
-        name: user.plaidInstitutionName || 'Connected Bank',
-        item_id: user.plaidItemId,
-        connected_at: new Date().toISOString()
+      item: {
+        id: item.id,
+        institutionName: item.institutionName,
+        status: item.status,
       },
-      connected: true
     });
   } catch (error: any) {
-    console.error('Error fetching Plaid accounts:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch accounts',
-      details: error.response?.data || error.message
-    });
+    console.error('Error exchanging public token:', plaidErrorCode(error) ?? error.message);
+    res.status(500).json({ error: 'Failed to exchange public token' });
   }
 });
 
-// Get transactions (legacy endpoint for backward compatibility)
-router.get('/transactions', async (req: Request, res: Response) => {
+/**
+ * GET /api/plaid/items
+ * The user's connected banks, plus the server-wide Item count for the connections page.
+ */
+router.get('/items', async (req: Request, res: Response) => {
   try {
-    console.log('Getting Plaid transactions for user:', req.user!.id);
-    
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: { 
-        id: true, 
-        plaidAccessToken: true, 
-        plaidItemId: true 
-      }
-    });
+    const userId = req.user!.id;
 
-    if (!user || !user.plaidAccessToken) {
-      return res.status(404).json({ 
-        error: 'No bank account connected. Please connect your bank first.' 
-      });
-    }
-
-    const startDate = '2023-01-01';
-    const endDate = new Date().toISOString().slice(0, 10);
-
-    const response = await plaidClient.transactionsGet({
-      access_token: user.plaidAccessToken,
-      start_date: startDate,
-      end_date: endDate,
-      options: {
-        count: 250,
-        offset: 0,
+    const items = await prisma.plaidItem.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        accounts: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, name: true, mask: true, type: true, subtype: true },
+        },
       },
     });
 
-    res.json(response.data);
+    const used = await prisma.plaidItem.count();
+
+    res.json({
+      items: items.map((item) => ({
+        id: item.id,
+        institutionName: item.institutionName,
+        status: item.status,
+        lastSyncAt: item.lastSyncAt,
+        lastError: item.lastError,
+        accounts: item.accounts,
+      })),
+      used,
+      limit: ITEM_LIMIT,
+    });
   } catch (error: any) {
-    console.error('Error fetching transactions:', error);
-    
-    if (error.error_code === 'INVALID_ACCESS_TOKEN') {
-      // Update user status
-      await prisma.user.update({
-        where: { id: req.user!.id },
-        data: { syncStatus: 'TOKEN_EXPIRED' }
-      });
-      
-      return res.status(401).json({ 
-        error: 'Connection expired. Please reconnect your bank account.',
-        reconnect_required: true
-      });
-    }
-    
-    res.status(500).json({ error: 'Failed to fetch transactions' });
+    console.error('Error fetching plaid items:', error);
+    res.status(500).json({ error: 'Failed to fetch connected banks' });
   }
 });
 
-// Disconnect bank account
-router.delete('/disconnect', async (req: Request, res: Response) => {
+/**
+ * DELETE /api/plaid/items/:id
+ * Revokes the Item at Plaid, then deletes the row (accounts and transactions cascade).
+ */
+router.delete('/items/:id', async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+
   try {
-    console.log('Disconnecting bank for user:', req.user!.id);
-    
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: { 
-        id: true, 
-        plaidAccessToken: true, 
-        plaidItemId: true 
-      }
+    const item = await prisma.plaidItem.findFirst({
+      where: { id: req.params.id, userId },
     });
 
-    if (!user || !user.plaidAccessToken) {
-      return res.status(404).json({ 
-        error: 'No bank account connected.' 
-      });
+    if (!item) {
+      return res.status(404).json({ error: 'ITEM_NOT_FOUND' });
     }
 
-    // Remove item from Plaid (this will revoke the access token)
     try {
-      await plaidClient.itemRemove({
-        access_token: user.plaidAccessToken,
-      });
-      console.log('Item removed from Plaid successfully');
-    } catch (plaidError: any) {
-      console.warn('Error removing item from Plaid:', plaidError.message);
-      // Continue with database cleanup even if Plaid removal fails
-    }
-
-    // Remove all user's accounts and transactions
-    await prisma.transaction.deleteMany({
-      where: { userId: req.user!.id }
-    });
-    
-    await prisma.account.deleteMany({
-      where: { userId: req.user!.id }
-    });
-
-    // Remove Plaid credentials from user
-    const updatedUser = await prisma.user.update({
-      where: { id: req.user!.id },
-      data: {
-        plaidAccessToken: null,
-        plaidItemId: null,
-        plaidInstitutionId: null,
-        plaidInstitutionName: null,
-        lastSyncAt: null,
-        syncStatus: 'NEVER_SYNCED',
-      },
-    });
-
-    console.log('User Plaid connection removed successfully');
-
-    res.json({ 
-      success: true, 
-      message: 'Bank account disconnected successfully',
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        fullName: updatedUser.fullName,
-        plaidItemId: null,
-        plaidAccessToken: null
+      await plaidClient.itemRemove({ access_token: item.accessToken });
+    } catch (removeError: any) {
+      const code = plaidErrorCode(removeError);
+      // The Item is already gone at Plaid: still drop the local row.
+      if (code !== 'ITEM_NOT_FOUND') {
+        console.error('Error removing item from Plaid:', code ?? removeError?.message);
+        return res.status(502).json({ error: 'PLAID_REMOVE_FAILED', code });
       }
-    });
-  } catch (error: any) {
-    console.error('Error disconnecting bank account:', error);
-    res.status(500).json({ error: 'Failed to disconnect bank account' });
-  }
-});
-
-// Refresh/Update connection (for when access token expires)
-router.post('/refresh', async (req: Request, res: Response) => {
-  try {
-    console.log('Refreshing connection for user:', req.user!.id);
-    
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: { 
-        id: true, 
-        plaidAccessToken: true, 
-        plaidItemId: true 
-      }
-    });
-
-    if (!user || !user.plaidAccessToken) {
-      return res.status(404).json({ 
-        error: 'No bank account connected.' 
-      });
     }
 
-    // Test the connection
-    const accountsResponse = await plaidClient.accountsGet({
-      access_token: user.plaidAccessToken,
-    });
+    await prisma.plaidItem.delete({ where: { id: item.id } });
 
-    // Update sync status
-    await prisma.user.update({
-      where: { id: req.user!.id },
-      data: { syncStatus: 'SYNCED' }
-    });
-
-    res.json({ 
-      success: true, 
-      message: 'Connection is healthy',
-      accounts_count: accountsResponse.data.accounts.length
-    });
+    res.json({ success: true });
   } catch (error: any) {
-    console.error('Error refreshing connection:', error);
-    
-    // If token is invalid, user needs to reconnect
-    if (error.error_code === 'INVALID_ACCESS_TOKEN') {
-      await prisma.user.update({
-        where: { id: req.user!.id },
-        data: { syncStatus: 'TOKEN_EXPIRED' }
-      });
-      
-      return res.status(401).json({ 
-        error: 'Connection expired. Please reconnect your bank account.',
-        reconnect_required: true
-      });
-    }
-    
-    res.status(500).json({ error: 'Failed to refresh connection' });
+    console.error('Error deleting plaid item:', error);
+    res.status(500).json({ error: 'Failed to remove connected bank' });
   }
 });
 
