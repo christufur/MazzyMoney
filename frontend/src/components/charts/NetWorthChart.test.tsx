@@ -231,6 +231,15 @@ describe('NetWorthChart', () => {
     expect(screen.queryByTestId('net-worth-change')).not.toBeInTheDocument();
   });
 
+  it('says which part of the history is worked back from transactions', async () => {
+    getNetWorth.mockResolvedValue(response({ estimatedBefore: '2025-03-01' }));
+    render(<NetWorthChart />);
+
+    expect(
+      await screen.findByText('Before Mar 1, balances are worked back from your transactions.')
+    ).toBeInTheDocument();
+  });
+
   it('keeps the chart visible while a new range loads', async () => {
     render(<NetWorthChart />);
 

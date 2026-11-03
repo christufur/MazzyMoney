@@ -105,12 +105,32 @@ netWorthRouter.get('/', async (req: Request, res: Response) => {
             select: { accountId: true, date: true, balance: true },
           });
 
-    const points = buildPoints(accounts, snapshots, range, today);
+    // History from before the first snapshot is worked back from the transactions.
+    // shortcut: reads every settled row for these accounts; fine for a household, add a date floor if it grows past ~100k rows.
+    const transactions =
+      snapshots.length === 0
+        ? []
+        : await prisma.transaction.findMany({
+            where: {
+              accountId: { in: accounts.map((account) => account.id) },
+              pending: false,
+              date: { lte: today },
+            },
+            select: { accountId: true, date: true, amount: true },
+          });
+    const estimated = estimateEarlierBalances(accounts, snapshots, transactions);
+    const points = buildPoints(
+      accounts,
+      [...estimated.rows, ...snapshots].sort((a, b) => a.date.getTime() - b.date.getTime()),
+      range,
+      today
+    );
 
     res.json({
       current,
       change: buildChange(current.netWorth, points),
       points,
+      estimatedBefore: estimated.until,
       accounts: accounts.map((account) => ({
         id: account.id,
         name: account.name,
@@ -234,6 +254,70 @@ function buildPoints(
       netWorth: roundCents(roundedAssets - roundedLiabilities),
     };
   });
+}
+
+/**
+ * Balances for the days before each account's first snapshot, worked back from its
+ * transactions (Plaid amounts are positive for money out): an asset was higher by what
+ * left it since, a liability owed less by what was charged since. One row per day that
+ * had a transaction, plus the day before the first one. An account with no transactions
+ * keeps its first snapshot back to the earliest estimated day, so adding a manual
+ * account does not draw a jump. `until` is the first real snapshot day, or null.
+ */
+export function estimateEarlierBalances(
+  accounts: Array<{ id: string; isLiability: boolean }>,
+  snapshots: SnapshotRow[],
+  transactions: Array<{ accountId: string; date: Date; amount: number }>
+): { rows: SnapshotRow[]; until: string | null } {
+  const first = new Map<string, SnapshotRow>();
+  for (const snapshot of snapshots) {
+    const seen = first.get(snapshot.accountId);
+    if (!seen || snapshot.date < seen.date) first.set(snapshot.accountId, snapshot);
+  }
+
+  const rows: SnapshotRow[] = [];
+  const held: SnapshotRow[] = [];
+
+  for (const account of accounts) {
+    const anchor = first.get(account.id);
+    if (!anchor) continue;
+    const anchorDay = formatDateOnly(anchor.date);
+
+    // Net money out per day, for days up to and including the anchor day.
+    const outByDay = new Map<string, number>();
+    for (const tx of transactions) {
+      if (tx.accountId !== account.id) continue;
+      const day = formatDateOnly(tx.date);
+      if (day > anchorDay) continue;
+      outByDay.set(day, (outByDay.get(day) ?? 0) + tx.amount);
+    }
+
+    const days = [...outByDay.keys()].sort().reverse();
+    if (days.length === 0) {
+      held.push(anchor);
+      continue;
+    }
+
+    // Walk back from the anchor: the balance at the end of a day excludes what came after it.
+    const sign = account.isLiability ? -1 : 1;
+    let balance = anchor.balance;
+    for (const day of days) {
+      if (day < anchorDay) rows.push({ accountId: account.id, date: new Date(`${day}T00:00:00Z`), balance: roundCents(balance) });
+      balance += sign * (outByDay.get(day) ?? 0);
+    }
+    const before = addDays(new Date(`${days[days.length - 1]}T00:00:00Z`), -1);
+    rows.push({ accountId: account.id, date: before, balance: roundCents(balance) });
+  }
+
+  if (rows.length === 0) return { rows, until: null };
+
+  const start = rows.reduce((min, row) => (row.date < min ? row.date : min), rows[0].date);
+  for (const anchor of held) {
+    if (anchor.date > start) rows.push({ accountId: anchor.accountId, date: start, balance: anchor.balance });
+  }
+
+  const until = [...first.values()].reduce((min, row) => (row.date < min ? row.date : min), [...first.values()][0].date);
+  return { rows, until: formatDateOnly(until) };
 }
 
 /** Change against the first point of the range. Percent is null when that value is 0. */

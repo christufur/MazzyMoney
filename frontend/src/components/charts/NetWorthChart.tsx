@@ -312,6 +312,11 @@ const NetWorthChart: React.FC = () => {
             </ResponsiveContainer>
           </div>
         )}
+        {points.length > 0 && data?.estimatedBefore && points[0].date < data.estimatedBefore && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Before {formatDay(data.estimatedBefore)}, balances are worked back from your transactions.
+          </p>
+        )}
       </section>
 
       {accounts.length > 0 && (

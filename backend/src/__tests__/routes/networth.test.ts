@@ -313,6 +313,39 @@ describe('GET /api/networth', () => {
     expect(points).toHaveLength(44);
   });
 
+  it('works earlier days back from transactions before the first snapshot', async () => {
+    const checking = await createAccount({ name: 'Checking', currentBalance: 1000 });
+    const card = await createAccount({ name: 'Card', type: 'credit', currentBalance: 300, isLiability: true });
+    const retirement = await createAccount({ name: '401(k)', type: 'retirement', isManual: true, currentBalance: 5000 });
+    await addSnapshot(checking.id, 0, 1000);
+    await addSnapshot(card.id, 0, 300);
+    await addSnapshot(retirement.id, 0, 5000);
+
+    const tx = (accountId: string, daysAgo: number, amount: number) =>
+      prisma.transaction.create({
+        data: { userId: USER_ID, accountId, name: 'x', amount, date: utcDaysAgo(daysAgo) },
+      });
+    await tx(checking.id, 10, -2000); // paycheck in
+    await tx(checking.id, 5, 400); // rent out
+    await tx(card.id, 3, 300); // a charge on the card
+    await tx(checking.id, 0, 600); // spent today, already in today's snapshot
+
+    const response = await netWorthRequest('?range=1m');
+    expect(response.status).toBe(200);
+    expect(response.body.estimatedBefore).toBe(isoDate(utcToday()));
+
+    const points = response.body.points as Array<{ date: string; assets: number; liabilities: number }>;
+    // Before the paycheck: 1000 + 600 + 400 − 2000 = 0 in checking, nothing owed, 401(k) held at 5000.
+    expect(pointFor(points, utcDaysAgo(11))).toMatchObject({ assets: 5000, liabilities: 0 });
+    expect(pointFor(points, utcDaysAgo(10))).toMatchObject({ assets: 7000, liabilities: 0 });
+    expect(pointFor(points, utcDaysAgo(5))).toMatchObject({ assets: 6600, liabilities: 0 });
+    expect(pointFor(points, utcDaysAgo(3))).toMatchObject({ assets: 6600, liabilities: 300 });
+    expect(pointFor(points, utcDaysAgo(1))).toMatchObject({ assets: 6600, liabilities: 300 });
+    expect(pointFor(points, utcToday())).toMatchObject({ assets: 6000, liabilities: 300 });
+    // Before anything was known the day is left out (zero), as before.
+    expect(pointFor(points, utcDaysAgo(12))).toMatchObject({ assets: 0, liabilities: 0 });
+  });
+
   it('leaves out another user and inactive accounts', async () => {
     const mine = await createAccount({ name: 'My Checking', currentBalance: 500 });
     await addSnapshot(mine.id, 0, 500);
