@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import SidebarLayout from '../components/layout/SidebarLayout';
-import { plaidAPI } from '../services/api';
+import { transactionAPI } from '../services/api';
 import { TransactionNotes } from '../components/transactions/TransactionNotes';
 import { SmartCategorySelector } from '../components/transactions/SmartCategorySelector';
 
@@ -58,8 +58,14 @@ const TransactionsPage: React.FC = () => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        const response = await plaidAPI.getTransactions();
-        setData(response);
+        // shortcut: loads the latest 500 cached rows into the old Plaid-shaped state; W2.6 replaces this with server-side paging.
+        const response = await transactionAPI.getTransactions({ limit: 500 });
+        const accounts = new Map<string, Account>();
+        const transactions: Transaction[] = response.transactions.map((t: any) => {
+          accounts.set(t.accountId, { account_id: t.accountId, name: t.account?.name ?? 'Account', balances: { current: 0, available: 0 }, type: t.account?.type ?? '', subtype: t.account?.subtype ?? '' });
+          return { transaction_id: t.id, name: t.merchantDisplay ?? t.name, amount: t.amount, date: t.date, category: t.categories ?? null, pending: t.pending, account_id: t.accountId, notes: t.notes ?? undefined, primaryCategory: t.primaryCategory ?? undefined };
+        });
+        setData({ transactions, accounts: Array.from(accounts.values()), total_transactions: response.pagination.totalCount });
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to fetch transactions');
       } finally {
