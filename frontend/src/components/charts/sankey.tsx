@@ -1,226 +1,217 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import { sankey as d3sankey, sankeyLinkHorizontal } from "d3-sankey";
 
 interface FlowData {
   category: string;
   amount: number;
-  color: string;
-  children?: FlowData[];
 }
 
 interface CustomSankeyProps {
+  /** Money that arrived, or money that left when spending is ahead of income. */
   income: number;
+  /** Money kept; only a positive amount becomes the saved node. */
   savings: number;
   flows: FlowData[];
   formatCurrency: (amount: number) => string;
+  /** Left-hand node name. */
+  sourceLabel?: string;
   className?: string;
 }
+
+const SAGE = "var(--sage)";
+const SAGE_TINT = "var(--sage-tint)";
+const MUTED = "var(--muted-foreground)";
+const INK = "var(--foreground)";
+const RULE = "var(--border)";
+
+const finite = (value: number) => (Number.isFinite(value) ? value : 0);
+
+/** A share of the period's money, or a dash when there is no total to divide by. */
+const shareLabel = (value: number, total: number) => {
+  if (!Number.isFinite(value) || !Number.isFinite(total) || total <= 0) return "—";
+  return `${Math.round((value / total) * 100)}%`;
+};
 
 const CustomSankeyFlow: React.FC<CustomSankeyProps> = ({
   income,
   savings,
   flows,
   formatCurrency,
+  sourceLabel = "Income",
   className = "",
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(720);
+
+  // Follow the sheet's width so the diagram fits a phone without a sideways scroll.
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const measure = () => {
+      const next = box.getBoundingClientRect().width;
+      if (next > 0) setWidth(Math.round(next));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
+
+  const drawn = useMemo(
+    () =>
+      flows
+        .map((flow) => ({ category: flow.category, amount: finite(flow.amount) }))
+        .filter((flow) => flow.amount > 0.005),
+    [flows]
+  );
+
+  const kept = Math.max(0, finite(savings));
+  const height = Math.max(220, Math.min(480, 96 + drawn.length * 44));
 
   useEffect(() => {
     if (!svgRef.current) return;
-    const width = 950;
-    const height = 550;
 
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
+    if (drawn.length === 0 && kept <= 0) return;
 
-    /** 1. Build nodes */
-    type NodeDatum = { id: string; name: string; color: string };
-    type LinkDatum = { source: number; target: number; value: number; color?: string };
+    const innerWidth = Math.max(240, width);
+    const innerHeight = height;
 
-    let nodes: NodeDatum[] = [];
-    nodes.push({ id: "Income", name: "Income", color: "#10b981" });
+    /** 1. Nodes: where the money came from, where it went, and what stayed. */
+    type NodeDatum = { id: string; name: string; kind: "source" | "category" | "saved" };
+    type LinkDatum = { source: number; target: number; value: number; kind: "spend" | "saved" };
 
-    flows.forEach((parent) => {
-      nodes.push({
-        id: parent.category,
-        name: parent.category,
-        color: parent.color,
-      });
-      parent.children?.forEach((child) => {
-        nodes.push({
-          id: child.category,
-          name: child.category,
-          color: child.color,
-        });
-      });
-    });
-
-    if (savings > 0) {
-      nodes.push({ id: "Savings", name: "Savings", color: "#3b82f6" });
-    }
-
-    /** 2. Build raw links */
-    let rawLinks: { source: string; target: string; value: number; color?: string }[] =
-      [];
-
-    flows.forEach((parent) => {
-      rawLinks.push({
-        source: "Income",
-        target: parent.category,
-        value: parent.amount,
-        color: parent.color,
-      });
-
-      parent.children?.forEach((child) => {
-        rawLinks.push({
-          source: parent.category,
-          target: child.category,
-          value: child.amount,
-          color: child.color,
-        });
-      });
-    });
-
-    if (savings > 0) {
-      rawLinks.push({
-        source: "Income",
-        target: "Savings",
-        value: savings,
-        color: "#3b82f6",
-      });
-    }
-
-    /** 3. Convert string IDs → numeric indices */
-    const idToIndex = new Map(nodes.map((d, i) => [d.id, i]));
-    const links: LinkDatum[] = rawLinks.map((l) => ({
-      source: idToIndex.get(l.source)!,
-      target: idToIndex.get(l.target)!,
-      value: l.value,
-      color: l.color,
+    const source: NodeDatum = { id: "__source", name: sourceLabel, kind: "source" };
+    const categories: NodeDatum[] = drawn.map((flow) => ({
+      id: flow.category,
+      name: flow.category,
+      kind: "category",
     }));
+    const saved: NodeDatum[] = kept > 0 ? [{ id: "__saved", name: "Saved", kind: "saved" }] : [];
+    const nodes: NodeDatum[] = [source, ...categories, ...saved];
 
-    /** 4. Sankey layout */
+    /** 2. Links. The source carries the sum of what leaves it, so the bands add up. */
+    const indexOf = new Map(nodes.map((node, index) => [node.id, index]));
+    const links: LinkDatum[] = [
+      ...drawn.map((flow) => ({
+        source: 0,
+        target: indexOf.get(flow.category)!,
+        value: flow.amount,
+        kind: "spend" as const,
+      })),
+      ...(kept > 0
+        ? [{ source: 0, target: indexOf.get("__saved")!, value: kept, kind: "saved" as const }]
+        : []),
+    ];
+
+    /** 3. Layout */
     const sankeyGen = d3sankey<NodeDatum, LinkDatum>()
-      .nodeWidth(40)
-      .nodePadding(30)
+      .nodeWidth(10)
+      .nodePadding(Math.max(10, Math.min(28, 320 / Math.max(1, nodes.length))))
       .extent([
-        [0, 0],
-        [width - 50, height - 50],
+        [0, 8],
+        [Math.max(120, innerWidth - 190), innerHeight - 16],
       ]);
 
-    const { nodes: sankeyNodes, links: sankeyLinks } = sankeyGen({
-      nodes: nodes.map((d) => ({ ...d })),
-      links: links.map((l) => ({ ...l })),
+    const { nodes: layoutNodes, links: layoutLinks } = sankeyGen({
+      nodes: nodes.map((node) => ({ ...node })),
+      links: links.map((link) => ({ ...link })),
     });
 
-    const g = svg.append("g").attr("transform", "translate(20,20)");
+    const g = svg.append("g").attr("transform", "translate(2,0)");
 
-    /** 5. Draw links with gradients */
-    const defs = svg.append("defs");
-
-    sankeyLinks.forEach((link, i) => {
-      const gradientId = `gradient-${i}`;
-
-      const gradient = defs
-        .append("linearGradient")
-        .attr("id", gradientId)
-        .attr("gradientUnits", "userSpaceOnUse")
-        .attr("x1", (link.source as any).x1)
-        .attr("x2", (link.target as any).x0)
-        .attr("y1", 0)
-        .attr("y2", 0);
-
-      gradient
-        .append("stop")
-        .attr("offset", "0%")
-        .attr("stop-color", (link.source as any).color || "#999")
-        .attr("stop-opacity", 0.8);
-
-      gradient
-        .append("stop")
-        .attr("offset", "100%")
-        .attr("stop-color", (link.target as any).color || "#999")
-        .attr("stop-opacity", 0.8);
-
-      const lw = (link as any).width ?? 1;
-      g.append("path")
-        .attr("d", sankeyLinkHorizontal()(link as any)!)
-        .attr("stroke", `url(#${gradientId})`)
-        .attr("stroke-width", Math.max(1, lw))
-        .attr("fill", "none")
-        .attr("opacity", 0.7)
-        .on("mouseover", function () {
-          d3.select(this).attr("opacity", 1).attr("stroke-width", (lw + 2));
-        })
-        .on("mouseout", function () {
-          d3.select(this).attr("opacity", 0.7).attr("stroke-width", lw);
-        });
-    });
-
-    /** 6. Draw nodes */
-    const nodesG = g
-      .selectAll(".node")
-      .data(sankeyNodes)
-      .enter()
+    /** 4. Bands: muted, thin, never a second color per category. */
+    const bands = g
       .append("g")
-      .attr("class", "node");
+      .attr("fill", "none")
+      .selectAll("path")
+      .data(layoutLinks)
+      .enter()
+      .append("path")
+      .attr("d", sankeyLinkHorizontal())
+      .attr("stroke", (link: any) => (link.kind === "saved" ? SAGE : MUTED))
+      .attr("stroke-opacity", (link: any) => (link.kind === "saved" ? 0.3 : 0.18))
+      .attr("stroke-width", (link: any) => Math.max(1, link.width ?? 1))
+      .attr("data-kind", (link: any) => link.kind);
 
-    nodesG
-      .append("rect")
-      .attr("x", (d) => d.x0!)
-      .attr("y", (d) => d.y0!)
-      .attr("height", (d) => Math.max(1, (d.y1 ?? 0) - (d.y0 ?? 0)))
-      .attr("width", (d) => (d.x1 ?? 0) - (d.x0 ?? 0))
-      .style("fill", (d) => (d as any).color || "#999")
-      .style("stroke", "#fff");
-
-    /** 7. Node labels (name, amount, %) */
-    nodesG
-      .append("text")
-      .attr("x", (d) => ((d.x0 ?? 0) < width / 2 ? d.x1! + 8 : d.x0! - 8))
-      .attr("y", (d) => ((d.y0 ?? 0) + (d.y1 ?? 0)) / 2)
-      .attr("dy", "-0.2em")
-      .attr("text-anchor", (d) =>
-        (d.x0 ?? 0) < width / 2 ? "start" : "end"
-      )
-      .style("font-weight", "600")
-      .style("fill", "#111827")
-      .text((d) => (d as any).name);
-
-    nodesG
-      .append("text")
-      .attr("x", (d) => ((d.x0 ?? 0) < width / 2 ? d.x1! + 8 : d.x0! - 8))
-      .attr("y", (d) => ((d.y0 ?? 0) + (d.y1 ?? 0)) / 2 + 14)
-      .attr("text-anchor", (d) =>
-        (d.x0 ?? 0) < width / 2 ? "start" : "end"
-      )
-      .style("font-size", d => ((d.y1 ?? 0) - (d.y0 ?? 0) < 20 ? "10px" : "13px"))
-      .style("fill", "#6b7280")
-      .text((d) => {
-        const value = Number((d as any).value ?? 0);
-        const percent = income ? ((value / income) * 100).toFixed(1) : "0.0";
-        return `${formatCurrency(value)} (${percent}%)`;
+    bands
+      .on("mouseover", function () {
+        d3.select(this).attr("stroke-opacity", 0.34);
+      })
+      .on("mouseout", function (this: SVGPathElement, _event: unknown, link: any) {
+        d3.select(this).attr("stroke-opacity", link.kind === "saved" ? 0.3 : 0.18);
       });
 
-    /** 8. Title */
-    svg
+    /** 5. Node blocks: sage for where money comes from, sage tint for what stayed. */
+    g.append("g")
+      .selectAll("rect")
+      .data(layoutNodes)
+      .enter()
+      .append("rect")
+      .attr("x", (node: any) => node.x0 ?? 0)
+      .attr("y", (node: any) => node.y0 ?? 0)
+      .attr("width", (node: any) => Math.max(2, (node.x1 ?? 0) - (node.x0 ?? 0)))
+      .attr("height", (node: any) => Math.max(2, (node.y1 ?? 0) - (node.y0 ?? 0)))
+      .attr("rx", 2)
+      .attr("fill", (node: any) =>
+        node.kind === "source" ? SAGE : node.kind === "saved" ? SAGE_TINT : MUTED
+      )
+      .attr("fill-opacity", (node: any) => (node.kind === "category" ? 0.22 : 1))
+      .attr("stroke", (node: any) =>
+        node.kind === "saved" ? SAGE : node.kind === "source" ? SAGE : RULE
+      )
+      .attr("stroke-width", (node: any) => (node.kind === "saved" ? 1 : 0));
+
+    /** 6. Labels in ink 13px, the amount beside them in muted 12px. */
+    const labelX = (node: any) => {
+      const onRightHalf = (node.x0 ?? 0) > innerWidth / 2 - 90;
+      return onRightHalf ? (node.x0 ?? 0) - 10 : (node.x1 ?? 0) + 10;
+    };
+    const anchor = (node: any) => ((node.x0 ?? 0) > innerWidth / 2 - 90 ? "end" : "start");
+
+    const labels = g.append("g").selectAll("g").data(layoutNodes).enter().append("g");
+
+    labels
       .append("text")
-      .attr("x", width / 2)
-      .attr("y", 15)
-      .attr("text-anchor", "middle")
-      .style("font-size", "14px")
-      .style("font-weight", "600")
-      .style("fill", "#111827")
-      .text("Cash Flow Analysis");
-  }, [income, savings, flows, formatCurrency]);
+      .attr("x", (node: any) => labelX(node))
+      .attr("y", (node: any) => ((node.y0 ?? 0) + (node.y1 ?? 0)) / 2 - 5)
+      .attr("text-anchor", (node: any) => anchor(node))
+      .attr("fill", INK)
+      .attr("font-size", 13)
+      .attr("font-weight", 500)
+      .text((node: any) => node.name);
+
+    labels
+      .append("text")
+      .attr("x", (node: any) => labelX(node))
+      .attr("y", (node: any) => ((node.y0 ?? 0) + (node.y1 ?? 0)) / 2 + 11)
+      .attr("text-anchor", (node: any) => anchor(node))
+      .attr("fill", MUTED)
+      .attr("font-size", 12)
+      .text((node: any) => {
+        const value = finite(Number(node.value ?? 0));
+        const total = finite(income) > 0 ? finite(income) : value;
+        return `${formatCurrency(value)} · ${shareLabel(value, total)}`;
+      });
+  }, [income, kept, drawn, formatCurrency, sourceLabel, width, height]);
 
   return (
-    <div className={`bg-white rounded-lg border p-6 ${className}`}>
-      <div className="mb-3 text-center text-gray-500 text-sm">
-        Income flows across categories. Width = relative amount.
-      </div>
-      <svg ref={svgRef} width={950} height={550} />
+    <div ref={boxRef} className={className}>
+      {drawn.length === 0 && kept <= 0 ? (
+        <p className="text-[15px] text-muted-foreground">No cash flow to show for this period.</p>
+      ) : (
+        <svg
+          ref={svgRef}
+          width="100%"
+          height={height}
+          role="img"
+          aria-label={`${sourceLabel} split across ${drawn.length} categories`}
+        />
+      )}
     </div>
   );
 };
