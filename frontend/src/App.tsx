@@ -14,6 +14,7 @@ import './App.css';
 import InsightsPage from './pages/Insights';
 import TransactionsPage from './pages/Transactions';
 import BudgetsPage from './pages/Budgets';
+import RecurringPage from './pages/Recurring';
 import ConnectionsPage from './pages/Connections';
 
 // Loading spinner
@@ -140,6 +141,15 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <BudgetsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/recurring"
+            element={
+              <ProtectedRoute>
+                <RecurringPage />
               </ProtectedRoute>
             }
           />

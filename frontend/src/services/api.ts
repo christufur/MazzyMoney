@@ -395,3 +395,42 @@ export const budgetAPI = {
     await api.delete(`/api/budgets/${budgetId}/alerts/${alertId}`);
   }
 };
+
+export type RecurringStatus = 'ACTIVE' | 'IGNORED';
+
+export interface RecurringSeries {
+  id: string;
+  merchantKey: string;
+  displayName: string;
+  averageAmount: number;
+  intervalDays: number;
+  lastDate: string;
+  nextDate: string;
+  status: RecurringStatus;
+  monthlyEquivalent: number;
+}
+
+export interface RecurringResponse {
+  series: RecurringSeries[];
+  /** The ACTIVE series only, in cents. */
+  monthlyTotal: number;
+  upcoming: RecurringSeries[];
+}
+
+export const recurringAPI = {
+  getAll: async (): Promise<RecurringResponse> => {
+    const response = await api.get('/api/recurring');
+    return response.data;
+  },
+
+  /** Detects the series again now instead of waiting for the nightly job. */
+  refresh: async (): Promise<RecurringResponse> => {
+    const response = await api.post('/api/recurring/refresh');
+    return response.data;
+  },
+
+  setStatus: async (id: string, status: RecurringStatus): Promise<{ series: RecurringSeries }> => {
+    const response = await api.patch(`/api/recurring/${id}`, { status });
+    return response.data;
+  },
+};
