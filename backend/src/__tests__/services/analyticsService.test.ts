@@ -157,7 +157,7 @@ describe('AnalyticsService transaction date bucketing', () => {
     );
   });
 
-  it('getSpendingInsights reports a new category with no last-month spending as an increase', async () => {
+  it('getSpendingInsights reports a new category with no last-month baseline as a null percent change', async () => {
     await createTransaction({
       amount: 25,
       date: todayUtcMidnight(new Date()),
@@ -167,13 +167,27 @@ describe('AnalyticsService transaction date bucketing', () => {
     const insights = await AnalyticsService.getSpendingInsights(userId);
     const subscriptions = insights.find(insight => insight.category === 'Subscriptions');
 
+    // No spending last month means no percentage: the screen says "new this month",
+    // never "up 100%".
     expect(subscriptions).toMatchObject({
       category: 'Subscriptions',
       change: 25,
-      percentChange: 100,
+      percentChange: null,
       type: 'increase',
       severity: 'high'
     });
+  });
+
+  it('getSpendingInsights leaves out a new category that is only pocket change', async () => {
+    await createTransaction({
+      amount: 8,
+      date: todayUtcMidnight(new Date()),
+      primaryCategory: 'Parking'
+    });
+
+    const insights = await AnalyticsService.getSpendingInsights(userId);
+
+    expect(insights.find(insight => insight.category === 'Parking')).toBeUndefined();
   });
 
   it('getSpendingInsights ignores categories that did not change by more than 20%', async () => {

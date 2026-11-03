@@ -36,7 +36,8 @@ interface TrendRow {
 interface Insight {
   category: string;
   change: number;
-  percentChange: number;
+  /** `null` when last month had no spending in the category, so there is no baseline. */
+  percentChange: number | null;
 }
 
 interface Merchant {
@@ -120,12 +121,13 @@ const Figure: React.FC<{ label: string; value: string; tone?: 'sage' }> = ({ lab
   </div>
 );
 
+/** A ruled section of the one spread: a hairline between sections, never a second card. */
 const Section: React.FC<{ title: string; hint?: string; children: React.ReactNode }> = ({
   title,
   hint,
   children,
 }) => (
-  <section className="sheet p-6 md:p-8">
+  <section className="border-t border-rule p-6 md:p-8">
     <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
       <h2 className="section-label">{title}</h2>
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
@@ -134,6 +136,11 @@ const Section: React.FC<{ title: string; hint?: string; children: React.ReactNod
   </section>
 );
 
+/**
+ * A category line. On a phone the bar sits on its own full-width line under the name and
+ * amount, so every bar is measured on the same width and the ranks can be compared at a
+ * glance; from `md` up the four columns share one line.
+ */
 const LedgerRow: React.FC<{ name: string; amount: number; share: number | null; max: number }> = ({
   name,
   amount,
@@ -142,13 +149,21 @@ const LedgerRow: React.FC<{ name: string; amount: number; share: number | null; 
 }) => {
   const width = max > 0 ? Math.min(100, (amount / max) * 100) : 0;
   return (
-    <li className="ledger-line flex items-center gap-3 py-3 text-[15px]">
-      <span className="w-28 shrink-0 truncate sm:w-44">{name}</span>
-      <span className="h-1.5 flex-1 rounded-sm bg-muted" aria-hidden>
-        <span className="block h-1.5 rounded-sm bg-sage" style={{ width: `${width}%` }} />
+    <li className="ledger-line flex flex-wrap items-center gap-x-3 gap-y-2 py-3 text-[15px] md:grid md:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_5.5rem_2.75rem] md:gap-x-4 md:gap-y-0">
+      <span className="min-w-0 flex-1 truncate md:flex-none">{name}</span>
+      <span
+        data-bar="spending"
+        className="order-last h-1.5 w-full rounded-sm bg-muted md:order-none md:w-auto"
+        aria-hidden
+      >
+        <span
+          data-bar-fill="spending"
+          className="block h-1.5 rounded-sm bg-ink"
+          style={{ width: `${width}%` }}
+        />
       </span>
-      <span className="w-20 shrink-0 text-right font-medium tabular-nums">{money(amount)}</span>
-      <span className="w-10 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
+      <span className="shrink-0 text-right font-medium tabular-nums">{money(amount)}</span>
+      <span className="w-9 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
         {shareLabel(share)}
       </span>
     </li>
@@ -158,14 +173,20 @@ const LedgerRow: React.FC<{ name: string; amount: number; share: number | null; 
 const CHANGED_UP = 'text-ink';
 const CHANGED_DOWN = 'text-sage-ink';
 
-/** "Groceries is up $82 (24%) on last month." The share is a dash when last month had nothing to compare. */
+/**
+ * "Groceries is up $82 (24%) on last month."
+ * With no spending in the same days last month there is no baseline, so the sentence says
+ * the category is new instead of inventing "up 100%".
+ */
 const changeSentence = (insight: Insight) => {
   const change = safe(insight.change);
   const amount = moneyWhole(Math.abs(change));
-  const percent = Number.isFinite(insight.percentChange)
-    ? `${Math.abs(Math.round(insight.percentChange))}%`
-    : '—';
-  return `${insight.category} is ${change > 0 ? 'up' : 'down'} ${amount} (${percent}) on last month.`;
+  if (insight.percentChange === null || !Number.isFinite(insight.percentChange)) {
+    return `${insight.category} is new this month (${amount}).`;
+  }
+  return `${insight.category} is ${change > 0 ? 'up' : 'down'} ${amount} (${Math.abs(
+    Math.round(insight.percentChange)
+  )}%) on last month.`;
 };
 
 const InsightsPage: React.FC = () => {
@@ -332,8 +353,8 @@ const InsightsPage: React.FC = () => {
       )}
 
       {!error && (
-        <>
-          <section className="sheet p-6 md:p-8">
+        <div className="sheet">
+          <section aria-label="Totals" className="p-6 md:p-8">
             {loading ? (
               <Skeleton className="h-20" />
             ) : (
@@ -357,166 +378,163 @@ const InsightsPage: React.FC = () => {
             )}
           </section>
 
-          <div className="mt-6 space-y-6">
-            <Section title="Where the money went" hint="Share of all spending">
-              {loading ? (
-                <Skeleton className="h-56" />
-              ) : ledger.length === 0 ? (
-                <p className="text-[15px] text-muted-foreground">
-                  No spending recorded in this period.
+          <Section title="Where the money went" hint="Share of all spending">
+            {loading ? (
+              <Skeleton className="h-56" />
+            ) : ledger.length === 0 ? (
+              <p className="text-[15px] text-muted-foreground">
+                No spending recorded in this period.
+              </p>
+            ) : (
+              <>
+                <ul data-testid="category-ledger">
+                  {ledger.map((row) => (
+                    <LedgerRow
+                      key={row.name}
+                      name={row.name}
+                      amount={row.amount}
+                      share={row.share}
+                      max={row.max}
+                    />
+                  ))}
+                </ul>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Bars are scaled to the largest category; each percent is of all spending.
                 </p>
-              ) : (
-                <>
-                  <ul data-testid="category-ledger">
-                    {ledger.map((row) => (
-                      <LedgerRow
-                        key={row.name}
-                        name={row.name}
-                        amount={row.amount}
-                        share={row.share}
-                        max={row.max}
+              </>
+            )}
+          </Section>
+
+          <Section title="Month by month" hint="Every month on one scale">
+            {loading ? (
+              <Skeleton className="h-56" />
+            ) : chartData.every((row) => row.income === 0 && row.spending === 0) ? (
+              <p className="text-[15px] text-muted-foreground">No months with activity in this period.</p>
+            ) : (
+              <>
+                <div className="h-64 w-full" data-testid="month-chart">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}>
+                      <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="month"
+                        tickLine={false}
+                        axisLine={{ stroke: 'var(--border)' }}
+                        tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
                       />
-                    ))}
-                  </ul>
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    Bars are scaled to the largest category; each percent is of all spending.
+                      <YAxis
+                        domain={[0, chartTop]}
+                        allowDecimals={false}
+                        tickLine={false}
+                        axisLine={false}
+                        width={52}
+                        tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
+                        tickFormatter={(value) => compact(Number(value))}
+                      />
+                      <Tooltip
+                        cursor={{ fill: 'var(--muted)' }}
+                        formatter={(value) => money(Number(value))}
+                        labelStyle={{ color: 'var(--foreground)' }}
+                        contentStyle={{
+                          background: 'var(--card)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Bar dataKey="income" name="Income" fill="var(--sage)" radius={[3, 3, 0, 0]} />
+                      <Bar
+                        dataKey="spending"
+                        name="Spending"
+                        fill="var(--foreground)"
+                        radius={[3, 3, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-3 flex items-center gap-5 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <span className="size-2.5 rounded-sm bg-sage" aria-hidden />
+                    Income
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="size-2.5 rounded-sm bg-ink" aria-hidden />
+                    Spending
+                  </span>
+                </div>
+              </>
+            )}
+          </Section>
+
+          <Section title="Cash flow" hint="Where income goes in this period">
+            {loading ? (
+              <Skeleton className="h-64" />
+            ) : (
+              <>
+                <CustomSankeyFlow
+                  income={net < 0 ? summary.expenses : summary.income}
+                  savings={saved}
+                  flows={flows}
+                  formatCurrency={money}
+                  sourceLabel={net < 0 ? 'Spending' : 'Income'}
+                />
+                {net < 0 && (
+                  <p className="mt-3 text-[15px]">
+                    Spending was {moneyWhole(-net)} more than income in this period.
                   </p>
-                </>
-              )}
-            </Section>
+                )}
+              </>
+            )}
+          </Section>
 
-            <Section title="Month by month" hint="Every month on one scale">
-              {loading ? (
-                <Skeleton className="h-56" />
-              ) : chartData.every((row) => row.income === 0 && row.spending === 0) ? (
-                <p className="text-[15px] text-muted-foreground">No months with activity in this period.</p>
-              ) : (
-                <>
-                  <div className="h-64 w-full" data-testid="month-chart">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}>
-                        <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-                        <XAxis
-                          dataKey="month"
-                          tickLine={false}
-                          axisLine={{ stroke: 'var(--border)' }}
-                          tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
-                        />
-                        <YAxis
-                          domain={[0, chartTop]}
-                          allowDecimals={false}
-                          tickLine={false}
-                          axisLine={false}
-                          width={52}
-                          tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
-                          tickFormatter={(value) => compact(Number(value))}
-                        />
-                        <Tooltip
-                          cursor={{ fill: 'var(--muted)' }}
-                          formatter={(value) => money(Number(value))}
-                          labelStyle={{ color: 'var(--foreground)' }}
-                          contentStyle={{
-                            background: 'var(--card)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
-                        />
-                        <Bar dataKey="income" name="Income" fill="var(--sage)" radius={[3, 3, 0, 0]} />
-                        <Bar
-                          dataKey="spending"
-                          name="Spending"
-                          fill="var(--foreground)"
-                          fillOpacity={0.75}
-                          radius={[3, 3, 0, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="mt-3 flex items-center gap-5 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-2">
-                      <span className="size-2.5 rounded-sm bg-sage" aria-hidden />
-                      Income
+          <Section title="Changes this month" hint="Against the same days last month">
+            {loading ? (
+              <Skeleton className="h-24" />
+            ) : changes.length === 0 ? (
+              <p className="text-[15px] text-muted-foreground">No category moved much from last month.</p>
+            ) : (
+              <ul>
+                {changes.map((insight) => (
+                  <li
+                    key={insight.category}
+                    className={cn(
+                      'ledger-line py-2.5 text-[15px]',
+                      insight.change > 0 ? CHANGED_UP : CHANGED_DOWN
+                    )}
+                  >
+                    {changeSentence(insight)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          <Section title="Top merchants" hint="All time">
+            {loading ? (
+              <Skeleton className="h-40" />
+            ) : merchants.length === 0 ? (
+              <p className="text-[15px] text-muted-foreground">No merchant spending recorded yet.</p>
+            ) : (
+              <ul>
+                {merchants.slice(0, 10).map((merchant) => (
+                  <li
+                    key={merchant.name}
+                    className="ledger-line flex items-baseline gap-3 py-2.5 text-[15px]"
+                  >
+                    <span className="min-w-0 flex-1 truncate">{merchant.name}</span>
+                    <span className="shrink-0 text-sm text-muted-foreground">
+                      {safe(merchant.transactionCount)}{' '}
+                      {safe(merchant.transactionCount) === 1 ? 'purchase' : 'purchases'}
                     </span>
-                    <span className="flex items-center gap-2">
-                      <span className="size-2.5 rounded-sm bg-ink/75" aria-hidden />
-                      Spending
+                    <span className="w-24 shrink-0 text-right font-medium tabular-nums">
+                      {money(safe(merchant.totalSpent))}
                     </span>
-                  </div>
-                </>
-              )}
-            </Section>
-
-            <Section title="Cash flow" hint="Where income goes in this period">
-              {loading ? (
-                <Skeleton className="h-64" />
-              ) : (
-                <>
-                  <CustomSankeyFlow
-                    income={net < 0 ? summary.expenses : summary.income}
-                    savings={saved}
-                    flows={flows}
-                    formatCurrency={money}
-                    sourceLabel={net < 0 ? 'Spending' : 'Income'}
-                  />
-                  {net < 0 && (
-                    <p className="mt-3 text-[15px]">
-                      Spending was {moneyWhole(-net)} more than income in this period.
-                    </p>
-                  )}
-                </>
-              )}
-            </Section>
-
-            <Section title="Changes this month" hint="Against the same days last month">
-              {loading ? (
-                <Skeleton className="h-24" />
-              ) : changes.length === 0 ? (
-                <p className="text-[15px] text-muted-foreground">No category moved much from last month.</p>
-              ) : (
-                <ul>
-                  {changes.map((insight) => (
-                    <li
-                      key={insight.category}
-                      className={cn(
-                        'ledger-line py-2.5 text-[15px]',
-                        insight.change > 0 ? CHANGED_UP : CHANGED_DOWN
-                      )}
-                    >
-                      {changeSentence(insight)}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Section>
-
-            <Section title="Top merchants" hint="All time">
-              {loading ? (
-                <Skeleton className="h-40" />
-              ) : merchants.length === 0 ? (
-                <p className="text-[15px] text-muted-foreground">No merchant spending recorded yet.</p>
-              ) : (
-                <ul>
-                  {merchants.slice(0, 10).map((merchant) => (
-                    <li
-                      key={merchant.name}
-                      className="ledger-line flex items-baseline gap-3 py-2.5 text-[15px]"
-                    >
-                      <span className="min-w-0 flex-1 truncate">{merchant.name}</span>
-                      <span className="shrink-0 text-sm text-muted-foreground">
-                        {safe(merchant.transactionCount)}{' '}
-                        {safe(merchant.transactionCount) === 1 ? 'purchase' : 'purchases'}
-                      </span>
-                      <span className="w-24 shrink-0 text-right font-medium tabular-nums">
-                        {money(safe(merchant.totalSpent))}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Section>
-          </div>
-        </>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+        </div>
       )}
     </SidebarLayout>
   );
