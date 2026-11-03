@@ -16,7 +16,8 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // Plaid connection info
+  // Legacy single-bank Plaid fields. Data copied to PlaidItem by migration rebuild_v2;
+  // dropped in S2 once W2.1 and W2.3 stop reading them.
   plaidAccessToken     String?
   plaidItemId          String?
   plaidInstitutionId   String?
@@ -25,11 +26,14 @@ model User {
   syncStatus           SyncStatus @default(NEVER_SYNCED)
 
   // Relationships
-  accounts          Account[]
-  transactions      Transaction[]
-  budgets           Budget[]
-  savingsGoals      SavingsGoal[]
-  userCategoryRules UserCategoryRule[]
+  accounts                 Account[]
+  transactions             Transaction[]
+  budgets                  Budget[]
+  savingsGoals             SavingsGoal[]
+  userCategoryRules        UserCategoryRule[]
+  plaidItems               PlaidItem[]
+  rules                    Rule[]
+  recurringSeries          RecurringSeries[]
   budgetAlerts             BudgetAlert[]
   budgetAlertNotifications BudgetAlertNotification[]
 
@@ -49,9 +53,38 @@ model UserCategoryRule {
   user User @relation(fields: [userId], references: [id])
 }
 
+model PlaidItem {
+  id              String     @id @default(cuid())
+  userId          String
+  accessToken     String
+  itemId          String     @unique
+  institutionId   String
+  institutionName String
+  cursor          String?
+  status          ItemStatus @default(ACTIVE)
+  lastSyncAt      DateTime?
+  lastError       String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts Account[]
+
+  @@unique([userId, institutionId])
+  @@map("plaid_items")
+}
+
+enum ItemStatus {
+  ACTIVE
+  SYNCING
+  LOGIN_REQUIRED
+  ERROR
+}
+
 model Account {
   id             String  @id @default(cuid())
-  plaidAccountId String  @unique
+  plaidAccountId String? @unique
+  plaidItemId    String?
   userId         String
   name           String
   officialName   String?
@@ -64,16 +97,34 @@ model Account {
   availableBalance Float?
   creditLimit      Float?
 
+  // Manual accounts (401k, car, house) have no Plaid ids. Liabilities count negative in net worth.
+  isManual    Boolean @default(false)
+  isLiability Boolean @default(false)
+
   // Metadata
   isActive      Boolean  @default(true)
   lastUpdatedAt DateTime @updatedAt
   createdAt     DateTime @default(now())
 
   // Relationships
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plaidItem    PlaidItem?        @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  snapshots    BalanceSnapshot[]
 
   @@map("accounts")
+}
+
+model BalanceSnapshot {
+  id        String   @id @default(cuid())
+  accountId String
+  date      DateTime @db.Date
+  balance   Float
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, date])
+  @@map("balance_snapshots")
 }
 
 model Transaction {
@@ -92,13 +143,21 @@ model Transaction {
   // Categories
   primaryCategory  String?
   detailedCategory String?
-  categories       String[] // JSON array of categories
+  categories       String[] // legacy Plaid category hierarchy
+  pfcPrimary       String? // Plaid personal_finance_category.primary
+  pfcDetailed      String? // Plaid personal_finance_category.detailed
+  categorySource   CategorySource @default(PLAID) // sync never overwrites USER or RULE
+  merchantDisplay  String? // cleaned merchant name set by a rule
 
   // User notes
   notes String?
 
   // Status
-  pending Boolean @default(false)
+  pending              Boolean @default(false)
+  pendingTransactionId String?
+  isTransfer           Boolean @default(false) // excluded from income/expense totals
+  hidden               Boolean @default(false) // excluded from totals and budgets
+  reviewed             Boolean @default(false)
 
   // Location (if available)
   city    String?
@@ -116,7 +175,60 @@ model Transaction {
   @@index([userId, date])
   @@index([accountId, date])
   @@index([primaryCategory])
+  @@index([userId, reviewed])
   @@map("transactions")
+}
+
+enum CategorySource {
+  PLAID
+  RULE
+  USER
+}
+
+// Replaces UserCategoryRule (dropped in S2). Plain case-insensitive "contains" match; no user regex.
+model Rule {
+  id             String   @id @default(cuid())
+  userId         String
+  priority       Int      @default(0) // higher runs first
+  matchMerchant  String?
+  matchAmountMin Float?
+  matchAmountMax Float?
+  matchAccountId String?
+  setCategory    String?
+  setMerchant    String?
+  setTransfer    Boolean?
+  setHidden      Boolean?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, priority])
+  @@map("rules")
+}
+
+model RecurringSeries {
+  id            String          @id @default(cuid())
+  userId        String
+  merchantKey   String
+  displayName   String
+  averageAmount Float
+  intervalDays  Int
+  lastDate      DateTime        @db.Date
+  nextDate      DateTime        @db.Date
+  status        RecurringStatus @default(ACTIVE)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, merchantKey])
+  @@map("recurring_series")
+}
+
+enum RecurringStatus {
+  ACTIVE
+  IGNORED
 }
 
 model Budget {
@@ -133,31 +245,32 @@ model Budget {
 
   // Status
   isActive Boolean @default(true)
+  rollover Boolean @default(false) // W4.3: unspent amount carries to next month
 
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relationships
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   budgetAlerts BudgetAlert[]
 
   @@map("budgets")
 }
 
 model SavingsGoal {
-  id          String   @id @default(cuid())
-  userId      String
-  name        String
-  description String?
-  targetAmount Float
-  currentAmount Float @default(0)
-  targetDate  DateTime
-  category    String?  // Optional category for the goal
-  isActive    Boolean  @default(true)
-  isCompleted Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  description   String?
+  targetAmount  Float
+  currentAmount Float    @default(0)
+  targetDate    DateTime
+  category      String? // Optional category for the goal
+  isActive      Boolean  @default(true)
+  isCompleted   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -186,18 +299,18 @@ enum AlertType {
 }
 
 model BudgetAlert {
-  id               String     @id @default(cuid())
+  id               String    @id @default(cuid())
   userId           String
   budgetId         String
   thresholdPercent Float
-  alertType        AlertType  @default(SPENDING_THRESHOLD)
-  isEnabled        Boolean    @default(true)
-  emailEnabled     Boolean    @default(true)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  alertType        AlertType @default(SPENDING_THRESHOLD)
+  isEnabled        Boolean   @default(true)
+  emailEnabled     Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  budget   Budget  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  user          User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budget        Budget                    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   notifications BudgetAlertNotification[]
 
   @@unique([userId, budgetId, alertType])
@@ -205,7 +318,7 @@ model BudgetAlert {
 }
 
 model BudgetAlertNotification {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   alertId          String
   userId           String
   budgetName       String
@@ -214,8 +327,8 @@ model BudgetAlertNotification {
   currentPercent   Float
   spent            Float
   budgetAmount     Float
-  sentAt           DateTime @default(now())
-  emailSent        Boolean  @default(false)
+  sentAt           DateTime  @default(now())
+  emailSent        Boolean   @default(false)
   emailSentAt      DateTime?
 
   alert BudgetAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)

@@ -99,7 +99,11 @@ cd frontend && bunx tsc --noEmit && bun run build && bun run test
 
 ## Wave 2: Data layer (Monarch Tier 1 base)
 
-### S1 Schema change (orchestrator) ★
+### S1 Schema change (orchestrator) ★ — **Done 2026-11-02**
+
+As built, S1 is **additive**: the legacy `User` Plaid columns, `UserCategoryRule`, the old categorizer services, and `Budget.period/endDate` stay, so the app still compiles and runs. W2.1 and W2.3 move the code to `PlaidItem`. **S2** (orchestrator, after W2.3) drops `User.plaid*`, `syncStatus`, `lastSyncAt`, `SyncStatus`, and `UserCategoryRule`. W4.3 decides what to do with `Budget.period/endDate`. The data migration was tested on a copy of the 2026-11-02 backup (2 Items, 5 accounts linked).
+
+Original spec:
 One migration, `rebuild_v2`. **Money stays `Float`, rounded to cents on write.** *Shortcut: `Decimal` would change every reader in the app (Prisma sends it as a JSON string). Change to `Decimal` only if a reconcile check finds a cent difference.*
 
 - `PlaidItem`: `id, userId, accessToken, itemId @unique, institutionId, institutionName, cursor?, status (ACTIVE|LOGIN_REQUIRED|ERROR|SYNCING), lastSyncAt?, lastError?, createdAt`. Unique `(userId, institutionId)`.
