@@ -84,7 +84,7 @@ const Figure: React.FC<{ label: string; value: string; tone?: 'sage' }> = ({ lab
  * (`:focus-visible`), never the sage rule of the active tab at page load.
  */
 const tabTriggerClass =
-  'flex-none -mb-px h-9 rounded-none border-b-2 border-transparent px-0 text-sm font-normal text-muted-foreground after:hidden hover:text-ink data-[state=active]:border-sage data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-ink data-[state=active]:shadow-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-ink focus-visible:text-ink data-[state=active]:focus-visible:border-sage';
+  'flex-none -mb-px h-9 rounded-none border-0 border-b-2 border-transparent px-0 text-sm font-normal text-muted-foreground after:hidden hover:text-ink data-[state=active]:border-sage data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-ink data-[state=active]:shadow-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:outline-none focus-visible:border-ink focus-visible:text-ink data-[state=active]:focus-visible:border-sage';
 
 const TransactionsPage: React.FC = () => {
   // `?review=1` opens the queue in place of the list, so the Overview button has somewhere to go.

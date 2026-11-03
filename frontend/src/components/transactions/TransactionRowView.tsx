@@ -91,6 +91,8 @@ export const TransactionRowView: React.FC<TransactionRowViewProps> = ({
             label={row.notes ? 'Edit note' : 'Add a note'}
             onClick={() => setEditingNote(true)}
             alwaysVisible={alwaysShowDetail}
+            // A phone has no hover, so the trigger waits for the row to open instead of crowding the name.
+            className={cn(!open && !alwaysShowDetail && !row.notes && 'max-md:hidden')}
           />
 
           {memo && (
