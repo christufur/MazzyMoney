@@ -275,6 +275,21 @@ describe('Plaid connections API', () => {
     expect(items).toHaveLength(1);
   });
 
+  it('removes the new item at Plaid when the exchange fails before it is saved', async () => {
+    institutionsGetById.mockImplementationOnce(async () => {
+      throw new Error('institution lookup failed');
+    });
+
+    const response = await request(app)
+      .post('/api/plaid/exchange')
+      .set('Authorization', authHeader())
+      .send({ public_token: 'public-fails' });
+
+    expect(response.status).toBe(500);
+    expect(itemRemove).toHaveBeenCalledWith({ access_token: `access-new-${stamp}` });
+    expect(await prisma.plaidItem.count({ where: { itemId: NEW_PLAID_ITEM_ID } })).toBe(0);
+  });
+
   it('lists items with accounts, usage, and never the access token', async () => {
     const item = await createItem({ institutionId: `ins-list-${stamp}`, suffix: 'list' });
     await prisma.account.create({

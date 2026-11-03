@@ -73,17 +73,22 @@ router.post('/exchange', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'public_token is required' });
   }
 
+  // Set once Plaid has created the Item and cleared once it is saved; an unsaved Item still costs a free place.
+  let unsavedAccessToken: string | null = null;
+
   try {
     const exchangeResponse = await plaidClient.itemPublicTokenExchange({
       public_token,
     });
     const accessToken = exchangeResponse.data.access_token;
     const plaidItemId = exchangeResponse.data.item_id;
+    unsavedAccessToken = accessToken;
 
     const itemResponse = await plaidClient.itemGet({ access_token: accessToken });
     const institutionId = itemResponse.data.item.institution_id;
 
     if (!institutionId) {
+      await removeUnsavedItem(unsavedAccessToken);
       return res.status(502).json({ error: 'MISSING_INSTITUTION_ID' });
     }
 
@@ -99,14 +104,7 @@ router.post('/exchange', async (req: Request, res: Response) => {
 
     if (existing) {
       // A second Item for the same bank costs one of the 10 free places, so revoke it.
-      try {
-        await plaidClient.itemRemove({ access_token: accessToken });
-      } catch (removeError: any) {
-        console.warn(
-          'Error removing duplicate item from Plaid:',
-          plaidErrorCode(removeError) ?? removeError?.message
-        );
-      }
+      await removeUnsavedItem(unsavedAccessToken);
       return res.status(409).json({ error: 'DUPLICATE_INSTITUTION' });
     }
 
@@ -120,6 +118,7 @@ router.post('/exchange', async (req: Request, res: Response) => {
         status: 'ACTIVE',
       },
     });
+    unsavedAccessToken = null;
 
     const accountsResponse = await plaidClient.accountsGet({ access_token: accessToken });
 
@@ -174,10 +173,20 @@ router.post('/exchange', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
+    await removeUnsavedItem(unsavedAccessToken);
     console.error('Error exchanging public token:', plaidErrorCode(error) ?? error.message);
     res.status(500).json({ error: 'Failed to exchange public token' });
   }
 });
+
+async function removeUnsavedItem(accessToken: string | null) {
+  if (!accessToken) return;
+  try {
+    await plaidClient.itemRemove({ access_token: accessToken });
+  } catch (removeError: any) {
+    console.warn('Error removing unsaved Plaid item:', plaidErrorCode(removeError) ?? removeError?.message);
+  }
+}
 
 /**
  * GET /api/plaid/items
