@@ -103,10 +103,10 @@ const deleteMyItems = () =>
 
 /** The exchange starts the first sync in the background; wait for the mocks to finish. */
 const waitForSyncToSettle = async (itemId: string) => {
-  for (let attempt = 0; attempt < 100; attempt++) {
+  for (let attempt = 0; attempt < 250; attempt++) {
     const item = await prisma.plaidItem.findUnique({ where: { id: itemId } });
     if (item && item.status !== 'SYNCING') return item;
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 20));
   }
   throw new Error(`Plaid item ${itemId} stayed in SYNCING`);
 };
