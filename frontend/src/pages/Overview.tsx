@@ -500,11 +500,6 @@ const Overview: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <button className="w-full text-blue-600 hover:text-blue-700 text-sm font-medium">
-                      View All Accounts
-                    </button>
-                  </div>
                 </div>
 
                 {/* Monthly Summary */}
@@ -559,13 +554,6 @@ const Overview: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <h2 className="text-lg font-semibold text-gray-900 mb-6">Quick Actions</h2>
                   <div className="space-y-3">
-                    <button className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                      <span>Add Transaction</span>
-                    </button>
-                    
                     <a 
                       href="/budgets" 
                       className="w-full flex items-center justify-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-lg text-sm font-medium transition-colors"

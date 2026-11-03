@@ -1,19 +1,21 @@
+import type { ReactNode } from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { vi } from 'vitest';
 import BudgetPage from './Budgets';
-import '@testing-library/jest-dom';
+import { budgetAPI } from '../services/api';
 
-jest.mock('../contexts/AuthContext', () => ({
-  useAuth: () => ({ logout: jest.fn() }),
-  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ logout: vi.fn(), user: null }),
+  AuthProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
-jest.mock('../services/api', () => {
-  const original = jest.requireActual('../services/api');
+vi.mock('../services/api', () => {
+  const now = new Date().toISOString();
+
   return {
-    ...original,
     budgetAPI: {
-      getBudgets: jest.fn().mockResolvedValue({
+      getBudgets: vi.fn().mockResolvedValue({
         budgets: [
           {
             id: 'budget-1',
@@ -25,9 +27,9 @@ jest.mock('../services/api', () => {
             remaining: 200,
             percentUsed: 50,
             isActive: true,
-            startDate: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
+            startDate: now,
+            updatedAt: now,
+            createdAt: now,
             budgetAlerts: [
               {
                 id: 'alert-1',
@@ -35,44 +37,42 @@ jest.mock('../services/api', () => {
                 alertType: 'BUDGET_APPROACHING',
                 isEnabled: true,
                 emailEnabled: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              }
-            ]
-          }
-        ]
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          },
+        ],
       }),
-      createAlert: jest.fn().mockResolvedValue({
+      createAlert: vi.fn().mockResolvedValue({
         alert: {
           id: 'alert-2',
           thresholdPercent: 90,
           alertType: 'SPENDING_THRESHOLD',
           isEnabled: true,
           emailEnabled: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
+          createdAt: now,
+          updatedAt: now,
+        },
       }),
-      updateAlert: jest.fn().mockResolvedValue({
+      updateAlert: vi.fn().mockResolvedValue({
         alert: {
           id: 'alert-1',
           thresholdPercent: 80,
           alertType: 'BUDGET_APPROACHING',
           isEnabled: false,
           emailEnabled: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
+          createdAt: now,
+          updatedAt: now,
+        },
       }),
-      deleteAlert: jest.fn().mockResolvedValue({})
+      deleteAlert: vi.fn().mockResolvedValue({}),
     },
     transactionAPI: {
-      getSpendingByCategory: jest.fn().mockResolvedValue({ categories: [] })
-    }
+      getSpendingByCategory: vi.fn().mockResolvedValue({ categories: [] }),
+    },
   };
 });
-
-const { budgetAPI } = require('../services/api');
 
 describe('Budget Alerts UI', () => {
   it('renders existing alerts and allows management', async () => {
@@ -84,28 +84,30 @@ describe('Budget Alerts UI', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Groceries')).toBeInTheDocument();
-      expect(screen.getByText('Budget approaching • 80%')).toBeInTheDocument();
+      expect(screen.getByText('1 alert active')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Manage Alerts'));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage' }));
 
     await waitFor(() => {
       expect(screen.getByText('Manage Alerts')).toBeInTheDocument();
+      expect(screen.getByText('Approaching budget • 80%')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Enabled'));
-    expect(budgetAPI.updateAlert).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Enabled' }));
+    await waitFor(() => {
+      expect(budgetAPI.updateAlert).toHaveBeenCalled();
+    });
 
-    fireEvent.change(screen.getByLabelText('Threshold %'), { target: { value: '90' } });
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '90' } });
     fireEvent.click(screen.getByText('Add Alert'));
     await waitFor(() => {
       expect(budgetAPI.createAlert).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByText('Remove'));
+    fireEvent.click(screen.getAllByText('Remove')[0]);
     await waitFor(() => {
       expect(budgetAPI.deleteAlert).toHaveBeenCalled();
     });
   });
 });
-

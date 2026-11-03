@@ -8,7 +8,8 @@ interface SidebarLayoutProps {
 }
 
 const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, title = "Overview" }) => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const userInitial = user?.fullName?.trim().charAt(0).toUpperCase() || "U";
 
   const navigationItems = [
     {
@@ -79,11 +80,11 @@ const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, title = "Overvi
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center space-x-3 mb-3 p-2">
             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-sm font-semibold text-blue-700">U</span>
+              <span className="text-sm font-semibold text-blue-700">{userInitial}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">User</p>
-              <p className="text-xs text-gray-500">Free Plan</p>
+              <p className="text-sm font-medium text-gray-900 truncate">{user?.fullName || "User"}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
             </div>
           </div>
           <button
@@ -105,20 +106,6 @@ const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, title = "Overvi
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
             <p className="text-sm text-gray-500 mt-1">Manage your finances with ease</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
-              </svg>
-              Filters
-            </button>
-            <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Quick Add
-            </button>
           </div>
         </header>
 

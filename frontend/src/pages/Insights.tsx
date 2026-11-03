@@ -519,7 +519,7 @@ const InsightsPage: React.FC = () => {
                                             tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                                         />
                                         <Tooltip 
-                                            formatter={(value: any, name: string) => [
+                                            formatter={(value: any, name: string | number | undefined) => [
                                                 formatCurrency(value), 
                                                 name === 'income' ? 'Income' : name === 'expenses' ? 'Expenses' : 'Net Income'
                                             ]}
@@ -747,7 +747,7 @@ const InsightsPage: React.FC = () => {
                                         tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                                     />
                                     <Tooltip 
-                                        formatter={(value: any, name: string) => [
+                                        formatter={(value: any, name: string | number | undefined) => [
                                             formatCurrency(value), 
                                             name === 'income' ? 'Income' : name === 'expenses' ? 'Expenses' : 'Net Income'
                                         ]}
