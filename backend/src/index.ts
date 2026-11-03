@@ -162,10 +162,14 @@ const runHourlySync = async () => {
 
 // Manual sync endpoint for testing
 app.post('/api/admin/sync-all', async (req: Request, res: Response) => {
-  // Add basic auth or API key check here in production
-  const { adminKey } = req.body;
-  
-  if (adminKey !== process.env.ADMIN_API_KEY) {
+  // No key configured means the endpoint stays off, rather than accepting any key.
+  const expectedAdminKey = process.env.ADMIN_API_KEY;
+
+  if (!expectedAdminKey) {
+    return res.status(503).json({ error: 'Admin endpoint disabled' });
+  }
+
+  if (req.body?.adminKey !== expectedAdminKey) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

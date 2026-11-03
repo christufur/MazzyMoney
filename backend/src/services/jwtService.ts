@@ -3,6 +3,9 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const DEFAULT_JWT_EXPIRES_IN = '30d';
+
+// Read lazily so tests (and a reloaded env) can set these before the first sign.
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -11,14 +14,16 @@ const getJwtSecret = () => {
   return secret;
 };
 
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const getJwtExpiresIn = () => process.env.JWT_EXPIRES_IN || DEFAULT_JWT_EXPIRES_IN;
 
 export const generateToken = (userId: string) => {
   const payload = {
     userId,
   };
 
-  return jwt.sign(payload, getJwtSecret());
+  return jwt.sign(payload, getJwtSecret(), {
+    expiresIn: getJwtExpiresIn() as jwt.SignOptions['expiresIn'],
+  });
 };
 
 export const verifyToken = (token: string) => {
