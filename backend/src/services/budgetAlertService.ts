@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { EmailService } from './emailService';
+import { NotifyService, notificationMoney } from './notifyService';
 import { AlertType, Budget } from '../../prisma/generated/prisma';
 import { cents } from './analyticsService';
 
@@ -90,6 +91,12 @@ export class BudgetAlertService {
   ): Promise<void> {
     await this.ensureDefaultAlerts(budget);
 
+    const month = snapshot.month ?? monthKey(new Date());
+
+    // Two phone pushes per month per budget, whatever the alert rows say: 90% (nearly
+    // there) and 100% (over). `NotificationLog` holds the once-per-month claim.
+    await this.pushThresholds(budget, snapshot, month);
+
     const alerts = await prisma.budgetAlert.findMany({
       where: {
         budgetId: budget.id,
@@ -101,7 +108,6 @@ export class BudgetAlertService {
       return;
     }
 
-    const month = snapshot.month ?? monthKey(new Date());
     const { start, endExclusive } = monthRange(month);
     const available = cents(snapshot.available ?? budget.amount);
     const userEmail = opts.userEmail ?? await this.getUserEmail(budget.userId);
@@ -171,6 +177,56 @@ export class BudgetAlertService {
           });
         }
       }
+    }
+  }
+
+  /**
+   * Push 90% and 100% in the current month, once each per budget.
+   *
+   * The email path below is driven by the `BudgetAlert` rows; the phone pushes are not,
+   * because the household asked for these two thresholds regardless of how the alert
+   * rows are configured. `NotificationLog` (unique on user + kind + key) is the record
+   * that a month's push already went out.
+   */
+  private static async pushThresholds(
+    budget: Budget,
+    snapshot: BudgetSpendingSnapshot,
+    month: string
+  ): Promise<void> {
+    if (month !== monthKey(new Date())) {
+      return;
+    }
+
+    const available = cents(snapshot.available ?? budget.amount);
+    const percent = snapshot.percentUsed;
+    const key = `${budget.id}:${month}`;
+    const remaining = cents(available - snapshot.spent);
+
+    // One push per crossing: a budget that jumps straight past 100% gets the stronger
+    // message, not both.
+    if (percent >= 100) {
+      await NotifyService.notify(budget.userId, {
+        kind: 'budget-100',
+        key,
+        title: `${budget.category} is over budget`,
+        message: `${budget.category} is over budget: ${notificationMoney(snapshot.spent)} spent of ${notificationMoney(available)}. Whatever is over rolls into next month.`,
+        tags: ['warning'],
+        priority: 4,
+        click: '/budgets'
+      });
+      return;
+    }
+
+    if (percent >= 90) {
+      await NotifyService.notify(budget.userId, {
+        kind: 'budget-90',
+        key,
+        title: `${budget.category} is at ${Math.round(percent)}%`,
+        message: `${budget.category} is at ${Math.round(percent)}%: ${notificationMoney(snapshot.spent)} spent of ${notificationMoney(available)}, ${notificationMoney(remaining)} left this month.`,
+        tags: ['chart_with_upwards_trend'],
+        priority: 3,
+        click: '/budgets'
+      });
     }
   }
 

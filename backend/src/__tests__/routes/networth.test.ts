@@ -28,6 +28,7 @@ mock.module('../../lib/plaid', () => ({
 // Bun hoists mock.module above the imports, so the app below already uses the fake.
 import { app } from '../../index';
 import { prisma } from '../../lib/prisma';
+import { householdDay } from '../../services/notifyService';
 
 const stamp = Date.now();
 const USER_ID = `networth-route-user-${stamp}`;
@@ -37,12 +38,8 @@ const authHeader = () => `Bearer ${jwt.sign({ userId: USER_ID }, process.env.JWT
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Today at 00:00 UTC, the same date part `BalanceSnapshot` uses. */
-const utcToday = () => {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-};
-
+/** The household's today at 00:00 UTC, the date part `BalanceSnapshot` and the route use. */
+const utcToday = () => householdDay();
 const utcDaysAgo = (days: number) => new Date(utcToday().getTime() - days * DAY_MS);
 
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);

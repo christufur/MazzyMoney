@@ -17,6 +17,7 @@ import RecurringPage from './pages/Recurring';
 import RulesPage from './pages/Rules';
 import ConnectionsPage from './pages/Connections';
 import NetWorthPage from './pages/NetWorth';
+import SettingsPage from './pages/Settings';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -162,6 +163,15 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <ConnectionsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />

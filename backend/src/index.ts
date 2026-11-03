@@ -18,6 +18,8 @@ import analyticsRoutes from './routes/analytics';
 import recurringRoutes from './routes/recurring';
 import rulesRoutes from './routes/rules';
 import { netWorthRouter } from './routes/networth';
+import settingsRoutes from './routes/settings';
+import { NotifyService, appTimeZone } from './services/notifyService';
 
 dotenv.config();
 
@@ -42,6 +44,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/recurring', recurringRoutes);
 app.use('/api/rules', rulesRoutes);
 app.use('/api/networth', netWorthRouter);
+app.use('/api/settings', settingsRoutes); // ntfy topic + toggles (E2)
 
 // Health check endpoint
 app.get('/health', async (req: Request, res: Response) => {
@@ -84,6 +87,15 @@ const setupBackgroundSync = () => {
       console.error('Scheduled recurring refresh failed:', error);
     });
   }, { timezone: 'UTC' });
+
+  // Sunday 17:00 household time: the week's recap through ntfy (E2). Household time,
+  // not UTC, so "this week" matches the evening the household actually has.
+  cron.schedule('0 17 * * 0', () => {
+    console.log('Starting weekly notification recap...');
+    NotifyService.sendWeeklyRecaps().catch((error) => {
+      console.error('Weekly notification recap failed:', error);
+    });
+  }, { timezone: appTimeZone() });
 };
 
 // Manual sync endpoint for testing

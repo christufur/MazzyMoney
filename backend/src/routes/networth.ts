@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/auth';
+import { householdDay } from '../services/notifyService';
 
 /**
  * Net worth history (W4.5).
@@ -72,7 +73,9 @@ netWorthRouter.get('/', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
     const range = resolveRange(req.query.range);
-    const today = startOfUtcDay();
+    // The household's day, not UTC's: at 23:30 in Denver it is still today, and a
+    // snapshot written tonight must show up as today rather than as tomorrow's.
+    const today = householdDay();
 
     const accounts = await prisma.account.findMany({
       where: { userId, isActive: true },

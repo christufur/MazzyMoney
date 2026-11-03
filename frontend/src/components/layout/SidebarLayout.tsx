@@ -9,6 +9,7 @@ import {
   LogOut,
   ReceiptText,
   Repeat,
+  Settings,
   TrendingUp,
   Wallet,
   type LucideIcon,
@@ -98,6 +99,11 @@ const UserMenu: React.FC = () => {
           <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <NavLink to="/settings">
+            <Settings /> Settings
+          </NavLink>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={logout}>
           <LogOut /> Sign out
         </DropdownMenuItem>

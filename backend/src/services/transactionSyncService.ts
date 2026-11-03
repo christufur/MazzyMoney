@@ -14,6 +14,12 @@ import { prisma } from '../lib/prisma';
 import { plaidClient, plaidErrorCode } from '../lib/plaid';
 import { categorize, type RuleLike } from './categorizer';
 import { BudgetSyncService } from './budgetSyncService';
+import {
+  NotifyService,
+  householdDay,
+  notificationMoney,
+  notificationMoneyWhole,
+} from './notifyService';
 import type { PlaidItem } from '../../prisma/generated/prisma';
 
 /** Plaid's maximum page size. */
@@ -88,6 +94,13 @@ export class TransactionSyncService {
    * Sync one PlaidItem. Safe to call twice: the second call sees SYNCING and skips.
    */
   static async syncItem(plaidItemId: string): Promise<SyncItemResult> {
+    // The status before the claim: after it the row says SYNCING until this run finishes,
+    // so a "was already logged out" test has to read it first.
+    const before = await prisma.plaidItem.findUnique({
+      where: { id: plaidItemId },
+      select: { status: true },
+    });
+
     // Claim the Item atomically so two cron runs (or a cron run and a manual sync) never overlap.
     const claim = await prisma.plaidItem.updateMany({
       where: { id: plaidItemId, status: { not: 'SYNCING' } },
@@ -107,10 +120,11 @@ export class TransactionSyncService {
     try {
       const { accountIdByPlaidId, balances } = await this.syncAccounts(item);
       const rules: RuleLike[] = await prisma.rule.findMany({ where: { userId: item.userId } });
+      const threshold = await this.largeChargeThreshold(item.userId);
 
       const updates = await this.pullUpdates(item);
 
-      const added = await this.applyAdded(item.userId, updates.added, accountIdByPlaidId, rules);
+      const added = await this.applyAdded(item.userId, updates.added, accountIdByPlaidId, rules, threshold);
       const modified = await this.applyModified(item.userId, updates.modified, accountIdByPlaidId, rules);
       const removed = await this.applyRemoved(item.userId, updates.removed);
 
@@ -145,6 +159,20 @@ export class TransactionSyncService {
         });
 
       console.error(`Plaid sync failed for item ${item.id}:`, lastError);
+
+      // A bank that needs a new login is the one failure the household must hear about.
+      // Only the transition counts: an Item that was already LOGIN_REQUIRED stays quiet.
+      if (status === 'LOGIN_REQUIRED' && before?.status !== 'LOGIN_REQUIRED') {
+        await NotifyService.notify(item.userId, {
+          kind: 'bank-login',
+          key: `${item.id}:${formatDay(householdDay())}`,
+          title: `${item.institutionName} needs you to log in again`,
+          message: `${item.institutionName} needs you to log in again. Open Connections and tap Reconnect so transactions keep arriving.`,
+          tags: ['bank', 'warning'],
+          priority: 4,
+          click: '/connections',
+        });
+      }
 
       return { success: false, error: lastError };
     }
@@ -394,7 +422,8 @@ export class TransactionSyncService {
     userId: string,
     added: PlaidTransactionLike[],
     accountIdByPlaidId: Map<string, string>,
-    rules: RuleLike[]
+    rules: RuleLike[],
+    largeChargeThreshold: number | null
   ): Promise<number> {
     let applied = 0;
 
@@ -432,7 +461,7 @@ export class TransactionSyncService {
           : null;
 
       if (!existing) {
-        await prisma.transaction.create({
+        const created = await prisma.transaction.create({
           data: {
             plaidTransactionId: transaction.transaction_id,
             userId,
@@ -446,6 +475,27 @@ export class TransactionSyncService {
             reviewed: carried?.reviewed ?? isOlderThanReviewWindow(fields.date),
           },
         });
+
+        // A big new charge is worth a buzz. Pending rows wait for their posted version,
+        // and transfers or hidden rows are not spending the household made.
+        if (
+          largeChargeThreshold !== null &&
+          !fields.pending &&
+          !categorized.isTransfer &&
+          !categorized.hidden &&
+          fields.amount > largeChargeThreshold
+        ) {
+          const name = categorized.merchantDisplay ?? fields.merchantName ?? fields.name;
+          await NotifyService.notify(userId, {
+            kind: 'large-charge',
+            key: created.id,
+            title: `${notificationMoneyWhole(fields.amount)} at ${name}`,
+            message: `${notificationMoney(fields.amount)} at ${name} on ${formatDay(fields.date)}. Open Mazzy Money to review it.`,
+            tags: ['moneybag'],
+            priority: 4,
+            click: '/transactions',
+          });
+        }
       } else {
         await prisma.transaction.update({
           where: { id: existing.id },
@@ -593,11 +643,11 @@ export class TransactionSyncService {
     };
   }
 
-  /** Today's UTC date at midnight: snapshots are one row per account per day. */
+  /** The household's today as a UTC-midnight date: snapshots are one row per account per day. */
   private static async snapshotBalances(
     balances: Array<{ accountId: string; balance: number }>
   ): Promise<void> {
-    const today = startOfUtcDay();
+    const today = householdDay();
 
     for (const account of balances) {
       await prisma.balanceSnapshot.upsert({
@@ -606,6 +656,19 @@ export class TransactionSyncService {
         update: { balance: account.balance },
       });
     }
+  }
+
+  /**
+   * The user's "tell me about charges over this" amount, or null when the pushes are off.
+   */
+  private static async largeChargeThreshold(userId: string): Promise<number | null> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { notifyLargeOver: true },
+    });
+
+    const threshold = user?.notifyLargeOver;
+    return typeof threshold === 'number' && Number.isFinite(threshold) ? threshold : null;
   }
 
   private static categorizePlaidTransaction(
@@ -663,6 +726,11 @@ function roundCents(amount: number): number {
 
 function startOfUtcDay(now: Date = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/** `YYYY-MM-DD` for a UTC-midnight date, for notification keys and message text. */
+function formatDay(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 /** A short reason for `lastError` that can never contain the access token. */
