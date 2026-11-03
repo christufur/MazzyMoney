@@ -235,12 +235,85 @@ export const transactionAPI = {
 };
 
 // New cached accounts API
+export type ManualAccountKind =
+  | 'retirement'
+  | 'investment'
+  | 'property'
+  | 'vehicle'
+  | 'cash'
+  | 'loan'
+  | 'other';
+
+export interface AccountListItem {
+  id: string;
+  account_id: string;
+  name: string;
+  official_name: string | null;
+  balances: {
+    current: number;
+    available: number | null;
+    limit: number | null;
+  };
+  type: string;
+  subtype: string;
+  mask: string | null;
+  isManual: boolean;
+  isLiability: boolean;
+}
+
+export interface BalanceSnapshotPoint {
+  date: string;
+  balance: number;
+}
+
 export const accountAPI = {
   /**
    * Get cached account information
    */
   getAccounts: async () => {
     const response = await api.get('/api/accounts');
+    return response.data;
+  },
+
+  /** Create a manual account (401(k), car, house, cash) with its first snapshot. */
+  createManual: async (account: {
+    name: string;
+    kind: ManualAccountKind;
+    balance: number;
+    isLiability?: boolean;
+  }): Promise<{ account: AccountListItem }> => {
+    const response = await api.post('/api/accounts/manual', account);
+    return response.data;
+  },
+
+  /** Rename a manual account or change its kind/liability flag. */
+  updateManual: async (
+    id: string,
+    account: { name?: string; kind?: ManualAccountKind; isLiability?: boolean }
+  ): Promise<{ account: AccountListItem }> => {
+    const response = await api.put(`/api/accounts/manual/${id}`, account);
+    return response.data;
+  },
+
+  /**
+   * Set a balance. Today's date also updates the account; a past date back-fills
+   * the snapshot used by the net-worth chart.
+   */
+  updateManualBalance: async (
+    id: string,
+    balance: number,
+    date?: string
+  ): Promise<{ account: AccountListItem }> => {
+    const response = await api.post(`/api/accounts/manual/${id}/balance`, { balance, date });
+    return response.data;
+  },
+
+  deleteManual: async (id: string): Promise<void> => {
+    await api.delete(`/api/accounts/manual/${id}`);
+  },
+
+  getManualHistory: async (id: string): Promise<{ snapshots: BalanceSnapshotPoint[] }> => {
+    const response = await api.get(`/api/accounts/manual/${id}/history`);
     return response.data;
   },
 };
