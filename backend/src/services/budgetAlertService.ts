@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { EmailService } from './emailService';
 import { AlertType, Budget } from '../../prisma/generated/prisma';
+import { COUNTED, cents } from './analyticsService';
 
 export interface BudgetSpendingSnapshot {
   spent: number;
@@ -169,13 +170,14 @@ export class BudgetAlertService {
       if (now < budget.startDate || now > effectiveEndDate) {
         snapshot = {
           spent: 0,
-          remaining: budget.amount,
+          remaining: cents(budget.amount),
           percentUsed: 0
         };
       } else {
         const categorySpending = await prisma.transaction.aggregate({
           where: {
             userId: budget.userId,
+            ...COUNTED,
             primaryCategory: budget.category,
             amount: { gt: 0 },
             date: {
@@ -186,8 +188,8 @@ export class BudgetAlertService {
           _sum: { amount: true }
         });
 
-        const spent = categorySpending._sum.amount || 0;
-        const remaining = budget.amount - spent;
+        const spent = cents(categorySpending._sum.amount || 0);
+        const remaining = cents(budget.amount - spent);
         const percentUsed = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
 
         snapshot = { spent, remaining, percentUsed };
