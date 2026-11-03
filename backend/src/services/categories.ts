@@ -4,6 +4,7 @@ export const CATEGORIES = [
   'Bills & Utilities',
   'Food & Dining',
   'Groceries',
+  'Snacks',
   'Transportation',
   'Shopping',
   'Entertainment',
@@ -48,6 +49,7 @@ export const PFC_PRIMARY_MAP: Record<string, Category> = {
 /** Detailed values that need a different category than their primary. */
 export const PFC_DETAILED_MAP: Partial<Record<string, Category>> = {
   FOOD_AND_DRINK_GROCERIES: 'Groceries',
+  FOOD_AND_DRINK_VENDING_MACHINES: 'Snacks',
   RENT_AND_UTILITIES_RENT: 'Housing',
   GENERAL_SERVICES_INSURANCE: 'Insurance',
   GENERAL_SERVICES_EDUCATION: 'Education',

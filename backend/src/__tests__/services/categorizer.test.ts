@@ -184,6 +184,21 @@ describe('categorize: transfers', () => {
     expect(result.category).toBe('Cash & ATM');
   });
 
+  it('files a vending machine purchase under Snacks', () => {
+    const result = categorize(
+      {
+        name: '365 Vend',
+        amount: 2.5,
+        accountId: 'acct-checking',
+        pfcPrimary: 'FOOD_AND_DRINK',
+        pfcDetailed: 'FOOD_AND_DRINK_VENDING_MACHINES'
+      },
+      []
+    );
+
+    expect(result.category).toBe('Snacks');
+  });
+
   it('lets a rule override transfer detection', () => {
     const transferIn = {
       name: 'Transfer from savings',
