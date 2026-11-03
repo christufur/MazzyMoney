@@ -266,7 +266,7 @@ const Overview: React.FC = () => {
                 ))}
               </ul>
               <Button asChild className="mt-5">
-                <Link to="/transactions">Review {review.total} transaction{review.total === 1 ? '' : 's'}</Link>
+                <Link to="/transactions?review=1">Review {review.total} transaction{review.total === 1 ? '' : 's'}</Link>
               </Button>
             </>
           )}

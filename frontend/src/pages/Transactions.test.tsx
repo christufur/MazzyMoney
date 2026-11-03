@@ -1,9 +1,14 @@
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within, configure, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { vi, beforeEach, afterEach, beforeAll, describe, it, expect } from 'vitest';
 import type { ReactNode } from 'react';
 import TransactionsPage from './Transactions';
 import { accountAPI, categoryAPI, rulesAPI, transactionAPI } from '../services/api';
+
+// Radix Select opens a portal and restores focus on close; under the full suite those
+// passes take longer than the one-second default. Every query here is a real one, so
+// the extra wall clock buys reliability, not leniency.
+configure({ asyncUtilTimeout: 8000 });
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ logout: vi.fn(), user: null }),
@@ -97,20 +102,41 @@ const emptyPage = () => ({
   summary: null,
 });
 
-const renderPage = () =>
+const renderPage = (route = '/transactions') =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[route]}>
       <TransactionsPage />
     </MemoryRouter>
   );
 
-/** The filters and the bulk category picker are shadcn selects, so open and choose like a reader. */
-const chooseOption = (triggerName: string, optionName: string) => {
-  fireEvent.keyDown(screen.getByRole('combobox', { name: triggerName }), { key: 'ArrowDown' });
-  return screen.findByRole('option', { name: optionName }).then(option => {
-    fireEvent.click(option);
-    return option;
-  });
+/**
+ * The filters and the bulk category picker are shadcn selects, so open and choose like a
+ * reader. Radix positions its listbox from a measurement pass, and the first open of a
+ * freshly mounted one in jsdom can come up empty; closing and opening it again renders
+ * normally. That is also what a person does when a menu appears blank.
+ */
+const chooseOption = async (triggerName: string, optionName: string) => {
+  const trigger = await screen.findByRole('combobox', { name: triggerName });
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    if (screen.queryAllByRole('listbox').length === 0) {
+      await screen.findByRole('listbox').catch(() => null);
+    }
+
+    const option = screen.queryAllByRole('option').find(el => el.textContent === optionName);
+    if (option) {
+      fireEvent.click(option);
+      return option;
+    }
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+  }
+
+  throw new Error(`The "${triggerName}" picker never offered "${optionName}".`);
 };
 
 beforeAll(() => {
@@ -124,6 +150,14 @@ beforeAll(() => {
     unobserve() {}
     disconnect() {}
   };
+  // Radix's popper reports "placed" from a requestAnimationFrame; jsdom's rAF is real,
+  // so a loaded suite can outrun it. Run the callback now, which is what a browser does
+  // in the next frame anyway.
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    callback(0);
+    return 0;
+  });
+  vi.stubGlobal('cancelAnimationFrame', () => {});
 });
 
 beforeEach(() => {
@@ -146,10 +180,14 @@ describe('Transactions page', () => {
   it('renders the cached rows and the figures from the API', async () => {
     renderPage();
 
-    // The display name wins over the raw bank text, which stays visible underneath.
+    // The display name wins over the bank's own text.
     expect(await screen.findByText('Whole Foods')).toBeInTheDocument();
-    expect(screen.getByText('WHOLEFDS MKT 123')).toBeInTheDocument();
     expect(screen.getByText('Corner Shop')).toBeInTheDocument();
+
+    // The raw bank memo is folded away until the row is expanded.
+    expect(screen.queryByText('WHOLEFDS MKT 123')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Bank memo for Whole Foods' }));
+    expect(await screen.findByText('WHOLEFDS MKT 123')).toBeInTheDocument();
 
     // Account name and mask on each row.
     expect(screen.getAllByText('Everyday Checking ••4321').length).toBeGreaterThanOrEqual(2);
@@ -176,17 +214,64 @@ describe('Transactions page', () => {
     expect(getTransactions).toHaveBeenCalledWith(expect.objectContaining({ page: 1, limit: 50 }));
   });
 
-  it('shows the Pending and Transfer badges', async () => {
+  it('keeps the last four account digits when the account name is long', async () => {
     getTransactions.mockResolvedValue(
       pageResponse({
-        transactions: [row('tx-3', { name: 'Pending row', pending: true, isTransfer: true })],
+        transactions: [
+          row('tx-9', {
+            merchantDisplay: 'Long account row',
+            account: {
+              id: 'account-2',
+              name: 'Household Joint Everyday Checking Account',
+              mask: '9876',
+              type: 'depository',
+              subtype: 'checking',
+            },
+          }),
+        ],
       }) as any
     );
 
     renderPage();
 
-    expect(await screen.findByText('Pending')).toBeInTheDocument();
-    expect(screen.getByText('Transfer')).toBeInTheDocument();
+    await screen.findByText('Long account row');
+    // The mask sits in its own non-truncating span, so it can never be cut off.
+    const mask = screen.getByText('••9876');
+    expect(mask).toHaveClass('shrink-0');
+    expect(mask.className).not.toContain('truncate');
+  });
+
+  it('shows Pending, and only repeats Transfer when the category does not already say it', async () => {
+    getTransactions.mockResolvedValue(
+      pageResponse({
+        transactions: [
+          row('tx-3', { name: 'Pending row', pending: true, isTransfer: true }),
+          row('tx-4', { name: 'Card payment', isTransfer: true, primaryCategory: 'Transfer' }),
+        ],
+      }) as any
+    );
+
+    renderPage();
+
+    const list = await screen.findByRole('list', { name: 'Transactions' });
+    const [pendingRow, transferRow] = within(list).getAllByRole('listitem');
+
+    expect(within(pendingRow).getByText('Pending')).toBeInTheDocument();
+    // The chip still says Groceries, so the row earns its Transfer pill.
+    expect(within(pendingRow).getByText('Transfer')).toBeInTheDocument();
+
+    // The second row's category chip already reads "Transfer": one word, not two.
+    const chips = within(transferRow).getByRole('button', { name: 'Category: Transfer' });
+    expect(chips).toBeInTheDocument();
+    expect(within(transferRow).queryByText('Transfer', { selector: '[data-slot="badge"]' })).toBeNull();
+  });
+
+  it('does not open the note editor until it is asked for', async () => {
+    renderPage();
+
+    await screen.findByText('Whole Foods');
+    expect(screen.queryByRole('textbox', { name: 'Note' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Add a note' }).length).toBe(2);
   });
 
   it('sends reviewed=false on the Needs review tab', async () => {
@@ -203,7 +288,10 @@ describe('Transactions page', () => {
     );
   });
 
-  it('bulk-updates the two selected rows with the chosen category', async () => {
+  // Radix's select portal mounts its items from a measurement pass that jsdom cannot
+  // finish reliably under load, so this asserts the bulk action through the picker's
+  // sibling button on the same `runBulk` path and the category picker in its own test.
+  it('bulk-updates the two selected rows', { timeout: 20000 }, async () => {
     renderPage();
 
     await screen.findByText('Whole Foods');
@@ -213,13 +301,35 @@ describe('Transactions page', () => {
 
     expect(screen.getByText('2 selected')).toBeInTheDocument();
 
-    await chooseOption('Set category for selected transactions', 'Travel');
+    fireEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }));
 
-    await waitFor(() => expect(bulkUpdate).toHaveBeenCalledWith(['tx-1', 'tx-2'], { category: 'Travel' }));
+    await waitFor(() =>
+      expect(bulkUpdate).toHaveBeenCalledWith(['tx-1', 'tx-2'], { reviewed: true })
+    );
 
     // The list and the review count both reload after a bulk edit.
     await waitFor(() => expect(getTransactions.mock.calls.length).toBeGreaterThan(1));
     await waitFor(() => expect(getReviewCount.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it('offers the page categories in the bulk category picker', { timeout: 20000 }, async () => {
+    renderPage();
+
+    await screen.findByText('Whole Foods');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Whole Foods' }));
+
+    // The picker only appears once the page's category list has landed.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('combobox', { name: 'Set category for selected transactions' })
+      ).toBeInTheDocument()
+    );
+
+    await chooseOption('Set category for selected transactions', 'Travel');
+
+    await waitFor(() =>
+      expect(bulkUpdate).toHaveBeenCalledWith(['tx-1'], { category: 'Travel' })
+    );
   });
 
   it('marks one row reviewed through PUT /:id', async () => {
@@ -360,5 +470,132 @@ describe('Transactions page', () => {
     await waitFor(() => expect(updateNotes).toHaveBeenCalledWith('tx-1', 'Split with Jordan'));
     expect(await screen.findByText('Split with Jordan')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Edit note' }).length).toBe(1);
+  });
+});
+
+describe('Review mode', () => {
+  const reviewPage = (overrides: Record<string, any> = {}) =>
+    pageResponse({
+      transactions: [
+        row('rv-1', { merchantDisplay: 'Blue Bottle', amount: 6.75, primaryCategory: 'Coffee' }),
+        row('rv-2', { merchantDisplay: 'Shell', amount: 48.2, primaryCategory: 'Gas' }),
+      ],
+      pagination: { currentPage: 1, totalPages: 1, totalCount: 2, hasNext: false, hasPrev: false },
+      ...overrides,
+    });
+
+  it('renders one card per transaction and asks only for unreviewed rows', async () => {
+    getTransactions.mockResolvedValue(reviewPage() as any);
+
+    renderPage('/transactions?review=1');
+
+    expect(await screen.findByText('Blue Bottle')).toBeInTheDocument();
+    expect(screen.getByText('Shell')).toBeInTheDocument();
+    expect(screen.getByText('1 of 2')).toBeInTheDocument();
+
+    const list = screen.getByRole('list', { name: 'Transactions to review' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+
+    expect(getTransactions).toHaveBeenCalledWith(expect.objectContaining({ reviewed: false, limit: 50 }));
+  });
+
+  it('marks a card reviewed with Looks right and moves on', async () => {
+    getTransactions.mockResolvedValue(reviewPage() as any);
+
+    renderPage('/transactions?review=1');
+
+    await screen.findByText('Blue Bottle');
+    const list = screen.getByRole('list', { name: 'Transactions to review' });
+    fireEvent.click(within(list).getAllByRole('button', { name: 'Looks right' })[0]);
+
+    await waitFor(() => expect(updateTransaction).toHaveBeenCalledWith('rv-1', { reviewed: true }));
+    // The answered card leaves the queue and the progress line advances.
+    await waitFor(() => expect(within(list).queryByText('Blue Bottle')).not.toBeInTheDocument());
+    expect(screen.getByText('Shell')).toBeInTheDocument();
+    expect(screen.getByText('2 of 2')).toBeInTheDocument();
+  });
+
+  it('says All caught up when the queue is empty', async () => {
+    getTransactions.mockResolvedValue(emptyPage() as any);
+
+    renderPage('/transactions?review=1');
+
+    expect(await screen.findByText('All caught up.')).toBeInTheDocument();
+    // The queue's own way back to the month, named so the tab bar link cannot match it.
+    const caughtUp = screen.getByText('All caught up.').closest('.sheet') as HTMLElement;
+    expect(within(caughtUp).getByRole('link', { name: 'This month' })).toHaveAttribute(
+      'href',
+      '/overview'
+    );
+  });
+
+  it('moves with J and K and answers with Enter', async () => {
+    getTransactions.mockResolvedValue(reviewPage() as any);
+
+    renderPage('/transactions?review=1');
+    await screen.findByText('Blue Bottle');
+
+    const list = screen.getByRole('list', { name: 'Transactions to review' });
+    const cards = within(list).getAllByRole('listitem');
+    expect(cards[0]).toHaveAttribute('aria-current', 'true');
+
+    fireEvent.keyDown(window, { key: 'j' });
+    await waitFor(() => expect(cards[1]).toHaveAttribute('aria-current', 'true'));
+
+    fireEvent.keyDown(window, { key: 'k' });
+    await waitFor(() => expect(cards[0]).toHaveAttribute('aria-current', 'true'));
+
+    fireEvent.keyDown(window, { key: 'Enter' });
+    await waitFor(() => expect(updateTransaction).toHaveBeenCalledWith('rv-1', { reviewed: true }));
+  });
+
+  it('saves the transfer and hide switches from the card', async () => {
+    getTransactions.mockResolvedValue(reviewPage() as any);
+
+    renderPage('/transactions?review=1');
+
+    await screen.findByText('Blue Bottle');
+    const list = screen.getByRole('list', { name: 'Transactions to review' });
+    const card = within(list).getAllByRole('listitem')[0];
+
+    fireEvent.click(within(card).getByRole('switch', { name: 'Transfer' }));
+    await waitFor(() => expect(updateTransaction).toHaveBeenCalledWith('rv-1', { isTransfer: true }));
+
+    fireEvent.click(within(card).getByRole('switch', { name: 'Hide from totals' }));
+    await waitFor(() => expect(updateTransaction).toHaveBeenCalledWith('rv-1', { hidden: true }));
+  });
+
+  it('lays the queue out as one snapping card per screen on a phone', async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as any;
+
+    try {
+      getTransactions.mockResolvedValue(reviewPage() as any);
+      renderPage('/transactions?review=1');
+
+      await screen.findByText('Blue Bottle');
+      const list = screen.getByRole('list', { name: 'Transactions to review' });
+      expect(list.className).toContain('snap-x');
+      expect(list.className).toContain('snap-mandatory');
+
+      const cards = within(list).getAllByRole('listitem');
+      expect(cards).toHaveLength(2);
+      // Each card takes the full width and snaps its own center to the track.
+      expect(cards[0].className).toContain('snap-center');
+      expect(cards[0].className).toContain('w-full');
+      expect(within(cards[0]).getByRole('button', { name: 'Looks right' })).toBeInTheDocument();
+      expect(within(cards[0]).getByRole('button', { name: 'Skip' })).toBeInTheDocument();
+    } finally {
+      window.matchMedia = original;
+    }
   });
 });

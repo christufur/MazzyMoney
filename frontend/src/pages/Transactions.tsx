@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Check, CircleCheck, Search } from 'lucide-react';
 import SidebarLayout from '../components/layout/SidebarLayout';
-import { accountAPI, categoryAPI, rulesAPI, transactionAPI } from '../services/api';
-import { toast } from 'sonner';
+import { accountAPI, categoryAPI, transactionAPI } from '../services/api';
 import type { TransactionListParams } from '../services/api';
-import { TransactionNotes } from '../components/transactions/TransactionNotes';
-import { SmartCategorySelector } from '../components/transactions/SmartCategorySelector';
-import { Badge } from '@/components/ui/badge';
+import { ReviewQueue } from '../components/transactions/ReviewQueue';
+import { LEDGER_GRID, TransactionRowView } from '../components/transactions/TransactionRowView';
+import { offerRule } from '../components/transactions/offerRule';
+import { dayMonth } from '../components/transactions/transaction';
+import type { TransactionRow } from '../components/transactions/transaction';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -17,29 +19,6 @@ import { cn } from '@/lib/utils';
 import { money } from '@/lib/money';
 
 const PAGE_SIZE = 50;
-
-interface TransactionRow {
-  id: string;
-  name: string;
-  merchantName: string | null;
-  merchantDisplay: string | null;
-  amount: number;
-  date: string;
-  pending: boolean;
-  isTransfer: boolean;
-  hidden: boolean;
-  reviewed: boolean;
-  primaryCategory: string | null;
-  categorySource: 'PLAID' | 'RULE' | 'USER';
-  notes: string | null;
-  account: {
-    id: string;
-    name: string;
-    mask: string | null;
-    type: string;
-    subtype: string;
-  } | null;
-}
 
 interface Pagination {
   currentPage: number;
@@ -76,50 +55,12 @@ const dateFromForRange = (range: DateRange): string | undefined => {
   return cutoff.toISOString().slice(0, 10);
 };
 
-const toDate = (value: string) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-/** Ledger dates read "Nov 2"; a row from another year carries its year so it cannot be misread. */
-const shortDay = (value: string) => {
-  const date = toDate(value);
-  if (!date) return '—';
-  const sameYear = date.getUTCFullYear() === new Date().getUTCFullYear();
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  });
-};
-
-const dayMonth = (value: string) => {
-  const date = toDate(value);
-  if (!date) return '—';
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-};
-
-const displayNameOf = (row: TransactionRow) => row.merchantDisplay ?? row.merchantName ?? row.name;
-
-const accountLabel = (account: TransactionRow['account']) =>
-  account ? `${account.name}${account.mask ? ` ••${account.mask}` : ''}` : '';
-
-/** Row money: the API stores money out as a positive amount, so out is a true minus. */
-const signedAmount = (amount: number) => {
-  if (amount === 0) return money(0);
-  return amount > 0 ? `−${money(amount)}` : `+${money(-amount)}`;
-};
-
-/** Net money: positive means more came in than went out. */
-const signedNet = (amount: number) => {
-  if (amount === 0) return money(0);
-  return amount > 0 ? `+${money(amount)}` : `−${money(-amount)}`;
-};
-
 /** A figure that is always written with a sign, except when there is nothing to sign. */
 const withSign = (amount: number, sign: '+' | '−') =>
   amount === 0 ? money(0) : `${sign}${money(Math.abs(amount))}`;
+
+/** Net money: positive means more came in than went out. */
+const signedNet = (amount: number) => (amount >= 0 ? `+${money(amount)}` : `−${money(-amount)}`);
 
 const Figure: React.FC<{ label: string; value: string; tone?: 'sage' }> = ({ label, value, tone }) => (
   <div className="min-w-0 border-b border-rule pb-3">
@@ -136,10 +77,20 @@ const Figure: React.FC<{ label: string; value: string; tone?: 'sage' }> = ({ lab
   </div>
 );
 
+/**
+ * A ledger tab: sentence-case, underlined only when active. Radix focuses the trigger
+ * on mousedown, and a pointer-only focus is not a reason to draw a ring, so the only
+ * visible focus affordance is the ink underline that keyboard travel produces
+ * (`:focus-visible`), never the sage rule of the active tab at page load.
+ */
 const tabTriggerClass =
-  'flex-none -mb-px h-9 rounded-none border-b-2 border-transparent px-0 text-sm font-normal text-muted-foreground after:hidden hover:text-ink data-[state=active]:border-sage data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-ink data-[state=active]:shadow-none';
+  'flex-none -mb-px h-9 rounded-none border-b-2 border-transparent px-0 text-sm font-normal text-muted-foreground after:hidden hover:text-ink data-[state=active]:border-sage data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-ink data-[state=active]:shadow-none focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:border-ink focus-visible:text-ink data-[state=active]:focus-visible:border-sage';
 
 const TransactionsPage: React.FC = () => {
+  // `?review=1` opens the queue in place of the list, so the Overview button has somewhere to go.
+  const [searchParams] = useSearchParams();
+  const reviewing = searchParams.get('review') === '1';
+
   const [tab, setTab] = useState<Tab>('all');
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
@@ -165,33 +116,6 @@ const TransactionsPage: React.FC = () => {
 
   const reload = useCallback(() => setRefreshKey(key => key + 1), []);
 
-  // Monarch-style follow-up: one category fix can become a rule for this merchant, past and future.
-  const offerRule = useCallback(
-    (transactionId: string, merchant: string, category: string) => {
-      toast(`${merchant} is now ${category}.`, {
-        duration: 8000,
-        action: {
-          label: 'Always do this',
-          onClick: async () => {
-            try {
-              const { rule, matchCount } = await rulesAPI.fromTransaction(transactionId, category);
-              const result = matchCount > 0 ? await rulesAPI.apply(rule.id) : { updated: 0, skippedUserCategory: 0 };
-              toast.success(
-                result.updated > 0
-                  ? `Rule saved. ${result.updated} past transaction${result.updated === 1 ? '' : 's'} updated.`
-                  : 'Rule saved. It applies to new transactions.'
-              );
-              reload();
-            } catch (err: any) {
-              toast.error(err.response?.data?.error || 'Could not save the rule. Try again from the Rules page.');
-            }
-          },
-        },
-      });
-    },
-    [reload]
-  );
-
   /** Any filter change goes back to page one and drops a selection of rows you can no longer see. */
   const applyFilter = (apply: () => void) => {
     apply();
@@ -200,7 +124,15 @@ const TransactionsPage: React.FC = () => {
   };
 
   // Search waits for a pause in typing so a fast typist does not fire a request per key.
+  // It must not run on mount: it clears the page and the selection, and a reader who
+  // grabbed a couple of rows in the first third of a second would lose them.
+  const searchSettled = useRef(false);
   useEffect(() => {
+    if (!searchSettled.current) {
+      searchSettled.current = true;
+      return;
+    }
+
     const timer = setTimeout(() => {
       setSearch(searchInput.trim());
       setPage(1);
@@ -275,6 +207,9 @@ const TransactionsPage: React.FC = () => {
   }, [page, tab, search, category, accountId, type, dateRange]);
 
   useEffect(() => {
+    // In review mode the queue owns the request; the list underneath does not need one.
+    if (reviewing) return;
+
     let active = true;
 
     const fetchTransactions = async () => {
@@ -303,7 +238,7 @@ const TransactionsPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [params, refreshKey]);
+  }, [params, refreshKey, reviewing]);
 
   const selectedIds = useMemo(() => Array.from(selected), [selected]);
 
@@ -364,6 +299,20 @@ const TransactionsPage: React.FC = () => {
     } catch (err: any) {
       setActionError(err.response?.data?.error || 'Could not update the review status. Try again.');
     }
+  };
+
+  const changeCategory = (row: TransactionRow, nextCategory: string) => {
+    offerRule({
+      transactionId: row.id,
+      merchant: row.merchantDisplay ?? row.merchantName ?? row.name,
+      category: nextCategory,
+      onApplied: reload,
+    });
+    setRows(previous =>
+      previous.map(entry =>
+        entry.id === row.id ? { ...entry, primaryCategory: nextCategory } : entry
+      )
+    );
   };
 
   const setNotes = (id: string, notes: string) => {
@@ -481,28 +430,31 @@ const TransactionsPage: React.FC = () => {
             <span className="text-sm font-medium text-ink">{selectedIds.length} selected</span>
 
             <div className="ml-auto flex flex-wrap items-center gap-2">
-              <Select
-                value=""
-                disabled={busy}
-                onValueChange={value => {
-                  if (value) runBulk({ category: value }, 'set the category');
-                }}
-              >
-                <SelectTrigger
-                  size="sm"
-                  aria-label="Set category for selected transactions"
-                  className="w-40"
+              {/* The picker waits for the page's category list, so it never opens empty. */}
+              {categories.length > 0 && (
+                <Select
+                  value=""
+                  disabled={busy}
+                  onValueChange={value => {
+                    if (value) runBulk({ category: value }, 'set the category');
+                  }}
                 >
-                  <SelectValue placeholder="Set category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(name => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger
+                    size="sm"
+                    aria-label="Set category for selected transactions"
+                    className="w-40"
+                  >
+                    <SelectValue placeholder="Set category" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="w-40">
+                    {categories.map(name => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
 
               <Button
                 variant="outline"
@@ -566,7 +518,7 @@ const TransactionsPage: React.FC = () => {
 
         <div
           aria-hidden
-          className="hidden items-center gap-4 border-b border-rule px-4 py-2 md:grid md:grid-cols-[auto_3.25rem_minmax(0,1fr)_8.5rem_10rem_6.5rem_2.25rem]"
+          className={cn('hidden items-center gap-4 border-b border-rule px-4 py-2 md:grid', LEDGER_GRID)}
         >
           <span className="size-4" />
           <span className="section-label">Date</span>
@@ -609,93 +561,18 @@ const TransactionsPage: React.FC = () => {
         ) : (
           <div role="list" aria-label="Transactions">
             {rows.map(row => {
-              const displayName = displayNameOf(row);
-              const moneyOut = row.amount > 0;
-              const rawName = row.name !== displayName ? row.name : null;
+              const displayName = row.merchantDisplay ?? row.merchantName ?? row.name;
 
               return (
-                <div
+                <TransactionRowView
                   key={row.id}
-                  role="listitem"
-                  className={cn(
-                    'group/row ledger-line grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors md:grid-cols-[auto_3.25rem_minmax(0,1fr)_8.5rem_10rem_6.5rem_2.25rem] md:gap-x-4 md:gap-y-0',
-                    selected.has(row.id) ? 'bg-paper' : 'hover:bg-paper'
-                  )}
-                >
-                  <Checkbox
-                    aria-label={`Select ${displayName}`}
-                    checked={selected.has(row.id)}
-                    onCheckedChange={() => toggleRow(row.id)}
-                    className="md:col-start-1 md:row-start-1"
-                  />
-
-                  <div className="min-w-0 md:col-start-3 md:row-start-1">
-                    <p className="flex min-w-0 items-center gap-2 text-[15px] text-ink">
-                      {!row.reviewed && (
-                        <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-terra" />
-                      )}
-                      <span className="truncate">{displayName}</span>
-                    </p>
-
-                    {rawName && (
-                      <p className="hidden truncate text-xs text-muted-foreground md:block">{rawName}</p>
-                    )}
-
-                    {(row.pending || row.isTransfer) && (
-                      <p className="mt-1 flex flex-wrap items-center gap-1.5">
-                        {row.pending && (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Pending
-                          </Badge>
-                        )}
-                        {row.isTransfer && (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Transfer
-                          </Badge>
-                        )}
-                      </p>
-                    )}
-                  </div>
-
-                  <span
-                    className={cn(
-                      'self-start whitespace-nowrap text-right text-sm font-medium tabular-nums md:col-start-6 md:row-start-1 md:self-center',
-                      moneyOut ? 'text-ink' : 'text-sage-ink'
-                    )}
-                  >
-                    {signedAmount(row.amount)}
-                  </span>
-
-                  <div className="col-span-2 col-start-2 row-start-2 flex min-w-0 flex-nowrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground md:contents">
-                    <span className="shrink-0 whitespace-nowrap md:col-start-2 md:row-start-1">
-                      {shortDay(row.date)}
-                    </span>
-
-                    {row.account && (
-                      <span className="flex min-w-0 items-center gap-2 md:col-start-4 md:row-start-1">
-                        <span aria-hidden className="md:hidden">
-                          ·
-                        </span>
-                        <span className="truncate">{accountLabel(row.account)}</span>
-                      </span>
-                    )}
-
-                    <SmartCategorySelector
-                      transactionId={row.id}
-                      currentCategory={row.primaryCategory || 'Other'}
-                      categories={categories}
-                      compact
-                      className="shrink-0 md:col-start-5 md:row-start-1 md:justify-self-start"
-                      onUpdate={nextCategory => {
-                        offerRule(row.id, displayName, nextCategory);
-                        setRows(previous =>
-                          previous.map(entry =>
-                            entry.id === row.id ? { ...entry, primaryCategory: nextCategory } : entry
-                          )
-                        );
-                      }}
-                    />
-
+                  row={row}
+                  categories={categories}
+                  selected={selected.has(row.id)}
+                  onSelect={() => toggleRow(row.id)}
+                  onCategoryChange={nextCategory => changeCategory(row, nextCategory)}
+                  onNoteChange={notes => setNotes(row.id, notes)}
+                  action={
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -708,7 +585,7 @@ const TransactionsPage: React.FC = () => {
                       title={row.reviewed ? 'Reviewed' : 'Mark reviewed'}
                       onClick={() => toggleReviewed(row)}
                       className={cn(
-                        'ml-auto shrink-0 rounded-full md:col-start-7 md:row-start-1 md:ml-0 md:justify-self-end',
+                        'rounded-full',
                         row.reviewed
                           ? 'text-sage-ink hover:bg-sage-tint hover:text-sage-ink'
                           : 'text-muted-foreground/60 hover:bg-muted hover:text-ink'
@@ -716,16 +593,8 @@ const TransactionsPage: React.FC = () => {
                     >
                       {row.reviewed ? <CircleCheck /> : <Check />}
                     </Button>
-                  </div>
-
-                  <TransactionNotes
-                    transactionId={row.id}
-                    initialNotes={row.notes ?? ''}
-                    compact
-                    className="col-span-2 col-start-2 row-start-3 md:col-span-1 md:col-start-3 md:row-start-2"
-                    onUpdate={notes => setNotes(row.id, notes)}
-                  />
-                </div>
+                  }
+                />
               );
             })}
           </div>
@@ -767,52 +636,58 @@ const TransactionsPage: React.FC = () => {
   );
 
   return (
-    <SidebarLayout title="Transactions">
-      <div className="grid grid-cols-3 gap-4 md:gap-6" role="group" aria-label="Summary">
-        {loading && !summary ? (
-          <>
-            <Skeleton className="h-12" />
-            <Skeleton className="h-12" />
-            <Skeleton className="h-12" />
-          </>
-        ) : (
-          <>
-            <Figure label="Income" value={withSign(summary?.income ?? 0, '+')} tone="sage" />
-            <Figure label="Spending" value={withSign(summary?.expenses ?? 0, '−')} />
-            <Figure
-              label="Net"
-              value={signedNet(summary?.netAmount ?? 0)}
-              tone={(summary?.netAmount ?? 0) > 0 ? 'sage' : undefined}
-            />
-          </>
-        )}
-      </div>
+    <SidebarLayout title={reviewing ? 'Review' : 'Transactions'}>
+      {reviewing ? (
+        <ReviewQueue />
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-4 md:gap-6" role="group" aria-label="Summary">
+            {loading && !summary ? (
+              <>
+                <Skeleton className="h-12" />
+                <Skeleton className="h-12" />
+                <Skeleton className="h-12" />
+              </>
+            ) : (
+              <>
+                <Figure label="Income" value={withSign(summary?.income ?? 0, '+')} tone="sage" />
+                <Figure label="Spending" value={withSign(summary?.expenses ?? 0, '−')} />
+                <Figure
+                  label="Net"
+                  value={signedNet(summary?.netAmount ?? 0)}
+                  tone={(summary?.netAmount ?? 0) > 0 ? 'sage' : undefined}
+                />
+              </>
+            )}
+          </div>
 
-      <Tabs
-        value={tab}
-        onValueChange={value => applyFilter(() => setTab(value as Tab))}
-        className="mt-8"
-      >
-        <TabsList
-          variant="line"
-          aria-label="Transaction views"
-          className="w-full justify-start gap-6 rounded-none border-b border-rule p-0"
-        >
-          <TabsTrigger value="all" className={tabTriggerClass}>
-            All
-          </TabsTrigger>
-          <TabsTrigger value="review" className={tabTriggerClass}>
-            Needs review ({reviewCount})
-          </TabsTrigger>
-        </TabsList>
+          <Tabs
+            value={tab}
+            onValueChange={value => applyFilter(() => setTab(value as Tab))}
+            className="mt-8"
+          >
+            <TabsList
+              variant="line"
+              aria-label="Transaction views"
+              className="w-full justify-start gap-6 rounded-none border-b border-rule p-0"
+            >
+              <TabsTrigger value="all" className={tabTriggerClass}>
+                All
+              </TabsTrigger>
+              <TabsTrigger value="review" className={tabTriggerClass}>
+                Needs review ({reviewCount})
+              </TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="all" className="mt-4 outline-none">
-          {tab === 'all' && ledger}
-        </TabsContent>
-        <TabsContent value="review" className="mt-4 outline-none">
-          {tab === 'review' && ledger}
-        </TabsContent>
-      </Tabs>
+            <TabsContent value="all" className="mt-4 outline-none">
+              {tab === 'all' && ledger}
+            </TabsContent>
+            <TabsContent value="review" className="mt-4 outline-none">
+              {tab === 'review' && ledger}
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </SidebarLayout>
   );
 };
