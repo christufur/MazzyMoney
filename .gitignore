@@ -231,7 +231,6 @@ dev-utils/
 scripts/local-only/
 
 # Docker
-.dockerignore
 
 # Kubernetes
 *.kubeconfig

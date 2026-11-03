@@ -11,6 +11,7 @@
     "@types/react-dom": "^19.1.9",
     "axios": "^1.11.0",
     "d3": "^7.9.0",
+    "d3-sankey": "0.12.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-plaid-link": "^4.1.1",
@@ -39,6 +40,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.8.0",
     "@types/d3": "^7.4.3",
+    "@types/d3-sankey": "0.12.3",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.21",
     "jsdom": "^26.1.0",
