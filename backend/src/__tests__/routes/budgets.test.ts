@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, mock, type Mock } from 'bun:test';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 
@@ -7,10 +8,10 @@ process.env.JWT_SECRET = 'test-secret';
 import { app } from '../../index';
 import { prisma } from '../../lib/prisma';
 
-jest.mock('../../services/emailService', () => ({
+mock.module('../../services/emailService', () => ({
   EmailService: {
-    sendBudgetAlertEmail: jest.fn().mockResolvedValue(true),
-    isConfigured: jest.fn().mockReturnValue(true)
+    sendBudgetAlertEmail: mock().mockResolvedValue(true),
+    isConfigured: mock().mockReturnValue(true)
   }
 }));
 

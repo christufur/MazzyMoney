@@ -1,16 +1,17 @@
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, mock, type Mock } from 'bun:test';
 import { prisma } from '../../lib/prisma';
 import { BudgetSyncService } from '../../services/budgetSyncService';
 import { BudgetAlertService } from '../../services/budgetAlertService';
 
-jest.mock('../../services/budgetAlertService', () => ({
+mock.module('../../services/budgetAlertService', () => ({
   BudgetAlertService: {
-    evaluateBudgetAlerts: jest.fn().mockResolvedValue(undefined),
-    ensureDefaultAlerts: jest.fn().mockResolvedValue(undefined),
-    evaluateUserBudgets: jest.fn().mockResolvedValue(undefined)
+    evaluateBudgetAlerts: mock().mockResolvedValue(undefined),
+    ensureDefaultAlerts: mock().mockResolvedValue(undefined),
+    evaluateUserBudgets: mock().mockResolvedValue(undefined)
   }
 }));
 
-const mockEvaluateBudgetAlerts = BudgetAlertService.evaluateBudgetAlerts as unknown as jest.Mock;
+const mockEvaluateBudgetAlerts = BudgetAlertService.evaluateBudgetAlerts as unknown as Mock<any>;
 
 describe('BudgetSyncService.calculateBudgetSpending', () => {
   const userId = 'budget-sync-user';
@@ -151,7 +152,7 @@ describe('BudgetSyncService.calculateBudgetSpending', () => {
     await BudgetSyncService.syncUserBudgets(userId);
 
     expect(mockEvaluateBudgetAlerts).toHaveBeenCalled();
-    const call = mockEvaluateBudgetAlerts.mock.calls.find(([b]) => b.id === budget.id);
+    const call = mockEvaluateBudgetAlerts.mock.calls.find(([b]: any[]) => b.id === budget.id);
     expect(call).toBeDefined();
     expect(call?.[1]).toMatchObject({
       spent: 150,

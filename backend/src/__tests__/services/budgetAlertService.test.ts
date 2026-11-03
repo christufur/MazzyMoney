@@ -1,15 +1,16 @@
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, mock, type Mock } from 'bun:test';
 import { prisma } from '../../lib/prisma';
 import { BudgetAlertService } from '../../services/budgetAlertService';
 import { EmailService } from '../../services/emailService';
 
-jest.mock('../../services/emailService', () => ({
+mock.module('../../services/emailService', () => ({
   EmailService: {
-    sendBudgetAlertEmail: jest.fn().mockResolvedValue(true),
-    isConfigured: jest.fn().mockReturnValue(true)
+    sendBudgetAlertEmail: mock().mockResolvedValue(true),
+    isConfigured: mock().mockReturnValue(true)
   }
 }));
 
-const mockSendEmail = EmailService.sendBudgetAlertEmail as unknown as jest.Mock;
+const mockSendEmail = EmailService.sendBudgetAlertEmail as unknown as Mock<any>;
 
 describe('BudgetAlertService', () => {
   const userId = 'test-user';

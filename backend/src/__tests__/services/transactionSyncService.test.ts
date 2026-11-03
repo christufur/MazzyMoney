@@ -1,17 +1,18 @@
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, mock, type Mock } from 'bun:test';
 import { prisma } from '../../lib/prisma';
 import { TransactionSyncService } from '../../services/transactionSyncService';
 
-jest.mock('../../services/budgetSyncService', () => ({
+mock.module('../../services/budgetSyncService', () => ({
   BudgetSyncService: {
-    syncUserBudgets: jest.fn().mockResolvedValue(undefined)
+    syncUserBudgets: mock().mockResolvedValue(undefined)
   }
 }));
 
-jest.mock('../../services/smartCategorizationService', () => ({
+mock.module('../../services/smartCategorizationService', () => ({
   SmartCategorizationService: {
-    initializePatterns: jest.fn().mockResolvedValue(undefined),
-    categorizeTransaction: jest.fn().mockResolvedValue({ category: 'Food & Dining', confidence: 0.9 }),
-    learnFromCorrection: jest.fn()
+    initializePatterns: mock().mockResolvedValue(undefined),
+    categorizeTransaction: mock().mockResolvedValue({ category: 'Food & Dining', confidence: 0.9 }),
+    learnFromCorrection: mock()
   }
 }));
 
