@@ -87,6 +87,9 @@ const renderPage = () =>
     </MemoryRouter>
   );
 
+/** The section whose heading is `label`, so a name in two sections stays unambiguous. */
+const sectionFor = (label: string) => screen.getByRole('region', { name: label });
+
 beforeEach(() => {
   getAll.mockResolvedValue(payload());
 });
@@ -99,9 +102,8 @@ describe('Recurring page', () => {
   it('shows the monthly total for the active series', async () => {
     renderPage();
 
-    expect(
-      await screen.findByText('≈ $124.42 / month in recurring charges')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('About $124.42 a month in repeating charges')).toBeInTheDocument();
+    expect(screen.getByText('From 2 active series · 1 ignored')).toBeInTheDocument();
   });
 
   it('lists the bills due in the next 30 days, soonest first', async () => {
@@ -109,8 +111,7 @@ describe('Recurring page', () => {
 
     await screen.findByText('Next 30 days');
 
-    const upcomingList = screen.getByText('Next 30 days').closest('div.bg-white') as HTMLElement;
-    const rows = within(upcomingList).getAllByRole('listitem');
+    const rows = within(sectionFor('Next 30 days')).getAllByRole('listitem');
 
     expect(rows).toHaveLength(2);
     expect(within(rows[0]).getByText('Planet Fitness')).toBeInTheDocument();
@@ -118,31 +119,32 @@ describe('Recurring page', () => {
     expect(within(rows[1]).getByText('Netflix')).toBeInTheDocument();
 
     // Ignored series never show up under the next 30 days.
-    expect(within(upcomingList).queryByText('Old Magazine')).not.toBeInTheDocument();
+    expect(within(sectionFor('Next 30 days')).queryByText('Old Magazine')).not.toBeInTheDocument();
   });
 
-  it('shows every series with its frequency, and the ignored one faded at the bottom', async () => {
+  it('shows every series with its frequency, and the ignored one muted at the bottom', async () => {
     renderPage();
 
     await screen.findByText('All recurring');
+    const all = sectionFor('All recurring charges');
 
-    const table = screen.getByText('All recurring').closest('div.bg-white') as HTMLElement;
-    const [activeTable, ignoredTable] = table.querySelectorAll('table');
+    // Frequencies are the detector's intervals in plain words.
+    expect(within(screen.getByTestId('recurring-row-series-netflix')).getByText('Monthly')).toBeInTheDocument();
+    expect(within(screen.getByTestId('recurring-row-series-gym')).getByText('Weekly')).toBeInTheDocument();
+    expect(within(screen.getByTestId('recurring-row-series-ignored')).getByText('Quarterly')).toBeInTheDocument();
 
-    // The header has a "Monthly" column too, so read the body rows only.
-    const activeRows = within(activeTable as HTMLElement).getAllByRole('row').slice(1);
-    expect(activeRows.map((row) => within(row).getAllByRole('cell')[1].textContent)).toEqual([
-      'Monthly',
-      'Weekly',
-    ]);
+    // Amount, its monthly share, and the next date sit on each active row.
+    const netflix = screen.getByTestId('recurring-row-series-netflix');
+    expect(within(netflix).getByText('$15.49')).toBeInTheDocument();
+    expect(within(netflix).getByText('≈ $15.72')).toBeInTheDocument();
+    expect(within(netflix).getByRole('button', { name: 'Ignore' })).toBeInTheDocument();
 
-    expect(within(table).getByText('Ignored (1)')).toBeInTheDocument();
+    expect(within(all).getByText('Ignored (1)')).toBeInTheDocument();
 
-    const ignoredRows = within(ignoredTable as HTMLElement).getAllByRole('row').slice(1);
-    expect(ignoredRows).toHaveLength(1);
-    expect(ignoredRows[0]).toHaveClass('opacity-60');
-    expect(within(ignoredRows[0]).getByText('Old Magazine')).toBeInTheDocument();
-    expect(within(ignoredRows[0]).getByRole('button', { name: 'Restore' })).toBeInTheDocument();
+    const ignoredRow = screen.getByTestId('recurring-row-series-ignored');
+    expect(ignoredRow).toHaveClass('text-muted-foreground');
+    expect(within(ignoredRow).getByText('Old Magazine')).toBeInTheDocument();
+    expect(within(ignoredRow).getByRole('button', { name: 'Restore' })).toBeInTheDocument();
   });
 
   it('calls setStatus with IGNORED when Ignore is clicked', async () => {
@@ -151,20 +153,15 @@ describe('Recurring page', () => {
     renderPage();
     await screen.findByText('All recurring');
 
-    // Netflix also appears under "Next 30 days", so scope the click to its table row.
-    const netflixRow = screen
-      .getAllByText('Netflix')
-      .map((node) => node.closest('tr'))
-      .find((row): row is HTMLTableRowElement => Boolean(row)) as HTMLElement;
+    // Netflix also appears under "Next 30 days", so click inside its all-recurring row.
+    const netflixRow = screen.getByTestId('recurring-row-series-netflix');
     fireEvent.click(within(netflixRow).getByRole('button', { name: 'Ignore' }));
 
-    await waitFor(() =>
-      expect(setStatus).toHaveBeenCalledWith('series-netflix', 'IGNORED')
-    );
+    await waitFor(() => expect(setStatus).toHaveBeenCalledWith('series-netflix', 'IGNORED'));
 
     // The row moves to the ignored block and the active total drops by its share.
     await waitFor(() =>
-      expect(screen.getByText('≈ $108.70 / month in recurring charges')).toBeInTheDocument()
+      expect(screen.getByText('About $108.70 a month in repeating charges')).toBeInTheDocument()
     );
     expect(screen.getByText('Ignored (2)')).toBeInTheDocument();
   });
@@ -185,12 +182,10 @@ describe('Recurring page', () => {
     renderPage();
     await screen.findByText('All recurring');
 
-    const ignoredRow = screen.getByText('Old Magazine').closest('tr') as HTMLElement;
+    const ignoredRow = screen.getByTestId('recurring-row-series-ignored');
     fireEvent.click(within(ignoredRow).getByRole('button', { name: 'Restore' }));
 
-    await waitFor(() =>
-      expect(setStatus).toHaveBeenCalledWith('series-ignored', 'ACTIVE')
-    );
+    await waitFor(() => expect(setStatus).toHaveBeenCalledWith('series-ignored', 'ACTIVE'));
   });
 
   it('asks the server to detect again when Refresh is clicked', async () => {
@@ -202,9 +197,7 @@ describe('Recurring page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
 
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
-    expect(
-      await screen.findByText('≈ $200.00 / month in recurring charges')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('About $200.00 a month in repeating charges')).toBeInTheDocument();
   });
 
   it('shows the empty state when nothing is detected yet', async () => {
@@ -217,7 +210,7 @@ describe('Recurring page', () => {
         'No recurring charges found yet. They appear after a few months of transactions.'
       )
     ).toBeInTheDocument();
-    expect(screen.getByText('≈ $0.00 / month in recurring charges')).toBeInTheDocument();
+    expect(screen.getByText('About $0.00 a month in repeating charges')).toBeInTheDocument();
     expect(screen.getByText('No bills expected in the next 30 days.')).toBeInTheDocument();
   });
 
@@ -227,6 +220,6 @@ describe('Recurring page', () => {
     renderPage();
 
     expect(await screen.findByText('Failed to fetch recurring charges')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 });
