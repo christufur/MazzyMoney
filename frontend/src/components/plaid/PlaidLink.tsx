@@ -4,68 +4,105 @@ import { plaidAPI } from '../../services/api';
 
 interface PlaidLinkProps {
   onSuccess: () => void;
+  /** When set, Link opens in update mode for this Item (a re-login, never a new connection). */
+  itemId?: string;
   buttonText?: string;
   className?: string;
   variant?: 'primary' | 'secondary';
+  disabled?: boolean;
 }
 
-export const PlaidLink: React.FC<PlaidLinkProps> = ({ 
-  onSuccess, 
-  buttonText = "Connect Bank Account",
+const ITEM_LIMIT_MESSAGE = 'All 10 free bank connections are in use. Remove one first.';
+const DUPLICATE_INSTITUTION_MESSAGE = 'This bank is already connected. Use Reconnect instead.';
+
+const readErrorCode = (err: any): string | undefined => {
+  const data = err?.response?.data;
+  if (!data) return undefined;
+  if (typeof data.error === 'string' && data.error !== '') return data.error;
+  if (typeof data.error?.error_code === 'string') return data.error.error_code;
+  return undefined;
+};
+
+const errorMessageFor = (err: any, fallback: string): string => {
+  switch (readErrorCode(err)) {
+    case 'ITEM_LIMIT':
+      return ITEM_LIMIT_MESSAGE;
+    case 'DUPLICATE_INSTITUTION':
+      return DUPLICATE_INSTITUTION_MESSAGE;
+    case 'ITEM_NOT_FOUND':
+      return 'This bank connection no longer exists. Refresh the page.';
+    default:
+      return fallback;
+  }
+};
+
+export const PlaidLink: React.FC<PlaidLinkProps> = ({
+  onSuccess,
+  itemId,
+  buttonText = 'Connect Bank Account',
   className,
-  variant = 'primary'
+  variant = 'primary',
+  disabled = false,
 }) => {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exchanging, setExchanging] = useState(false);
+  const isUpdateMode = Boolean(itemId);
 
-  // Create link token when component mounts
-  useEffect(() => {
-    const createLinkToken = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await plaidAPI.createLinkToken();
-        setLinkToken(response.link_token);
-      } catch (err: any) {
-        setError('Failed to initialize bank connection');
-        console.error('Link token error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    createLinkToken();
-  }, []);
-
-  const onSuccessCallback = useCallback(async (public_token: string, metadata: any) => {
+  const requestLinkToken = useCallback(async () => {
     try {
-      setExchanging(true);
-      const response = await plaidAPI.exchangePublicToken(public_token);
-      
-      // Show success message with institution name if available
-      if (response.institution_name) {
-        console.log(`Successfully connected to ${response.institution_name}!`);
-      }
-      
-      onSuccess();
+      setLoading(true);
+      setError(null);
+      setLinkToken(null);
+      const response = await plaidAPI.createLinkToken(itemId);
+      setLinkToken(response.link_token);
     } catch (err: any) {
-      setError('Failed to connect bank account');
-      console.error('Token exchange error:', err);
+      setError(errorMessageFor(err, 'Failed to initialize bank connection. Try again.'));
+      console.error('Link token error:', err);
     } finally {
-      setExchanging(false);
+      setLoading(false);
     }
-  }, [onSuccess]);
+  }, [itemId]);
 
-  const onExitCallback = useCallback((err: any, metadata: any) => {
+  // Request a link token on mount, and again whenever the Item changes.
+  // A disabled button (the free Item limit is reached) must not ask for a token.
+  useEffect(() => {
+    if (disabled) return;
+    requestLinkToken();
+  }, [requestLinkToken, disabled]);
+
+  const onSuccessCallback = useCallback(
+    async (publicToken: string) => {
+      // Update mode refreshes the existing Item, so there is no public token to exchange.
+      if (isUpdateMode) {
+        onSuccess();
+        return;
+      }
+
+      try {
+        setExchanging(true);
+        setError(null);
+        await plaidAPI.exchangePublicToken(publicToken);
+        onSuccess();
+      } catch (err: any) {
+        setError(errorMessageFor(err, 'Failed to connect bank account.'));
+        console.error('Token exchange error:', err);
+      } finally {
+        setExchanging(false);
+      }
+    },
+    [isUpdateMode, onSuccess]
+  );
+
+  const onExitCallback = useCallback((err: any) => {
     if (err) {
       console.log('Plaid Link exit error:', err);
       if (err.error_code === 'USER_EXITED') {
         // User cancelled - this is normal, don't show error
         return;
       }
-      setError('Bank connection was cancelled or failed');
+      setError('Bank connection was cancelled or failed.');
     }
   }, []);
 
@@ -84,16 +121,27 @@ export const PlaidLink: React.FC<PlaidLinkProps> = ({
 
   // Determine button classes based on variant
   const getButtonClasses = () => {
-    const baseClasses = "font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 transition-colors duration-200";
-    
+    const baseClasses =
+      'font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200';
+
     if (className) return `${baseClasses} ${className}`;
-    
+
     if (variant === 'primary') {
       return `${baseClasses} bg-green-500 hover:bg-green-700 text-white`;
     } else {
       return `${baseClasses} bg-gray-500 hover:bg-gray-700 text-white`;
     }
   };
+
+  const retryButton = (
+    <button onClick={requestLinkToken} className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+      Try Again
+    </button>
+  );
+
+  const errorBanner = error ? (
+    <div className="text-sm text-red-700 bg-red-100 border border-red-400 px-3 py-2 rounded mb-2">{error}</div>
+  ) : null;
 
   if (loading) {
     return (
@@ -108,17 +156,18 @@ export const PlaidLink: React.FC<PlaidLinkProps> = ({
 
   if (error) {
     return (
-      <div className="text-center">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
-        >
-          Try Again
-        </button>
+      <div className="text-left">
+        {errorBanner}
+        {retryButton}
       </div>
+    );
+  }
+
+  if (disabled) {
+    return (
+      <button disabled className={getButtonClasses()}>
+        {buttonText}
+      </button>
     );
   }
 
@@ -145,11 +194,7 @@ export const PlaidLink: React.FC<PlaidLinkProps> = ({
   }
 
   return (
-    <button
-      onClick={handleClick}
-      className={getButtonClasses()}
-      disabled={!ready}
-    >
+    <button onClick={handleClick} className={getButtonClasses()} disabled={disabled}>
       {buttonText}
     </button>
   );
