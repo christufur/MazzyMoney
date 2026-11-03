@@ -134,13 +134,15 @@ afterAll(async () => {
 
 describe('Totals without transfers and hidden rows', () => {
   it('GET /api/transactions sums only counted rows but still lists all of them', async () => {
+    // W2.6 hides hidden rows in the list by default; includeHidden brings them back,
+    // which is what "the list is for looking at" means here.
     const response = await request(app)
-      .get('/api/transactions')
+      .get('/api/transactions?includeHidden=true')
       .set('Authorization', auth());
 
     expect(response.status).toBe(200);
 
-    // The list is for looking at: transfers and hidden rows stay visible.
+    // The list is for looking at: transfers and hidden rows stay visible with includeHidden.
     expect(response.body.transactions).toHaveLength(5);
     expect(response.body.pagination.totalCount).toBe(5);
 

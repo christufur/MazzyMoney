@@ -152,22 +152,42 @@ export const plaidAPI = {
 };
 
 // New cached transaction API
+export type TransactionTypeFilter = 'income' | 'expense' | 'all';
+
+export interface TransactionListParams {
+  page?: number;
+  limit?: number;
+  category?: string;
+  accountId?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  amountMin?: number;
+  amountMax?: number;
+  type?: TransactionTypeFilter;
+  /** true = already reviewed, false = the review queue. */
+  reviewed?: boolean;
+  /** Hidden rows are left out of the list unless this is true. */
+  includeHidden?: boolean;
+  /** Transfers are in the list by default. */
+  transfers?: 'exclude' | 'only';
+}
+
+export interface TransactionChanges {
+  reviewed?: boolean;
+  hidden?: boolean;
+  isTransfer?: boolean;
+}
+
+export interface TransactionBulkChanges extends TransactionChanges {
+  category?: string;
+}
+
 export const transactionAPI = {
   /**
    * Get cached transactions with filtering and pagination
    */
-  getTransactions: async (params?: {
-    page?: number;
-    limit?: number;
-    category?: string;
-    accountId?: string;
-    search?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    amountMin?: number;
-    amountMax?: number;
-    type?: 'income' | 'expense' | 'all';
-  }) => {
+  getTransactions: async (params?: TransactionListParams) => {
     const response = await api.get('/api/transactions', { params });
     return response.data;
   },
@@ -210,6 +230,14 @@ export const transactionAPI = {
   },
 
   /**
+   * How many rows the review queue still has (not reviewed, not hidden).
+   */
+  getReviewCount: async (): Promise<{ count: number }> => {
+    const response = await api.get('/api/transactions/review-count');
+    return response.data;
+  },
+
+  /**
    * Update transaction notes
    */
   updateNotes: async (transactionId: string, notes: string) => {
@@ -226,10 +254,30 @@ export const transactionAPI = {
   },
 
   /**
-   * Get categorization suggestions
+   * Review / hide / transfer switches for one row.
    */
-  getSuggestions: async (transactionId: string) => {
-    const response = await api.get(`/api/transactions/${transactionId}/suggestions`);
+  update: async (transactionId: string, changes: TransactionChanges) => {
+    const response = await api.put(`/api/transactions/${transactionId}`, changes);
+    return response.data;
+  },
+
+  /**
+   * The same edits for many rows. The server rejects the whole batch if any id is
+   * not the user's, so nothing changes on a 403.
+   */
+  bulkUpdate: async (
+    ids: string[],
+    changes: TransactionBulkChanges
+  ): Promise<{ updated: number }> => {
+    const response = await api.put('/api/transactions/bulk', { ids, ...changes });
+    return response.data;
+  },
+};
+
+/** The single display-category list, owned by the backend. */
+export const categoryAPI = {
+  getAll: async (): Promise<{ categories: string[] }> => {
+    const response = await api.get('/api/categories');
     return response.data;
   },
 };

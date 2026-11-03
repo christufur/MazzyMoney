@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { transactionAPI } from "../../services/api";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
@@ -10,6 +11,28 @@ interface SidebarLayoutProps {
 const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, title = "Overview" }) => {
   const { logout, user } = useAuth();
   const userInitial = user?.fullName?.trim().charAt(0).toUpperCase() || "U";
+  const [reviewCount, setReviewCount] = useState(0);
+
+  // W4.1: the review queue is the daily habit, so its size is on the nav item.
+  useEffect(() => {
+    let active = true;
+
+    const loadReviewCount = async () => {
+      try {
+        const response = await transactionAPI.getReviewCount();
+        if (active) setReviewCount(response?.count ?? 0);
+      } catch {
+        // A badge is not worth an error; leave it hidden.
+        if (active) setReviewCount(0);
+      }
+    };
+
+    loadReviewCount();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const navigationItems = [
     {
@@ -82,7 +105,15 @@ const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, title = "Overvi
               }
             >
               <span className="mr-3">{item.icon}</span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.to === "/transactions" && reviewCount > 0 && (
+                <span
+                  className="ml-2 min-w-[1.25rem] px-1.5 py-0.5 rounded-full bg-blue-600 text-white text-xs font-semibold text-center"
+                  aria-label={`${reviewCount} transactions need review`}
+                >
+                  {reviewCount > 99 ? "99+" : reviewCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

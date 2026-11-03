@@ -10,6 +10,7 @@ import { TransactionSyncService } from './services/transactionSyncService';
 import authRoutes from './routes/auth';
 import plaidRoutes from './routes/plaid';
 import transactionRoutes from './routes/transactions';
+import categoryRoutes from './routes/categories';
 import { accountsRouter } from './routes/accounts';
 import budgets from './routes/budgets';
 import analyticsRoutes from './routes/analytics';
@@ -30,6 +31,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/plaid', plaidRoutes);
 app.use('/api/transactions', transactionRoutes); // New cached transactions route
+app.use('/api/categories', categoryRoutes); // The one display-category list
 app.use('/api/accounts', accountsRouter); // New cached accounts route
 app.use('/api/budgets', budgets);
 app.use('/api/analytics', analyticsRoutes);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SidebarLayout from '../components/layout/SidebarLayout';
-import { budgetAPI, transactionAPI, BudgetAlert } from '../services/api';
+import { budgetAPI, categoryAPI, BudgetAlert } from '../services/api';
 
 export interface Budget {
   id: string;
@@ -114,44 +114,15 @@ const BudgetPage: React.FC = () => {
     fetchData();
   }, []);
 
-  // Fetch categories from transactions
+  // Fetch the one display-category list from /api/categories (W2.6).
+  // /api/transactions/categories returns an array of spending rows, not { categories }.
   const fetchCategories = async (): Promise<string[]> => {
     try {
-      const response = await transactionAPI.getSpendingByCategory();
-      const categoryNames = response.categories?.map((cat: any) => cat.category) || [];
-      
-      // Add default categories if none exist
-      const defaultCategories = [
-        'Food & Dining',
-        'Transportation', 
-        'Shopping',
-        'Entertainment',
-        'Bills & Utilities',
-        'Healthcare',
-        'Travel',
-        'Other'
-      ];
-      
-      // Combine and deduplicate without using Set (for compatibility)
-      const allCategories = Array.from(
-        new Map(
-          [...categoryNames, ...defaultCategories].map(cat => [cat, true])
-        ).keys()
-      );
-      return allCategories.sort();
+      const response = await categoryAPI.getAll();
+      return [...(response.categories ?? [])].sort();
     } catch (error) {
       console.error('Failed to fetch categories:', error);
-      // Return default categories as fallback
-      return [
-        'Food & Dining',
-        'Transportation', 
-        'Shopping',
-        'Entertainment',
-        'Bills & Utilities',
-        'Healthcare',
-        'Travel',
-        'Other'
-      ];
+      return [];
     }
   };
 
