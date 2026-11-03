@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { PlaidLink } from "../components/plaid/PlaidLink";
 import { SyncStatus } from "../components/sync/SyncStatus";
 import SidebarLayout from "../components/layout/SidebarLayout";
+import NetWorthChart from "../components/charts/NetWorthChart";
 import { accountAPI, transactionAPI } from "../services/api";
 import { TransactionNotes } from "../components/transactions/TransactionNotes";
 import {
@@ -92,18 +93,10 @@ const Overview: React.FC = () => {
     }).format(amount);
   };
 
-  // Calculate dashboard metrics
+  // Cash flow metrics for the health cards. Net worth is its own card (W4.5), because
+  // summing account balances here would count debt as positive.
   const getDashboardMetrics = () => {
-    const accounts = dashboardData?.accounts?.accounts || [];
     const transactionSummary = dashboardData?.transactions?.summary;
-    
-    const totalBalance = accounts.reduce((sum: number, account: any) => 
-      sum + account.balances.current, 0
-    );
-
-    const availableBalance = accounts.reduce((sum: number, account: any) => 
-      sum + (account.balances.available || account.balances.current), 0
-    );
 
     // Use real transaction data if available, otherwise show account-based metrics
     const income = transactionSummary?.income || 0;
@@ -112,13 +105,10 @@ const Overview: React.FC = () => {
     const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
 
     return {
-      totalBalance,
-      availableBalance,
       income,
       expenses,
       netAmount,
       savingsRate,
-      accountsCount: accounts.length
     };
   };
 
@@ -218,29 +208,8 @@ const Overview: React.FC = () => {
             {/* Sync Status */}
             <SyncStatus onSyncComplete={handleSyncComplete} />
 
-            {/* Net Worth Hero Section */}
-            <section className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-lg text-white p-8 mb-6">
-              <div className="text-center">
-                <p className="text-blue-100 text-sm uppercase tracking-wide font-medium mb-2">Net Worth</p>
-                <p className="text-4xl md:text-5xl font-bold mb-4">
-                  {metrics ? formatCurrency(metrics.totalBalance) : '--'}
-                </p>
-                <div className="flex items-center justify-center space-x-6 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-300 rounded-full"></div>
-                    <span className="text-blue-100">
-                      {metrics?.accountsCount || 0} accounts connected
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-300 rounded-full"></div>
-                    <span className="text-blue-100">
-                      Last updated: {new Date().toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </section>
+            {/* Net Worth: history chart with liabilities counted negative (W4.5) */}
+            <NetWorthChart />
 
             {/* Financial Health Cards */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">

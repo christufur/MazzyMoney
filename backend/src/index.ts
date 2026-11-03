@@ -13,6 +13,7 @@ import transactionRoutes from './routes/transactions';
 import { accountsRouter } from './routes/accounts';
 import budgets from './routes/budgets';
 import analyticsRoutes from './routes/analytics';
+import { netWorthRouter } from './routes/networth';
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use('/api/transactions', transactionRoutes); // New cached transactions rout
 app.use('/api/accounts', accountsRouter); // New cached accounts route
 app.use('/api/budgets', budgets);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/networth', netWorthRouter);
 
 // Health check endpoint
 app.get('/health', async (req: Request, res: Response) => {

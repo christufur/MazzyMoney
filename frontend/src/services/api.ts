@@ -318,6 +318,50 @@ export const accountAPI = {
   },
 };
 
+export type NetWorthRange = '1m' | '3m' | '6m' | '1y' | 'all';
+
+export interface NetWorthPoint {
+  date: string;
+  assets: number;
+  liabilities: number;
+  netWorth: number;
+}
+
+export interface NetWorthAccount {
+  id: string;
+  name: string;
+  type: string;
+  isManual: boolean;
+  isLiability: boolean;
+  /** Stored (positive) balance; liabilities are negated for display. */
+  balance: number;
+}
+
+export interface NetWorthResponse {
+  current: {
+    assets: number;
+    liabilities: number;
+    netWorth: number;
+  };
+  change: {
+    amount: number;
+    percent: number | null;
+  };
+  points: NetWorthPoint[];
+  accounts: NetWorthAccount[];
+}
+
+export const networthAPI = {
+  /**
+   * Net worth history. Liabilities already count negative in the totals.
+   * For ranges longer than 6 months the server samples once a week.
+   */
+  get: async (range: NetWorthRange = '6m'): Promise<NetWorthResponse> => {
+    const response = await api.get('/api/networth', { params: { range } });
+    return response.data;
+  },
+};
+
 // Add request interceptor for logging
 api.interceptors.request.use(
   (config) => {
