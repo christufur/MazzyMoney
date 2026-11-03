@@ -42,17 +42,28 @@ export class AnalyticsService {
 
   /**
    * Get spending insights and anomalies
+   *
+   * Compares the current calendar month so far (UTC day 1 up to now) with the
+   * same day range of the previous month (UTC day 1 up to the same day of the
+   * month, capped at the last day of that month).
    */
   static async getSpendingInsights(userId: string) {
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-    
-    const thisMonth = new Date();
-    thisMonth.setMonth(thisMonth.getMonth());
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth();
+    const day = now.getUTCDate();
+
+    const thisMonthStart = new Date(Date.UTC(year, month, 1));
+    const previousMonthStart = new Date(Date.UTC(year, month - 1, 1));
+    const lastDayOfPreviousMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    // Exclusive end: the day after the capped day-of-month.
+    const previousMonthEnd = new Date(
+      Date.UTC(year, month - 1, Math.min(day, lastDayOfPreviousMonth) + 1)
+    );
 
     const [lastMonthData, thisMonthData] = await Promise.all([
-      this.getSpendingByCategory(userId, lastMonth),
-      this.getSpendingByCategory(userId, thisMonth)
+      this.getSpendingByCategoryInRange(userId, previousMonthStart, previousMonthEnd),
+      this.getSpendingByCategoryInRange(userId, thisMonthStart, now)
     ]);
 
     const insights = [];
@@ -61,7 +72,13 @@ export class AnalyticsService {
     for (const [category, thisMonthAmount] of Object.entries(thisMonthData)) {
       const lastMonthAmount = lastMonthData[category] || 0;
       const change = thisMonthAmount - lastMonthAmount;
-      const percentChange = lastMonthAmount > 0 ? (change / lastMonthAmount) * 100 : 0;
+      // Spending with no baseline last month counts as a 100% increase.
+      const percentChange =
+        lastMonthAmount > 0
+          ? (change / lastMonthAmount) * 100
+          : thisMonthAmount > 0
+            ? 100
+            : 0;
       
       if (Math.abs(percentChange) > 20) { // Significant change
         insights.push({
@@ -155,7 +172,7 @@ export class AnalyticsService {
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
     transactions.forEach(transaction => {
-      const dayName = dayNames[transaction.date.getDay()];
+      const dayName = dayNames[transaction.date.getUTCDay()];
       dayData[dayName as keyof typeof dayData].total += transaction.amount;
       dayData[dayName as keyof typeof dayData].count += 1;
     });
@@ -172,8 +189,8 @@ export class AnalyticsService {
    * Get monthly spending summary
    */
   static async getMonthlySummary(userId: string, year: number) {
-    const startDate = new Date(year, 0, 1);
-    const endDate = new Date(year + 1, 0, 1);
+    const startDate = new Date(Date.UTC(year, 0, 1));
+    const endDate = new Date(Date.UTC(year + 1, 0, 1));
 
     const transactions = await prisma.transaction.findMany({
       where: {
@@ -203,7 +220,7 @@ export class AnalyticsService {
     }
 
     transactions.forEach(transaction => {
-      const month = transaction.date.getMonth();
+      const month = transaction.date.getUTCMonth();
       const monthData = monthlyData.get(month)!;
       const category = transaction.primaryCategory || 'Other';
       
@@ -280,10 +297,7 @@ export class AnalyticsService {
     };
   }
 
-  private static async getSpendingByCategory(userId: string, startDate: Date) {
-    const endDate = new Date(startDate);
-    endDate.setMonth(endDate.getMonth() + 1);
-
+  private static async getSpendingByCategoryInRange(userId: string, startDate: Date, endDate: Date) {
     const transactions = await prisma.transaction.findMany({
       where: {
         userId,
