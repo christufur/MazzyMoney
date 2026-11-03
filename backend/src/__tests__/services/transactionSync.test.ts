@@ -346,6 +346,126 @@ describe('TransactionSyncService', () => {
     expect(saved!.categorySource).toBe('RULE');
   });
 
+  it('cleans the memo into merchantDisplay when Plaid sends no merchant name', async () => {
+    queuedPages([
+      {
+        added: [
+          plaidTransaction({
+            transaction_id: `sync-memo-${stamp}`,
+            merchant_name: null,
+            name: 'Withdrawal / DAVES HOT CHICKEN 1225 EL PASO TX Date 10/31/26 000000063049441404',
+          }),
+        ],
+        next: 'cursor-memo',
+      },
+    ]);
+
+    await TransactionSyncService.syncItem(ITEM_ID);
+
+    const saved = await prisma.transaction.findUnique({
+      where: { plaidTransactionId: `sync-memo-${stamp}` },
+    });
+    expect(saved!.merchantName).toBeNull();
+    expect(saved!.merchantDisplay).toBe('Daves Hot Chicken');
+  });
+
+  it('leaves merchantDisplay empty when Plaid sends a merchant name of its own', async () => {
+    queuedPages([
+      {
+        added: [
+          plaidTransaction({
+            transaction_id: `sync-named-${stamp}`,
+            merchant_name: 'Blue Bottle Coffee',
+            name: 'BLUE BOTTLE COFFEE SAN FRANCISCO CA',
+          }),
+        ],
+        next: 'cursor-named',
+      },
+    ]);
+
+    await TransactionSyncService.syncItem(ITEM_ID);
+
+    const saved = await prisma.transaction.findUnique({
+      where: { plaidTransactionId: `sync-named-${stamp}` },
+    });
+    expect(saved!.merchantName).toBe('Blue Bottle Coffee');
+    // Plaid's own name is already readable, so the cleaner does not compete with it.
+    expect(saved!.merchantDisplay).toBeNull();
+  });
+
+  it("keeps a rule's rename instead of the cleaned memo", async () => {
+    await prisma.rule.create({
+      data: {
+        userId: USER_ID,
+        priority: 5,
+        matchMerchant: 'daves hot',
+        setMerchant: "Dave's Hot Chicken",
+      },
+    });
+
+    queuedPages([
+      {
+        added: [
+          plaidTransaction({
+            transaction_id: `sync-memo-rule-${stamp}`,
+            merchant_name: null,
+            name: 'Withdrawal / DAVES HOT CHICKEN 1225 EL PASO TX Date 10/31/26 0000000630',
+          }),
+        ],
+        next: 'cursor-memo-rule',
+      },
+    ]);
+
+    await TransactionSyncService.syncItem(ITEM_ID);
+
+    const saved = await prisma.transaction.findUnique({
+      where: { plaidTransactionId: `sync-memo-rule-${stamp}` },
+    });
+    expect(saved!.merchantDisplay).toBe("Dave's Hot Chicken");
+  });
+
+  it('never overwrites a merchantDisplay a name was already set on, on a re-sync', async () => {
+    await seedAccounts();
+    const accountId = await accountIdOf(CHECKING_ID);
+    const rowId = `sync-display-kept-${stamp}`;
+
+    await prisma.transaction.create({
+      data: {
+        plaidTransactionId: rowId,
+        userId: USER_ID,
+        accountId,
+        name: 'Withdrawal / MAVERIK #752 / Ref1: 5541082144',
+        merchantName: null,
+        merchantDisplay: 'Maverik gas',
+        amount: 40,
+        date: new Date('2026-10-20'),
+        categories: [],
+        primaryCategory: 'Gas & Fuel',
+        categorySource: 'PLAID',
+      },
+    });
+
+    queuedPages([
+      {
+        modified: [
+          plaidTransaction({
+            transaction_id: rowId,
+            merchant_name: null,
+            name: 'Withdrawal / MAVERIK #752 / Ref1: 5541082144 Ref2: 1102092144',
+            amount: 41,
+          }),
+        ],
+        next: 'cursor-display-kept',
+      },
+    ]);
+
+    await TransactionSyncService.syncItem(ITEM_ID);
+
+    const saved = await prisma.transaction.findUnique({ where: { plaidTransactionId: rowId } });
+    expect(saved!.amount).toBe(41);
+    expect(saved!.merchantDisplay).toBe('Maverik gas');
+  });
+
   it('replaces the pending row with the posted row and keeps notes, review, and the USER category', async () => {
     await seedAccounts();
     const accountId = await accountIdOf(CHECKING_ID);
