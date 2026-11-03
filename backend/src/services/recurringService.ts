@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import type { RecurringSeries } from '../../prisma/generated/prisma';
+import { NotifyService, householdDay, notificationMoney } from './notifyService';
 
 /**
  * Recurring charge detection.
@@ -33,12 +34,41 @@ const CONSISTENCY_RATIO = 2 / 3;
 /** Amounts may differ from the median by this much. */
 const AMOUNT_TOLERANCE = 0.15;
 
+/**
+ * A price change needs four charges: two at the new price to compare against two or
+ * more at the old one.
+ */
+const MIN_CHARGES_FOR_PRICE_CHANGE = 4;
+
+/** A price change is only reported when it clears both a share and a floor. */
+const PRICE_CHANGE_RATE = 0.05;
+const PRICE_CHANGE_MIN_AMOUNT = 1;
+
+/** A change older than this is still stored (the page can show it), but no longer pushed. */
+export const PRICE_CHANGE_PUSH_DAYS = 120;
+
 export interface RecurringTransactionInput {
   amount: number;
   date: Date;
   name: string;
   merchantName?: string | null;
   merchantDisplay?: string | null;
+}
+
+export interface PriceChange {
+  from: number;
+  to: number;
+  changedOn: Date;
+}
+
+/**
+ * Whether a change is recent enough to ring about.
+ *
+ * Detection can only date a change at most one interval back, so in practice this only
+ * matters for a long-interval bill; it is here so a stale change is never a surprise buzz.
+ */
+export function isRecentPriceChange(changedOn: Date, today: Date = householdDay()): boolean {
+  return utcDayNumber(today) - utcDayNumber(changedOn) <= PRICE_CHANGE_PUSH_DAYS;
 }
 
 export interface DetectedSeries {
@@ -48,6 +78,8 @@ export interface DetectedSeries {
   intervalDays: number;
   lastDate: Date;
   nextDate: Date;
+  /** Set when the latest charges cost more (or less) than the ones before them. */
+  priceChange?: PriceChange;
 }
 
 /** The raw merchant text, cleaned of a rule-set name: display name, else bank name, else the description. */
@@ -76,6 +108,52 @@ function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+}
+
+/** Within the same band the series check uses, so a little tax does not read as a new price. */
+function nearAmount(value: number, reference: number): boolean {
+  return Math.abs(value - reference) <= Math.abs(reference) * AMOUNT_TOLERANCE + 1e-6;
+}
+
+/**
+ * A subscription that got more expensive (or cheaper).
+ *
+ * The latest two charges are the new price and everything before them is the old one.
+ * A step that clears both 5% and $1 is a change; smaller drift is not. The change is
+ * dated at the first charge of the unbroken run at the new price, and that run must
+ * hold at least two charges, so an amount that merely bounces between two values never
+ * reads as a price change.
+ */
+function findPriceChange(sorted: RecurringTransactionInput[]): PriceChange | null {
+  if (sorted.length < MIN_CHARGES_FOR_PRICE_CHANGE) return null;
+
+  // The latest two charges are the new price; everything before them is the old one.
+  const newPrice = median(sorted.slice(-2).map((transaction) => transaction.amount));
+  const oldPrice = median(sorted.slice(0, -2).map((transaction) => transaction.amount));
+
+  // A zero or negative "old price" cannot be compared by share; it is not a price.
+  if (oldPrice <= 0) return null;
+
+  const difference = newPrice - oldPrice;
+  if (Math.abs(difference) <= PRICE_CHANGE_MIN_AMOUNT) return null;
+  if (Math.abs(difference) <= oldPrice * PRICE_CHANGE_RATE) return null;
+
+  // Walk back over the charges that sit at the new price rather than the old one.
+  let firstNew = sorted.length - 1;
+  while (firstNew > 0) {
+    const amount = sorted[firstNew - 1].amount;
+    if (Math.abs(amount - newPrice) >= Math.abs(amount - oldPrice)) break;
+    firstNew--;
+  }
+
+  // One charge at a new price is a one-off (a late fee, a repair), not a new price.
+  if (sorted.length - firstNew < 2) return null;
+
+  return {
+    from: roundCents(oldPrice),
+    to: roundCents(newPrice),
+    changedOn: utcMidnight(sorted[firstNew].date),
+  };
 }
 
 /** Whole days since epoch for a UTC calendar date; dates are stored as UTC midnight. */
@@ -155,9 +233,14 @@ export function detectSeries(transactions: RecurringTransactionInput[], now: Dat
 
     const amounts = sorted.map((transaction) => transaction.amount);
     const medianAmount = median(amounts);
-    const steadyAmounts = amounts.filter(
-      (amount) => Math.abs(amount - medianAmount) <= Math.abs(medianAmount) * AMOUNT_TOLERANCE + 1e-6
-    ).length;
+    const priceChange = findPriceChange(sorted);
+
+    // A series that changed price has two steady prices, not one: every charge must sit
+    // at the old amount or the new one. Without a change, all must sit near the median.
+    const steadyAmounts = priceChange
+      ? amounts.filter((amount) => nearAmount(amount, priceChange.from) || nearAmount(amount, priceChange.to))
+          .length
+      : amounts.filter((amount) => nearAmount(amount, medianAmount)).length;
 
     if (steadyAmounts / amounts.length < CONSISTENCY_RATIO) continue;
 
@@ -169,10 +252,12 @@ export function detectSeries(transactions: RecurringTransactionInput[], now: Dat
     detected.push({
       merchantKey: key,
       displayName: merchantLabel(sorted[sorted.length - 1]),
-      averageAmount: roundCents(medianAmount),
+      // A series that changed price costs what it costs now, so the total stays honest.
+      averageAmount: roundCents(priceChange ? priceChange.to : medianAmount),
       intervalDays: match.intervalDays,
       lastDate,
       nextDate: addIntervalUtc(lastDate, match.intervalDays),
+      ...(priceChange ? { priceChange } : {}),
     });
   }
 
@@ -217,8 +302,31 @@ export class RecurringService {
     const detected = detectSeries(transactions);
     const detectedKeys = new Set(detected.map((series) => series.merchantKey));
 
+    const existing = await prisma.recurringSeries.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        merchantKey: true,
+        status: true,
+        intervalDays: true,
+        nextDate: true,
+        amountChangedAt: true,
+      },
+    });
+    const existingByKey = new Map(existing.map((row) => [row.merchantKey, row]));
+
     const saved: RecurringSeries[] = [];
     for (const series of detected) {
+      const before = existingByKey.get(series.merchantKey);
+
+      // Store a price change once. Ignored series are the user's own decision to leave
+      // out of the monthly total, so nothing is recorded or pushed for them.
+      const change = series.priceChange;
+      const isNewChange =
+        Boolean(change) &&
+        (before ? before.status === 'ACTIVE' : true) &&
+        (!before?.amountChangedAt || change!.changedOn.getTime() > before.amountChangedAt.getTime());
+
       const savedSeries = await prisma.recurringSeries.upsert({
         where: { userId_merchantKey: { userId, merchantKey: series.merchantKey } },
         // `status` is deliberately absent: a user's IGNORED stays IGNORED.
@@ -228,6 +336,8 @@ export class RecurringService {
           intervalDays: series.intervalDays,
           lastDate: series.lastDate,
           nextDate: series.nextDate,
+          // Untouched when there is no new change, so the page keeps its old line.
+          ...(isNewChange ? { previousAmount: change!.from, amountChangedAt: change!.changedOn } : {}),
         },
         create: {
           userId,
@@ -237,18 +347,18 @@ export class RecurringService {
           intervalDays: series.intervalDays,
           lastDate: series.lastDate,
           nextDate: series.nextDate,
+          ...(isNewChange ? { previousAmount: change!.from, amountChangedAt: change!.changedOn } : {}),
         },
       });
       saved.push(savedSeries);
+
+      if (isNewChange) {
+        await RecurringService.announcePriceChange(userId, savedSeries, change!);
+      }
     }
 
     // A series the detector no longer finds disappears once its next charge is a full cycle overdue.
     const now = Date.now();
-    const existing = await prisma.recurringSeries.findMany({
-      where: { userId },
-      select: { id: true, merchantKey: true, status: true, intervalDays: true, nextDate: true },
-    });
-
     const stale = existing.filter((row) => {
       if (row.status !== 'ACTIVE') return false;
       if (detectedKeys.has(row.merchantKey)) return false;
@@ -262,6 +372,32 @@ export class RecurringService {
     }
 
     return saved;
+  }
+
+  /**
+   * Tells the household about a new price. Once per change: the dedupe key carries the
+   * day the new price started, so a replayed or nightly refresh stays quiet.
+   */
+  private static async announcePriceChange(
+    userId: string,
+    series: RecurringSeries,
+    change: PriceChange
+  ): Promise<void> {
+    // A change found months later (a first refresh after a long gap) is worth recording, not a buzz.
+    if (!isRecentPriceChange(change.changedOn)) return;
+
+    const direction = change.to > change.from ? 'went up' : 'went down';
+    const day = change.changedOn.toISOString().slice(0, 10);
+
+    await NotifyService.notify(userId, {
+      kind: 'price-change',
+      key: `${series.id}:${day}`,
+      title: 'Price change',
+      message: `${series.displayName} ${direction} from ${notificationMoney(change.from)} to ${notificationMoney(change.to)} a month.`,
+      tags: [change.to > change.from ? 'chart_with_upwards_trend' : 'chart_with_downwards_trend'],
+      priority: 3,
+      click: '/recurring',
+    });
   }
 
   /** Nightly job: every user, one after another. */

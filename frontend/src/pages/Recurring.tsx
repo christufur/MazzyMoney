@@ -40,6 +40,34 @@ const overdueLabel = (row: RecurringSeries) => `Expected ${shortDate(row.nextDat
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+/** A price change stays on the page for this long, then the row reads like any other. */
+const PRICE_CHANGE_DAYS = 120;
+
+interface PriceChangeNote {
+  up: boolean;
+  /** The old price, already formatted. */
+  from: string;
+  /** The day the new price started, already formatted. */
+  since: string;
+}
+
+/** "Up from $11.99 since Oct 8" — or Down, in sage. Null when there is nothing to say. */
+const priceChangeNote = (row: RecurringSeries, today: number): PriceChangeNote | null => {
+  const { previousAmount, amountChangedAt, averageAmount } = row;
+  if (previousAmount == null || !amountChangedAt) return null;
+
+  const changedOn = new Date(amountChangedAt);
+  if (Number.isNaN(changedOn.getTime())) return null;
+  // An old change is history, not news: the page shows the current price alone.
+  if (today - changedOn.getTime() > PRICE_CHANGE_DAYS * MS_PER_DAY) return null;
+
+  return {
+    up: averageAmount > previousAmount,
+    from: money(previousAmount),
+    since: shortDate(amountChangedAt),
+  };
+};
+
 /** Phone stacks name over the facts; from md the columns line up under the header. */
 // Fixed last column: the header's empty cell must be as wide as the rows' Ignore button.
 const ROW_GRID = 'md:grid-cols-[minmax(0,1fr)_7rem_6rem_6rem_10rem_5rem]';
@@ -50,10 +78,13 @@ interface SeriesRowProps {
   overdue: boolean;
   busy: boolean;
   onToggle: (row: RecurringSeries) => void;
+  /** Today's UTC midnight, the line an old price change falls behind. */
+  today: number;
 }
 
-const SeriesRow: React.FC<SeriesRowProps> = ({ row, ignored, overdue, busy, onToggle }) => {
+const SeriesRow: React.FC<SeriesRowProps> = ({ row, ignored, overdue, busy, onToggle, today }) => {
   const when = overdue ? overdueLabel(row) : shortDate(row.nextDate);
+  const priceChange = priceChangeNote(row, today);
 
   return (
     <li
@@ -68,6 +99,14 @@ const SeriesRow: React.FC<SeriesRowProps> = ({ row, ignored, overdue, busy, onTo
         <span className={cn('block truncate text-[15px]', ignored ? 'text-muted-foreground' : 'text-ink')}>
           {row.displayName}
         </span>
+        {priceChange && (
+          <span data-testid={`price-change-${row.id}`} className="mt-0.5 block text-xs text-muted-foreground">
+            <span className={cn(!ignored && (priceChange.up ? 'text-ink' : 'text-sage-ink'))}>
+              {priceChange.up ? 'Up' : 'Down'}
+            </span>{' '}
+            from <span className="tabular-nums">{priceChange.from}</span> since {priceChange.since}
+          </span>
+        )}
         <span className="mt-0.5 block text-xs md:hidden">
           {frequencyLabel(row.intervalDays)} · ≈ {money(row.monthlyEquivalent)} a month ·{' '}
           <span className={cn(overdue && 'text-muted-foreground')}>{when}</span>
@@ -312,6 +351,7 @@ const RecurringPage: React.FC = () => {
                     overdue={overdueIds.has(row.id)}
                     busy={savingId === row.id}
                     onToggle={handleToggle}
+                    today={today}
                   />
                 ))}
               </ul>
@@ -335,6 +375,7 @@ const RecurringPage: React.FC = () => {
                   overdue={false}
                   busy={savingId === row.id}
                   onToggle={handleToggle}
+                  today={today}
                 />
               ))}
             </ul>

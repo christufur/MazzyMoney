@@ -24,6 +24,8 @@ function toPayloadSeries(series: RecurringSeries) {
     nextDate: series.nextDate,
     status: series.status,
     monthlyEquivalent: monthlyEquivalent(series),
+    previousAmount: series.previousAmount,
+    amountChangedAt: series.amountChangedAt,
   };
 }
 

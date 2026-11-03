@@ -38,6 +38,8 @@ const series = (overrides: Partial<RecurringSeries> = {}): RecurringSeries => ({
   nextDate: daysFromNow(20).toISOString(),
   status: 'ACTIVE',
   monthlyEquivalent: 15.72,
+  previousAmount: null,
+  amountChangedAt: null,
   ...overrides,
 });
 
@@ -245,6 +247,70 @@ describe('Recurring page', () => {
     fireEvent.click(within(ignoredRow).getByRole('button', { name: 'Restore' }));
 
     await waitFor(() => expect(setStatus).toHaveBeenCalledWith('series-ignored', 'ACTIVE'));
+  });
+
+  it('shows a recent price change under the name, ink when up and sage when down', async () => {
+    getAll.mockResolvedValue(
+      payload({
+        series: [
+          series({
+            id: 'series-spotify',
+            merchantKey: 'spotify',
+            displayName: 'Spotify',
+            averageAmount: 14.08,
+            monthlyEquivalent: 14.29,
+            previousAmount: 11.99,
+            amountChangedAt: daysFromNow(-25).toISOString(),
+          }),
+          series({
+            id: 'series-gym-down',
+            merchantKey: 'gym down',
+            displayName: 'Gym',
+            averageAmount: 20,
+            monthlyEquivalent: 20.29,
+            previousAmount: 25,
+            amountChangedAt: daysFromNow(-10).toISOString(),
+          }),
+          series(),
+        ],
+        monthlyTotal: 2000,
+      })
+    );
+
+    renderPage();
+
+    const up = await screen.findByTestId('price-change-series-spotify');
+    expect(up.textContent).toMatch(/^Up from \$11\.99 since \w{3} \d{1,2}$/);
+    // "Up" is the household's ink; the rest of the line stays muted.
+    expect(up.className).toContain('text-muted-foreground');
+    expect(within(up).getByText('Up').className).toContain('text-ink');
+
+    const down = screen.getByTestId('price-change-series-gym-down');
+    expect(down.textContent).toMatch(/^Down from \$25\.00 since \w{3} \d{1,2}$/);
+    expect(within(down).getByText('Down').className).toContain('text-sage-ink');
+
+    // A series whose price never changed gets no line.
+    expect(screen.queryByTestId('price-change-series-netflix')).not.toBeInTheDocument();
+  });
+
+  it('drops the price line once the change is older than 120 days', async () => {
+    getAll.mockResolvedValue(
+      payload({
+        series: [
+          series({
+            id: 'series-old-change',
+            previousAmount: 9.99,
+            amountChangedAt: daysFromNow(-150).toISOString(),
+          }),
+        ],
+        monthlyTotal: 1572,
+      })
+    );
+
+    renderPage();
+
+    await screen.findByText('All recurring');
+    expect(screen.queryByTestId('price-change-series-old-change')).not.toBeInTheDocument();
   });
 
   it('asks the server to detect again when Refresh is clicked', async () => {

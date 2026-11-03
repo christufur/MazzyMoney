@@ -693,6 +693,10 @@ export interface RecurringSeries {
   nextDate: string;
   status: RecurringStatus;
   monthlyEquivalent: number;
+  /** The amount before the latest price change; null when the price never changed. */
+  previousAmount: number | null;
+  /** The day the current price started. */
+  amountChangedAt: string | null;
 }
 
 export interface RecurringResponse {

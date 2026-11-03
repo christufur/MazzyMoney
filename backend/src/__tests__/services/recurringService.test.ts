@@ -27,6 +27,7 @@ mock.module('../../lib/plaid', () => ({
 
 import {
   detectSeries,
+  isRecentPriceChange,
   merchantKey,
   monthlyEquivalent,
   RecurringService,
@@ -219,10 +220,105 @@ describe('monthlyEquivalent', () => {
   });
 });
 
+describe('detectSeries price changes', () => {
+  const detectAtLastCharge = (rows: Parameters<typeof detectSeries>[0]) =>
+    detectSeries(rows, new Date(Math.max(...rows.map((row) => row.date.getTime()))));
+
+  it('reports no change while the price is steady', () => {
+    const series = detectAtLastCharge([
+      expense(DAY(2025, 0, 8), 11.99, 'Spotify'),
+      expense(DAY(2025, 1, 8), 11.99, 'Spotify'),
+      expense(DAY(2025, 2, 8), 11.99, 'Spotify'),
+      expense(DAY(2025, 3, 8), 11.99, 'Spotify'),
+    ]);
+
+    expect(series).toHaveLength(1);
+    expect(series[0].priceChange).toBeUndefined();
+    expect(series[0].averageAmount).toBe(11.99);
+  });
+
+  it('finds a subscription that went from 11.99 to 14.08, dated at the first 14.08 charge', () => {
+    const series = detectAtLastCharge([
+      expense(DAY(2025, 0, 8), 11.99, 'Spotify'),
+      expense(DAY(2025, 1, 8), 11.99, 'Spotify'),
+      expense(DAY(2025, 2, 8), 11.99, 'Spotify'),
+      expense(DAY(2025, 3, 8), 14.08, 'Spotify'),
+      expense(DAY(2025, 4, 8), 14.08, 'Spotify'),
+    ]);
+
+    expect(series).toHaveLength(1);
+    // The report says what the subscription costs now, not a blend of both prices.
+    expect(series[0].averageAmount).toBe(14.08);
+    expect(series[0].priceChange).toEqual({
+      from: 11.99,
+      to: 14.08,
+      changedOn: DAY(2025, 3, 8),
+    });
+  });
+
+  it('finds a price that went down', () => {
+    const series = detectAtLastCharge([
+      expense(DAY(2025, 0, 3), 20, 'Gym'),
+      expense(DAY(2025, 1, 3), 20, 'Gym'),
+      expense(DAY(2025, 2, 3), 15, 'Gym'),
+      expense(DAY(2025, 3, 3), 15, 'Gym'),
+    ]);
+
+    expect(series[0].priceChange).toMatchObject({ from: 20, to: 15 });
+    expect(series[0].averageAmount).toBe(15);
+  });
+
+  it('ignores drift under 5% and under $1', () => {
+    // 12.99 -> 13.49 is 3.8% and $0.50: a tax tweak, not a price change.
+    const small = detectAtLastCharge([
+      expense(DAY(2025, 0, 8), 12.99, 'Spotify'),
+      expense(DAY(2025, 1, 8), 12.99, 'Spotify'),
+      expense(DAY(2025, 2, 8), 13.49, 'Spotify'),
+      expense(DAY(2025, 3, 8), 13.49, 'Spotify'),
+    ]);
+    expect(small[0].priceChange).toBeUndefined();
+    // No change means the ordinary median, as before.
+    expect(small[0].averageAmount).toBe(13.24);
+
+    // 20.00 -> 21.00 is 5% exactly: still not more than 5%.
+    const atTheLine = detectAtLastCharge([
+      expense(DAY(2025, 0, 8), 20, 'Plan'),
+      expense(DAY(2025, 1, 8), 20, 'Plan'),
+      expense(DAY(2025, 2, 8), 21, 'Plan'),
+      expense(DAY(2025, 3, 8), 21, 'Plan'),
+    ]);
+    expect(atTheLine[0].priceChange).toBeUndefined();
+  });
+
+  it('does not report a change from only two charges', () => {
+    // Three charges cannot show a step: two at the old price and one at the new is a one-off.
+    const series = detectAtLastCharge([
+      expense(DAY(2025, 0, 5), 10, 'Cloud'),
+      expense(DAY(2025, 1, 5), 10, 'Cloud'),
+      expense(DAY(2025, 2, 5), 18, 'Cloud'),
+    ]);
+
+    expect(series).toHaveLength(1);
+    expect(series[0].priceChange).toBeUndefined();
+  });
+});
+
 const stamp = Date.now();
 const USER_ID = `recurring-test-user-${stamp}`;
 const OTHER_USER_ID = `recurring-test-other-${stamp}`;
 const ACCOUNT_ID = `recurring-test-account-${stamp}`;
+const TOPIC = `recurring-test-topic-${stamp}`;
+
+// ntfy is a fake `fetch` on globalThis: no test here reaches the network.
+const realFetch = globalThis.fetch;
+const fetchMock = mock(async (_url: any, _init?: any) => new Response('ok', { status: 200 }));
+
+/** The arguments of the most recent push, narrowed so a test can read them. */
+const lastFetch = () => {
+  const calls = fetchMock.mock.calls;
+  const [url, init] = calls[calls.length - 1] as unknown as [string, any];
+  return { url, headers: init.headers as Record<string, string>, body: init.body as string };
+};
 
 let transactionSeq = 0;
 
@@ -272,7 +368,13 @@ beforeAll(async () => {
   await cleanup();
 
   await prisma.user.create({
-    data: { id: USER_ID, email: `recurring-test-${stamp}@example.com`, fullName: 'Recurring Test User', passwordHash: 'hash' },
+    data: {
+      id: USER_ID,
+      email: `recurring-test-${stamp}@example.com`,
+      fullName: 'Recurring Test User',
+      passwordHash: 'hash',
+      ntfyTopic: TOPIC,
+    },
   });
   await prisma.user.create({
     data: { id: OTHER_USER_ID, email: `recurring-test-other-${stamp}@example.com`, fullName: 'Other User', passwordHash: 'hash' },
@@ -292,6 +394,14 @@ beforeAll(async () => {
 beforeEach(async () => {
   await prisma.transaction.deleteMany({ where: { userId: { in: [USER_ID, OTHER_USER_ID] } } });
   await prisma.recurringSeries.deleteMany({ where: { userId: { in: [USER_ID, OTHER_USER_ID] } } });
+  await prisma.notificationLog.deleteMany({ where: { userId: { in: [USER_ID, OTHER_USER_ID] } } });
+
+  process.env.NTFY_URL = 'http://ntfy.test';
+  process.env.APP_URL = 'https://money.example.ts.net';
+
+  fetchMock.mockReset();
+  fetchMock.mockImplementation(async () => new Response('ok', { status: 200 }));
+  (globalThis as any).fetch = fetchMock;
 });
 
 afterAll(async () => {
@@ -340,8 +450,111 @@ describe('RecurringService.refreshForUser', () => {
     expect(await prisma.recurringSeries.findMany({ where: { userId: USER_ID } })).toEqual([]);
   });
 
-  it('deletes a cancelled series once two intervals have passed', async () => {
-    const longAgo = new Date(Date.now() - 200 * MS_PER_DAY);
+  it('records a price change once and pushes it once', async () => {
+    // Five monthly charges: three at 11.99, then two at 14.08.
+    for (const months of [4, 3, 2]) {
+      await createTransaction(USER_ID, { name: 'Spotify', amount: 11.99, date: monthsAgo(months) });
+    }
+    for (const months of [1, 0]) {
+      await createTransaction(USER_ID, { name: 'Spotify', amount: 14.08, date: monthsAgo(months) });
+    }
+
+    await RecurringService.refreshForUser(USER_ID);
+
+    const rows = await prisma.recurringSeries.findMany({ where: { userId: USER_ID } });
+    expect(rows).toHaveLength(1);
+    // The current price drives the monthly total, and the old one is kept for the page.
+    expect(rows[0].averageAmount).toBe(14.08);
+    expect(rows[0].previousAmount).toBe(11.99);
+    expect(rows[0].amountChangedAt?.toISOString().slice(0, 10)).toBe(monthsAgo(1).toISOString().slice(0, 10));
+
+    // One push, and the message says both prices.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const { url, headers, body } = lastFetch();
+    expect(url).toBe(`http://ntfy.test/${encodeURIComponent(TOPIC)}`);
+    expect(headers.Title).toBe('Price change');
+    expect(headers.Click).toBe('https://money.example.ts.net/recurring');
+    expect(body).toBe('Spotify went up from $11.99 to $14.08 a month.');
+
+    // The nightly job runs again: nothing new to record, nothing to push.
+    await RecurringService.refreshForUser(USER_ID);
+
+    const again = await prisma.recurringSeries.findMany({ where: { userId: USER_ID } });
+    expect(again[0].previousAmount).toBe(11.99);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(await prisma.notificationLog.count({ where: { userId: USER_ID, kind: 'price-change' } })).toBe(1);
+  });
+
+  it('says "went down" when a bill got cheaper', async () => {
+    for (const months of [4, 3, 2]) {
+      await createTransaction(USER_ID, { name: 'Gym', amount: 25, date: monthsAgo(months) });
+    }
+    for (const months of [1, 0]) {
+      await createTransaction(USER_ID, { name: 'Gym', amount: 20, date: monthsAgo(months) });
+    }
+
+    await RecurringService.refreshForUser(USER_ID);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(lastFetch().body).toBe('Gym went down from $25.00 to $20.00 a month.');
+  });
+
+  it('does not push a change older than 120 days', () => {
+    // Detection dates a change at most one interval back, so the gate is tested directly:
+    // a change found months late is worth showing on the page, not a buzz.
+    const today = DAY(2026, 10, 2);
+    expect(isRecentPriceChange(DAY(2026, 6, 8), today)).toBe(true); // 117 days
+    expect(isRecentPriceChange(DAY(2026, 6, 1), today)).toBe(false); // 154 days
+  });
+
+  it('records a change and stays quiet when the household has no ntfy topic', async () => {
+    await prisma.user.update({ where: { id: USER_ID }, data: { ntfyTopic: null } });
+
+    for (const months of [4, 3, 2]) {
+      await createTransaction(USER_ID, { name: 'Music', amount: 10, date: monthsAgo(months) });
+    }
+    for (const months of [1, 0]) {
+      await createTransaction(USER_ID, { name: 'Music', amount: 12, date: monthsAgo(months) });
+    }
+
+    await RecurringService.refreshForUser(USER_ID);
+
+    const rows = await prisma.recurringSeries.findMany({ where: { userId: USER_ID } });
+    expect(rows[0].previousAmount).toBe(10);
+    expect(rows[0].amountChangedAt?.toISOString().slice(0, 10)).toBe(monthsAgo(1).toISOString().slice(0, 10));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('says nothing about a price change on an ignored series', async () => {
+    for (const months of [4, 3, 2]) {
+      await createTransaction(USER_ID, { name: 'Magazine', amount: 5, date: monthsAgo(months) });
+    }
+    for (const months of [1, 0]) {
+      await createTransaction(USER_ID, { name: 'Magazine', amount: 9, date: monthsAgo(months) });
+    }
+
+    await prisma.recurringSeries.create({
+      data: {
+        userId: USER_ID,
+        merchantKey: 'magazine',
+        displayName: 'Magazine',
+        averageAmount: 5,
+        intervalDays: 30,
+        lastDate: monthsAgo(2),
+        nextDate: monthsAgo(1),
+        status: 'IGNORED',
+      },
+    });
+
+    await RecurringService.refreshForUser(USER_ID);
+
+    const rows = await prisma.recurringSeries.findMany({ where: { userId: USER_ID } });
+    expect(rows[0].status).toBe('IGNORED');
+    expect(rows[0].previousAmount).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('deletes a cancelled series once two intervals have passed', async () => {    const longAgo = new Date(Date.now() - 200 * MS_PER_DAY);
     const soon = new Date(Date.now() + 10 * MS_PER_DAY);
 
     const stale = await prisma.recurringSeries.create({
@@ -459,6 +672,38 @@ describe('GET /api/recurring', () => {
     const response = await request(app).get('/api/recurring');
     expect(response.status).toBe(401);
   });
+
+  it('includes the previous amount and the day the price changed', async () => {
+    const changedOn = new Date(Date.UTC(2026, 9, 8));
+    await prisma.recurringSeries.create({
+      data: {
+        userId: USER_ID,
+        merchantKey: 'price change',
+        displayName: 'Spotify',
+        averageAmount: 14.08,
+        intervalDays: 30,
+        lastDate: new Date(),
+        nextDate: new Date(Date.now() + 5 * MS_PER_DAY),
+        status: 'ACTIVE',
+        previousAmount: 11.99,
+        amountChangedAt: changedOn,
+      },
+    });
+
+    const response = await request(app)
+      .get('/api/recurring')
+      .set('Authorization', authHeader(USER_ID));
+
+    expect(response.status).toBe(200);
+    expect(response.body.series[0]).toMatchObject({
+      displayName: 'Spotify',
+      averageAmount: 14.08,
+      previousAmount: 11.99,
+      amountChangedAt: changedOn.toISOString(),
+    });
+    // A series that never changed price sends nulls, not a missing field.
+    expect(response.body.series[0].previousAmount).not.toBeUndefined();
+  });
 });
 
 describe('PATCH /api/recurring/:id', () => {
@@ -572,5 +817,6 @@ describe('POST /api/recurring/refresh', () => {
 });
 
 afterEach(() => {
+  (globalThis as any).fetch = realFetch;
   mock.clearAllMocks();
 });
