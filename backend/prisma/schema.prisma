@@ -18,21 +18,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // Legacy single-bank Plaid fields. Data copied to PlaidItem by migration rebuild_v2;
-  // dropped in S2 once W2.1 and W2.3 stop reading them.
-  plaidAccessToken     String?
-  plaidItemId          String?
-  plaidInstitutionId   String?
-  plaidInstitutionName String?
-  lastSyncAt           DateTime?
-  syncStatus           SyncStatus @default(NEVER_SYNCED)
-
   // Relationships
   accounts                 Account[]
   transactions             Transaction[]
   budgets                  Budget[]
   savingsGoals             SavingsGoal[]
-  userCategoryRules        UserCategoryRule[]
   plaidItems               PlaidItem[]
   rules                    Rule[]
   recurringSeries          RecurringSeries[]
@@ -40,19 +30,6 @@ model User {
   budgetAlertNotifications BudgetAlertNotification[]
 
   @@map("users")
-}
-
-model UserCategoryRule {
-  id        String   @id @default(uuid())
-  userId    String // Which user this rule belongs to
-  merchant  String // Exact or regex match for merchantName
-  category  String // Override category (e.g., 'Food & Dining')
-  isRegex   Boolean  @default(false) // allow flexible regex rules
-  priority  Int      @default(1) // if multiple matches apply
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
 }
 
 model PlaidItem {
@@ -277,14 +254,6 @@ model SavingsGoal {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("savings_goals")
-}
-
-enum SyncStatus {
-  NEVER_SYNCED
-  SYNCING
-  SYNCED
-  ERROR
-  TOKEN_EXPIRED
 }
 
 enum BudgetPeriod {

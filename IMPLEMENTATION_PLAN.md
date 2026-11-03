@@ -101,7 +101,7 @@ cd frontend && bunx tsc --noEmit && bun run build && bun run test
 
 ### S1 Schema change (orchestrator) ★ — **Done 2026-11-02**
 
-As built, S1 is **additive**: the legacy `User` Plaid columns, `UserCategoryRule`, the old categorizer services, and `Budget.period/endDate` stay, so the app still compiles and runs. W2.1 and W2.3 move the code to `PlaidItem`. **S2** (orchestrator, after W2.3) drops `User.plaid*`, `syncStatus`, `lastSyncAt`, `SyncStatus`, and `UserCategoryRule`. W4.3 decides what to do with `Budget.period/endDate`. The data migration was tested on a copy of the 2026-11-02 backup (2 Items, 5 accounts linked).
+As built, S1 is **additive**: the legacy `User` Plaid columns, `UserCategoryRule`, the old categorizer services, and `Budget.period/endDate` stay, so the app still compiles and runs. W2.1 and W2.3 move the code to `PlaidItem`. **S2 — done 2026-11-03** (migration `drop_legacy_user_plaid`, tested on the backup copy) dropped `User.plaid*`, `syncStatus`, `lastSyncAt`, `SyncStatus`, and `UserCategoryRule`. W4.3 decides what to do with `Budget.period/endDate`. The data migration was tested on a copy of the 2026-11-02 backup (2 Items, 5 accounts linked).
 
 Original spec:
 One migration, `rebuild_v2`. **Money stays `Float`, rounded to cents on write.** *Shortcut: `Decimal` would change every reader in the app (Prisma sends it as a JSON string). Change to `Decimal` only if a reconcile check finds a cent difference.*
