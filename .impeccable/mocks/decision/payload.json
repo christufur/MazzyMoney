@@ -1,0 +1,95 @@
+{
+  "title": "Choose the visual world for the money app",
+  "question": "The roll assigned the Banknote Series. Keep it, take an alternate, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "kind": "assigned",
+      "label": "Banknote Series",
+      "kicker": "THE ROLL",
+      "lineage": "Modern currency design (Swiss 9th series, Dutch guilders)",
+      "thesis": "Every category is a denomination: one calm hue each, set on clean white like a well-designed note series.",
+      "palette": ["#fbfbf9", "#1d2430", "#2f6f5e", "#d9a33b", "#3a6fb0", "#b4533c", "#7a5aa6"],
+      "materials": ["fine engraved hairlines", "denomination color fields", "tabular figures"],
+      "viewport": "Side rail, net worth with 6-month line, this month's budgets as denomination-colored bars, review queue count, next bills.",
+      "risk": "Six category hues can turn into a rainbow if they leak beyond charts and budget bars.",
+      "raised": [
+        {"from": "challenger-exposure", "raise": "One strict 10-step neutral ramp is the only grey; no ad-hoc greys anywhere."},
+        {"from": "challenger-botanical", "raise": "Every month-to-month comparison is drawn on one fixed scale, so months compare honestly."},
+        {"from": "challenger-crouwel", "raise": "One 8px grid; figures align in tabular columns across every screen."},
+        {"from": "challenger-timetable", "raise": "A short type scale; rank comes from weight and figures, not big size jumps."}
+      ],
+      "html": ".impeccable/mocks/decision/assigned.html"
+    },
+    {
+      "id": "model-pick",
+      "kind": "pick",
+      "label": "Kakeibo Household Ledger",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Japanese kakeibo household account books",
+      "thesis": "The monthly money ritual: plan, record, reflect, on calm pages that celebrate what was saved.",
+      "palette": ["#f6f4ef", "#22252b", "#4f7a6a", "#c96f4a", "#e4e0d6"],
+      "materials": ["ruled monthly spreads", "soft ink tones", "hand-set totals"],
+      "viewport": "This month as a spread: income and savings goal at top, budgets as ruled rows, a reflection line at the bottom.",
+      "risk": "Familiar warm-paper look; most calm finance apps land close to this.",
+      "html": ".impeccable/mocks/decision/model-pick.html"
+    },
+    {
+      "id": "challenger-ticket",
+      "kind": "challenger",
+      "catalogId": "vernacular-ephemera-jet-age-ticket-wallet",
+      "label": "Ticket Wallet",
+      "verdict": "competitive",
+      "lineage": "Jet-age airline ticket wallets",
+      "thesis": "Each transaction is a coupon: pending, posted, and removed states stamp on, nothing silently disappears.",
+      "palette": ["#ffffff", "#1c2a4a", "#c8322b", "#5b3f8c"],
+      "materials": ["coupon stock", "carbon numerals", "status stamps"],
+      "viewport": "Transactions as a coupon column with stamped states; a wallet summary shows what remains of the month.",
+      "case": "Strong on transaction states; household members do not identify with airline paperwork.",
+      "risk": "Navy and red can feel official rather than calm.",
+      "hero": "https://impeccable.style/worlds/cards/vernacular-ephemera-jet-age-ticket-wallet-hero.webp",
+      "html": ".impeccable/mocks/decision/challenger-ticket.html"
+    },
+    {
+      "id": "challenger-botanical", "kind": "challenger", "catalogId": "editorial-sequence-montage-botanical-folio-season",
+      "label": "Botanical Folio", "verdict": "declined", "lineage": "Seasonal botanical plates",
+      "thesis": "Months as fixed-scale plates of one growing plant.", "palette": ["#f4efe2", "#3d6b3a", "#b8322a"],
+      "materials": ["engraved plates"], "viewport": "Five month plates on one baseline.",
+      "case": "Growth reads encouraging, but money is not a plant; clarity suffers.", "risk": "Decorative over a working screen.",
+      "kept": "Same exact scale for every month comparison.",
+      "hero": "https://impeccable.style/worlds/cards/editorial-sequence-montage-botanical-folio-season-hero.webp"
+    },
+    {
+      "id": "challenger-exposure", "kind": "challenger", "catalogId": "operate-b-exposure-record-zone-sheets",
+      "label": "Exposure Record", "verdict": "declined", "lineage": "Darkroom printing records",
+      "thesis": "Data as hatched zones on a tonal ramp.", "palette": ["#efefef", "#5a5a5a", "#c2187a"],
+      "materials": ["zone ramp", "hatching"], "viewport": "Overlapping translucent sheets.",
+      "case": "Nobody in the household thinks in darkroom zones.", "risk": "Opaque to non-experts.",
+      "kept": "A single strict tonal ramp as the only neutrals.",
+      "hero": "https://impeccable.style/worlds/cards/operate-b-exposure-record-zone-sheets-hero.webp"
+    },
+    {
+      "id": "challenger-crouwel", "kind": "challenger", "catalogId": "crouwel-grid-specimen",
+      "label": "Crouwel Grid", "verdict": "declined", "lineage": "Wim Crouwel grid specimens",
+      "thesis": "The construction grid is the design.", "palette": ["#ffffff", "#1a1a1a", "#2d5bd7"],
+      "materials": ["visible grid"], "viewport": "Grid-built numerals.",
+      "case": "Too poster-like for a daily tool.", "risk": "Cold.",
+      "kept": "One strict grid with aligned tabular figures.",
+      "hero": "https://impeccable.style/worlds/cards/crouwel-grid-specimen-hero.webp"
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": false},
+  "canon": true,
+  "canonCard": {
+    "kind": "canon",
+    "label": "The category standard",
+    "thesis": "A clean modern finance dashboard in the style of Monarch and Copilot, executed at full craft.",
+    "palette": ["#ffffff", "#f5f6f8", "#111827", "#4f46e5"],
+    "materials": ["white cards", "soft shadows", "one accent"],
+    "viewport": "Sidebar, greeting, net worth chart card, budget cards, recent transactions.",
+    "risk": "Looks like every finance app by design.",
+    "html": ".impeccable/mocks/decision/canon.html"
+  },
+  "steer": true
+}

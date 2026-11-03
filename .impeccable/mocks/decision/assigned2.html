@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}body{width:1440px;height:900px;overflow:hidden;font-family:Figtree,system-ui,sans-serif;background:#f7f9fa;color:#17222b;font-feature-settings:"tnum"}
+.app{display:grid;grid-template-columns:224px 1fr;height:900px}
+.rail{background:#17222b;color:#cfd8de;padding:26px 16px;display:flex;flex-direction:column;gap:2px}
+.brand{color:#fff;font-weight:700;font-size:15px;margin:0 10px 26px}
+.nav{padding:9px 12px;border-radius:8px;font-size:14px;display:flex;justify-content:space-between}.nav.on{background:#24333f;color:#fff;font-weight:600}
+.nav b{background:#e9a23b;color:#17222b;font-size:12px;border-radius:10px;padding:1px 7px}
+.foot{margin-top:auto;font-size:12px;color:#9fb0bc;padding:0 12px}
+main{padding:28px 36px;display:grid;grid-template-columns:1fr 340px;gap:22px;align-content:start}
+.k{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:#4d5d69;font-weight:600}
+.fc{grid-column:1/3;background:#fff;border:1px solid #e1e8ec;border-radius:14px;padding:22px 26px}
+.fh{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px}
+.now{font-size:38px;font-weight:600;letter-spacing:-.01em}.now small{font-size:15px;color:#4d5d69;font-weight:500;margin-left:10px}
+.low{text-align:right;font-size:14px;color:#4d5d69}.low b{display:block;font-size:20px;color:#17222b}
+.leg{display:flex;gap:18px;font-size:12px;color:#4d5d69;margin-top:6px}.leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.card{background:#fff;border:1px solid #e1e8ec;border-radius:14px;padding:20px 22px}
+.row{display:grid;grid-template-columns:150px 1fr 130px;gap:16px;align-items:center;padding:9px 0;font-size:14px;border-top:1px solid #eef2f4}.row:first-of-type{border:none}
+.bar{height:10px;border-radius:5px;background:#eaf1f6;overflow:hidden}.bar i{display:block;height:10px;border-radius:5px;background:#2c6e9b}
+.r{text-align:right;color:#4d5d69}.r b{color:#17222b}
+.rev{background:#2c6e9b;color:#fff;border:none}.rev .n{font-size:34px;font-weight:600;margin:4px 0}.rev p{font-size:13px;color:#d9e8f2}
+.btn{display:inline-block;margin-top:12px;background:#fff;color:#17222b;font-weight:600;font-size:13px;padding:8px 14px;border-radius:8px}
+.nw{font-size:26px;font-weight:600;margin-top:4px}.up{font-size:13px;color:#22603f;font-weight:600}
+</style></head><body><div class="app">
+<aside class="rail"><div class="brand">Mazzy Money</div><div class="nav on">Overview</div><div class="nav">Transactions <b>12</b></div><div class="nav">Budgets</div><div class="nav">Recurring</div><div class="nav">Net worth</div><div class="nav">Connections</div><div class="foot">3 of 10 banks · synced 8 min ago</div></aside>
+<main>
+<section class="fc"><div class="fh"><div><div class="k">Cash forecast · next 30 days</div><div class="now">$6,482<small>in checking today</small></div></div><div class="low">Lowest point<b>$3,904 on Dec 2</b>after rent clears</div></div>
+<svg width="1100" height="190" viewBox="0 0 1100 190"><g stroke="#eef2f4"><line x1="0" y1="40" x2="1100" y2="40"/><line x1="0" y1="90" x2="1100" y2="90"/></g>
+<path d="M0 60 L110 66 L180 70 L250 52 L330 58 L420 60 L480 64 L560 40 L640 44 L700 48 L760 96 L840 100 L920 104 L1000 80 L1100 82" fill="none" stroke="#2c6e9b" stroke-width="3"/>
+<path d="M0 60 L110 66 L180 70 L250 52 L330 58 L420 60 L480 64 L560 40 L640 44 L700 48 L760 96 L840 100 L920 104 L1000 80 L1100 82 L1100 120 L0 120Z" fill="#7fb2d6" opacity=".18"/>
+<line x1="0" y1="124" x2="1100" y2="124" stroke="#c7d3da"/>
+<g fill="#7fb2d6"><rect x="105" y="124" width="12" height="10"/><rect x="245" y="124" width="12" height="7"/><rect x="475" y="124" width="12" height="16"/><rect x="755" y="124" width="12" height="52"/><rect x="915" y="124" width="12" height="14"/></g>
+<rect x="555" y="110" width="12" height="14" fill="#2f8a5b"/><rect x="995" y="110" width="12" height="14" fill="#2f8a5b"/>
+<g fill="#4d5d69" font-size="11"><text x="0" y="188">Nov 18</text><text x="250" y="188">Nov 25</text><text x="540" y="188">Payday Dec 1</text><text x="740" y="188">Rent</text><text x="1040" y="188">Dec 17</text></g></svg>
+<div class="leg"><span><i style="background:#2c6e9b"></i>Expected balance</span><span><i style="background:#7fb2d6"></i>Bills and recurring</span><span><i style="background:#2f8a5b"></i>Income</span></div></section>
+<section class="card"><div class="k" style="margin-bottom:8px">November budgets · 12 days left</div>
+<div class="row"><span>Groceries</span><div class="bar"><i style="width:62%"></i></div><span class="r"><b>$372</b> of $600</span></div>
+<div class="row"><span>Food &amp; Dining</span><div class="bar"><i style="width:81%;background:#e9a23b"></i></div><span class="r"><b>$243</b> of $300</span></div>
+<div class="row"><span>Transportation</span><div class="bar"><i style="width:44%"></i></div><span class="r"><b>$132</b> of $300</span></div>
+<div class="row"><span>Shopping</span><div class="bar"><i style="width:100%;background:#c5523f"></i></div><span class="r"><b style="color:#a63f2e">$228</b> of $200</span></div></section>
+<div style="display:flex;flex-direction:column;gap:22px">
+<section class="card rev"><div class="k" style="color:#d9e8f2">Needs review</div><div class="n">12 new</div><p>Since Sunday. About 2 minutes.</p><span class="btn">Start review</span></section>
+<section class="card"><div class="k">Net worth</div><div class="nw">$48,210</div><div class="up">+ $1,084 in 6 months</div></section></div>
+</main></div></body></html>

@@ -1,0 +1,39 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Archivo+Narrow:wght@500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}body{width:1440px;height:900px;overflow:hidden;font-family:Archivo,system-ui,sans-serif;background:#eef0f4;color:#1c2a4a;font-feature-settings:"tnum"}
+.top{height:60px;background:#1c2a4a;color:#fff;display:flex;align-items:center;padding:0 36px;gap:30px;font-size:13px;font-family:"Archivo Narrow";letter-spacing:.1em;text-transform:uppercase}
+.top b{font-family:Archivo;letter-spacing:.04em;font-size:15px;margin-right:30px}.top span{opacity:.7}.top .on{opacity:1;border-bottom:3px solid #c8322b;padding:20px 0 17px}
+.wrap{display:grid;grid-template-columns:380px 1fr;gap:28px;padding:28px 36px}
+.wallet{background:#fff;border-radius:12px;padding:24px;border:1px solid #d6dae3}
+.lab{font-family:"Archivo Narrow";font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#5b6478}
+.big{font-size:40px;font-weight:700;margin:6px 0 2px}.sub{font-size:13px;color:#5b6478}
+.stub{margin-top:18px;border-top:2px dashed #d6dae3;padding-top:16px}
+.leg{display:flex;justify-content:space-between;font-size:14px;padding:8px 0;border-bottom:1px solid #eef0f4}
+.coupons{display:flex;flex-direction:column;gap:10px}
+.cp{display:grid;grid-template-columns:110px 1fr 170px 130px 110px;align-items:center;background:#fff;border:1px solid #d6dae3;border-radius:10px;height:70px;padding:0 22px;position:relative}
+.cp:before{content:"";position:absolute;left:96px;top:10px;bottom:10px;border-left:2px dashed #e1e4eb}
+.d{font-family:"Archivo Narrow";font-weight:700;font-size:13px;letter-spacing:.06em;color:#5b6478}
+.m{font-weight:600;font-size:15px}.m small{display:block;font-weight:400;color:#5b6478;font-size:12px}
+.cat{font-size:13px;color:#5b6478}.amt{text-align:right;font-weight:700;font-size:17px;color:#5b3f8c}
+.st{justify-self:end;font-family:"Archivo Narrow";font-weight:700;font-size:11px;letter-spacing:.14em;padding:4px 8px;border:2px solid currentColor;border-radius:3px;transform:rotate(-4deg)}
+.pend{color:#8a5a0c}.ok{color:#226447}.void{color:#c8322b}.cp.x .m,.cp.x .amt{text-decoration:line-through;opacity:.5}
+.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs span{background:#fff;border:1px solid #d6dae3;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600}.tabs .on{background:#1c2a4a;color:#fff;border-color:#1c2a4a}
+</style></head><body>
+<div class="top"><b>Mazzy Money</b><span>Overview</span><span class="on">Transactions</span><span>Budgets</span><span>Recurring</span><span>Connections</span></div>
+<div class="wrap">
+<div class="wallet"><div class="lab">November wallet</div><div class="big">$1,716</div><div class="sub">left after spending · 12 days to go</div>
+<div class="stub"><div class="lab" style="margin-bottom:6px">Remaining by budget</div>
+<div class="leg"><span>Groceries</span><b>$228</b></div><div class="leg"><span>Food &amp; Dining</span><b>$57</b></div><div class="leg"><span>Transportation</span><b>$168</b></div><div class="leg"><span>Shopping</span><b style="color:#c8322b">−$28</b></div><div class="leg"><span>Entertainment</span><b>$105</b></div></div>
+<div class="stub"><div class="lab">Needs review</div><div class="big" style="font-size:30px">12 coupons</div></div></div>
+<div><div class="tabs"><span>All</span><span class="on">Needs review · 12</span><span>Transfers</span></div>
+<div class="coupons">
+<div class="cp"><span class="d">NOV 18</span><span class="m">Smith's Marketplace<small>Checking ••4021</small></span><span class="cat">Groceries</span><span class="amt">$84.21</span><span class="st pend">PENDING</span></div>
+<div class="cp"><span class="d">NOV 18</span><span class="m">Maverik<small>Visa ••8812</small></span><span class="cat">Transportation</span><span class="amt">$41.06</span><span class="st ok">POSTED</span></div>
+<div class="cp"><span class="d">NOV 17</span><span class="m">Dutch Bros<small>Visa ••8812</small></span><span class="cat">Food &amp; Dining</span><span class="amt">$6.75</span><span class="st ok">POSTED</span></div>
+<div class="cp"><span class="d">NOV 17</span><span class="m">Amazon<small>Visa ••8812</small></span><span class="cat">Shopping</span><span class="amt">$32.99</span><span class="st ok">POSTED</span></div>
+<div class="cp x"><span class="d">NOV 16</span><span class="m">Amazon<small>Visa ••8812</small></span><span class="cat">Shopping</span><span class="amt">$32.99</span><span class="st void">VOID</span></div>
+<div class="cp"><span class="d">NOV 16</span><span class="m">Transfer to Savings<small>Checking ••4021</small></span><span class="cat">Transfer</span><span class="amt" style="color:#5b6478">$500.00</span><span class="st ok">POSTED</span></div>
+<div class="cp"><span class="d">NOV 15</span><span class="m">Payroll · Acme Co<small>Checking ••4021</small></span><span class="cat">Income</span><span class="amt" style="color:#226447">+$2,410.00</span><span class="st ok">POSTED</span></div>
+<div class="cp"><span class="d">NOV 14</span><span class="m">Rocky Mountain Power<small>Checking ••4021</small></span><span class="cat">Bills &amp; Utilities</span><span class="amt">$86.12</span><span class="st ok">POSTED</span></div>
+</div></div></div></body></html>

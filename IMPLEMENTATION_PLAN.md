@@ -237,3 +237,18 @@ Bun 1.3 replaces npm, Node, ts-node, nodemon, and jest in the backend. In the fr
 - The invite is one shared code in env, not codes that users create. Reason: see W1.3.
 - Bun replaces npm/Node/jest (§5).
 - Plaid's recurring endpoint is not used. The app finds recurring charges itself (cost rule 4).
+
+## Wave D: Redesign (Kakeibo Household Ledger)
+
+Direction chosen 2026-11-03 on the impeccable decision page. Contract: `.impeccable/surfaces/frontend-src-app-tsx.md`. Product facts: `PRODUCT.md`. Starts after W2.6 and W4.3 merge, so agents do not restyle pages that are still changing. W4.2 (rules page) is built inside the new system.
+
+| ID | Task | Who |
+|---|---|---|
+| D1 | Foundation: tokens (Tailwind theme), shadcn/ui primitives restyled to the contract, app shell (desktop top tabs, phone bottom tabs), fonts served from the project | orchestrator |
+| D2 | "This month" overview spread (the approved sketch) with the reflection line | orchestrator |
+| D3 | Transactions + review queue (phone: one per screen, snap) | agent |
+| D4 | Budgets (fixed scale history) and Recurring | agent |
+| D5 | Net worth, Connections, manual accounts, auth screens | agent |
+| D6 | Finish review (impeccable-finish-reviewer), fixes, DESIGN.md (impeccable-documenter) | orchestrator |
+
+Image-mockup skills (taste-skill imagegen) need image generation, which this machine does not have; the build is code-led, as impeccable requires for app screens anyway.

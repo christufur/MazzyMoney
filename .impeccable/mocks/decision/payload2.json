@@ -1,0 +1,82 @@
+{
+  "title": "Choose the visual world for the money app",
+  "question": "Second hand, steered toward calm and household. Kakeibo stays available as your favorite.",
+  "options": [
+    {
+      "id": "assigned2",
+      "kind": "assigned",
+      "label": "Nordic Forecast",
+      "kicker": "THE ROLL",
+      "lineage": "Scandinavian public weather forecasts (meteograms)",
+      "thesis": "Money read like a calm weather forecast: the next 30 days of your balance, with bills falling like rain below it.",
+      "palette": ["#f7f9fa", "#17222b", "#2c6e9b", "#7fb2d6", "#e9a23b", "#c5523f"],
+      "materials": ["meteogram strip", "soft sky blues", "clear tabular figures"],
+      "viewport": "Side rail; a 30-day cash forecast strip leads (balance line, bill bars below); budgets and review queue under it.",
+      "risk": "The forecast strip is new; it must stay readable for household members who never saw a meteogram.",
+      "raised": [
+        {"from": "challenger-feed", "raise": "On the phone, the review queue shows one transaction per screen and snaps to the next."},
+        {"from": "challenger-lexicon", "raise": "Long lists carry guide words: the date range in view is always named at the top."},
+        {"from": "challenger-orienteering", "raise": "One reserved color marks only the item you are acting on; nothing else may use it."},
+        {"from": "challenger-wayfinding", "raise": "Each screen shows the next decision first: what needs you now, then everything else."}
+      ],
+      "html": ".impeccable/mocks/decision/assigned2.html"
+    },
+    {
+      "id": "kakeibo",
+      "kind": "grounded",
+      "label": "Kakeibo Household Ledger",
+      "kicker": "YOUR FAVORITE",
+      "lineage": "Japanese kakeibo household account books",
+      "thesis": "The monthly money ritual: plan, record, reflect, on calm pages that celebrate what was saved.",
+      "palette": ["#f6f4ef", "#22252b", "#4f7a6a", "#c96f4a", "#e4e0d6"],
+      "materials": ["ruled monthly spreads", "soft ink tones", "hand-set totals"],
+      "viewport": "This month as a spread: income and savings at top, budgets as ruled rows, a reflection line, review list beside it.",
+      "risk": "Familiar warm-paper look; most calm finance apps land close to this.",
+      "html": ".impeccable/mocks/decision/kakeibo.html"
+    },
+    {
+      "id": "pick2",
+      "kind": "pick",
+      "label": "Envelope System",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Cash-envelope household budgeting",
+      "thesis": "Each budget is a labeled envelope that empties as you spend and refills each month.",
+      "palette": ["#fafaf7", "#1f2328", "#3d7a5f", "#d8c9a8", "#b5543f"],
+      "materials": ["kraft envelopes", "handwritten-style labels", "fill levels"],
+      "viewport": "Budgets as a grid of envelopes with fill levels; net worth and review queue in a calm header band.",
+      "risk": "Familiar: YNAB and many budget apps use the envelope idea.",
+      "html": ".impeccable/mocks/decision/pick2.html"
+    },
+    {
+      "id": "challenger-annual", "kind": "challenger", "catalogId": "design-annual-s-plate-section",
+      "label": "Design Annual Plates", "verdict": "competitive", "lineage": "Design annual plate sections",
+      "thesis": "Near-white printed sheet, hairline rules, one grotesque; each account and budget is a registered plate.",
+      "palette": ["#f5f4f6", "#16181a", "#c9c7c4", "#dcddf3"],
+      "materials": ["uncoated stock", "registration marks", "hairlines"],
+      "viewport": "Net worth as a large plate, budgets and bills in a 4-up hairline row.",
+      "case": "Very clean and calm; reads more like a printed annual than a friendly household tool.",
+      "risk": "Can feel cool and gallery-like rather than encouraging.",
+      "hero": "https://impeccable.style/worlds/cards/design-annual-s-plate-section-hero.webp",
+      "html": ".impeccable/mocks/decision/challenger-annual.html"
+    },
+    {"id": "challenger-feed", "kind": "challenger", "catalogId": "pop-culture-shelf-vertical-video-feed-surface", "label": "Vertical Feed", "verdict": "declined", "lineage": "Vertical video feeds", "thesis": "One item fills the screen; snap to the next.", "palette": ["#000000", "#ffffff"], "materials": ["full-bleed media"], "viewport": "One transaction per screen.", "case": "Wrong energy for a calm money tool.", "risk": "Addictive pacing.", "kept": "Phone review queue: one transaction per screen, snap to next.", "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-vertical-video-feed-surface-hero.webp"},
+    {"id": "challenger-lexicon", "kind": "challenger", "catalogId": "rw-lexicon-shoulder-and-plate", "label": "Lexicon Page", "verdict": "declined", "lineage": "19th-century lexicons", "thesis": "Fixed measure, guide words, color only in plates.", "palette": ["#f3ecdc", "#111111", "#c0392b"], "materials": ["uncoated cream", "engraving"], "viewport": "Dense entries with guide words.", "case": "Too scholarly for the household.", "risk": "Dense.", "kept": "Guide words naming the date range in view.", "hero": "https://impeccable.style/worlds/cards/rw-lexicon-shoulder-and-plate-hero.webp"},
+    {"id": "challenger-orienteering", "kind": "challenger", "catalogId": "notation-diagram-systems-orienteering-map", "label": "Orienteering Map", "verdict": "declined", "lineage": "Orienteering maps", "thesis": "Fixed terrain colors, one purple course on top.", "palette": ["#ffffff", "#7a5c2e", "#a83ba8"], "materials": ["contours"], "viewport": "Course over terrain.", "case": "Nobody here reads maps to manage money.", "risk": "Busy.", "kept": "One reserved color for the item in action.", "hero": "https://impeccable.style/worlds/cards/notation-diagram-systems-orienteering-map-hero.webp"},
+    {"id": "challenger-wayfinding", "kind": "challenger", "catalogId": "wayfinding-cartography-signage-terminal-yellow-wayfinding", "label": "Airport Wayfinding", "verdict": "declined", "lineage": "Airport signage", "thesis": "Yellow bands show the next decision.", "palette": ["#ffd200", "#000000", "#ffffff"], "materials": ["sign panels"], "viewport": "Next decision band.", "case": "Loud yellow fights a calm brief.", "risk": "Shouty.", "kept": "Show the next decision first.", "hero": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-terminal-yellow-wayfinding-hero.webp"},
+    {"id": "challenger-ikeda", "kind": "challenger", "catalogId": "ikeda-datamatics", "label": "Datamatics", "verdict": "declined", "lineage": "Ryoji Ikeda data art", "thesis": "Black and white barcode data fields.", "palette": ["#000000", "#ffffff"], "materials": ["barcodes"], "viewport": "Strobing data field.", "case": "Cold and strobing; the opposite of calm.", "risk": "Hostile.", "kept": "Strict tabular figure columns.", "hero": "https://impeccable.style/worlds/cards/ikeda-datamatics-hero.webp"}
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": false},
+  "canon": true,
+  "canonCard": {
+    "kind": "canon",
+    "label": "The category standard",
+    "thesis": "A clean modern finance dashboard in the style of Monarch and Copilot, executed at full craft.",
+    "palette": ["#ffffff", "#f5f6f8", "#111827", "#4f46e5"],
+    "materials": ["white cards", "soft shadows", "one accent"],
+    "viewport": "Sidebar, greeting, net worth chart card, budget cards, recent transactions.",
+    "risk": "Looks like every finance app by design.",
+    "html": ".impeccable/mocks/decision/canon2.html"
+  },
+  "steer": true
+}

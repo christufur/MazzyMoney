@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}body{width:1440px;height:900px;overflow:hidden;font-family:"Schibsted Grotesk",system-ui,sans-serif;background:#f5f4f6;color:#16181a;font-feature-settings:"tnum"}
+.bar{height:64px;display:flex;align-items:center;gap:32px;padding:0 40px;border-bottom:1px solid #c9c7c4;font-family:"JetBrains Mono";font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+.bar b{font-family:"Schibsted Grotesk";letter-spacing:0;text-transform:none;font-size:16px;font-weight:600;margin-right:24px}.bar .on{text-decoration:underline;text-underline-offset:6px}
+.plate{margin:28px 40px 0;border:1px solid #c9c7c4;padding:28px 32px;position:relative;background:#faf9fa}
+.plate:before,.plate:after{content:"+";position:absolute;font-family:"JetBrains Mono";color:#8c8a87;font-size:14px}.plate:before{left:-6px;top:-11px}.plate:after{right:-6px;bottom:-11px}
+.m{font-family:"JetBrains Mono";font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#4b4d50}
+.big{font-size:84px;font-weight:400;letter-spacing:-.02em;line-height:1;margin:10px 0}
+.seal{position:absolute;right:48px;top:30px;width:120px;height:120px;border-radius:50%;background:#dcddf3;display:flex;align-items:center;justify-content:center;text-align:center;font-family:"JetBrains Mono";font-size:11px;letter-spacing:.1em;line-height:1.5}
+.row{display:grid;grid-template-columns:repeat(4,1fr);margin:24px 40px 0;border-top:1px solid #c9c7c4;border-bottom:1px solid #c9c7c4}
+.cell{padding:20px 22px;border-left:1px solid #c9c7c4}.cell:first-child{border-left:none}
+.cell .v{font-size:30px;margin:8px 0 4px}.cell p{font-size:14px;color:#3c3e41}
+.track{height:4px;background:#e2e0dd;margin-top:12px}.track i{display:block;height:4px;background:#16181a}
+.btn{display:inline-block;background:#16181a;color:#fff;font-family:"JetBrains Mono";font-size:12px;letter-spacing:.12em;padding:12px 18px;margin-top:14px}
+</style></head><body>
+<div class="bar"><b>Mazzy Money</b><span class="on">Overview</span><span>Transactions 12</span><span>Budgets</span><span>Recurring</span><span>Net worth</span><span>Connections</span></div>
+<section class="plate"><div class="m">Plate 01 · Net worth · November 18, 2026</div><div class="big">$48,210.44</div><p>+ $1,084.20 over six months. Assets $71,904 · Liabilities $23,694.</p>
+<svg width="1000" height="120" style="margin-top:14px"><path d="M0 100 L100 94 L200 98 L300 84 L400 80 L500 86 L600 70 L700 66 L800 58 L900 50 L1000 40" fill="none" stroke="#16181a" stroke-width="1.5"/></svg>
+<div class="seal">ON PACE<br>TO SAVE<br>$2,300</div></section>
+<div class="row">
+<div class="cell"><div class="m">02 · Needs review</div><div class="v">12</div><p>New since Sunday.</p><span class="btn">REVIEW</span></div>
+<div class="cell"><div class="m">03 · Groceries</div><div class="v">$372</div><p>of $600 this month</p><div class="track"><i style="width:62%"></i></div></div>
+<div class="cell"><div class="m">04 · Food &amp; Dining</div><div class="v">$243</div><p>of $300 this month</p><div class="track"><i style="width:81%"></i></div></div>
+<div class="cell"><div class="m">05 · Next bill</div><div class="v">$11.99</div><p>Spotify on Nov 21</p></div>
+</div></body></html>
