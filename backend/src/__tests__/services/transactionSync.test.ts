@@ -270,8 +270,8 @@ describe('TransactionSyncService', () => {
       where: { accountId: { in: [await accountIdOf(CHECKING_ID), await accountIdOf(SAVINGS_ID)] } },
     });
     expect(snapshots).toHaveLength(2);
-    const today = new Date();
-    const expectedDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    const { householdDay } = await import('../../services/notifyService');
+    const expectedDate = householdDay();
     expect(snapshots[0].date.toISOString()).toBe(expectedDate.toISOString());
     expect(snapshots.map((s) => s.balance).sort()).toEqual([1200.5, 5000]);
   });

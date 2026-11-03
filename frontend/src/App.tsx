@@ -23,6 +23,7 @@ const RecurringPage = lazy(() => import('./pages/Recurring'));
 const RulesPage = lazy(() => import('./pages/Rules'));
 const ConnectionsPage = lazy(() => import('./pages/Connections'));
 const NetWorthPage = lazy(() => import('./pages/NetWorth'));
+const SettingsPage = lazy(() => import('./pages/Settings'));
 
 const LoadingSpinner: React.FC = () => (
   <div className="flex h-screen items-center justify-center bg-paper" role="status">
@@ -167,6 +168,15 @@ const App: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <ConnectionsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <SettingsPage />
                   </ProtectedRoute>
                 }
               />

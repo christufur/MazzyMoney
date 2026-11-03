@@ -29,9 +29,18 @@ services:
     environment:
       # Same variables as the db service, but pointing at the service name.
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/mazzy_money?schema=public
+      # Pushes leave through the ntfy service below (E2). Set NTFY_URL empty in .env to
+      # turn notifications off; the Settings page then says so instead of failing.
+      NTFY_URL: ${NTFY_URL-http://ntfy:80}
+      # Links in a push open the app on the tailnet; empty means no link on the push.
+      APP_URL: ${APP_URL:-}
+      # Household clock for the weekly recap and the "today" of balance snapshots.
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Denver}
     depends_on:
       db:
         condition: service_healthy
+      ntfy:
+        condition: service_started
     ports:
       # Localhost only. Tailscale serve is the way in.
       - "127.0.0.1:8000:8000"
@@ -45,6 +54,22 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  # Self-hosted push server (E2). Phones subscribe to one topic each through the ntfy app;
+  # `tailscale serve` in front of 8090 is what gets HTTPS and the tailnet to the phone.
+  ntfy:
+    image: binwiederhier/ntfy
+    restart: unless-stopped
+    command: serve
+    environment:
+      NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
+      NTFY_BEHIND_PROXY: "true"
+      # No accounts on a tailnet-only server: the topic name is the secret.
+      NTFY_AUTH_DEFAULT_ACCESS: read-write
+    volumes:
+      - ntfy-cache:/var/cache/ntfy
+    ports:
+      - "127.0.0.1:8090:80"
 
   backup:
     image: postgres:16
@@ -82,3 +107,4 @@ services:
 
 volumes:
   pgdata:
+  ntfy-cache:

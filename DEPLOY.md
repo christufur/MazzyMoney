@@ -33,7 +33,7 @@ Generate the random values with `openssl rand -hex 32` (use `-hex 16` for
 
 ```bash
 docker compose up -d --build
-docker compose ps              # db, app, backup; db and app say "healthy"
+docker compose ps              # db, ntfy, app, backup; db and app say "healthy"
 docker compose logs -f app     # migrations run, then the server listens
 ```
 
@@ -79,6 +79,42 @@ Every account after that needs the `INVITE_CODE` from `.env`, so keep it private
 or the signup page is an open door to anyone on the tailnet.
 
 Then connect a bank on the Connections page and run one sync.
+
+## 7. Phone notifications
+
+The compose file runs [ntfy](https://ntfy.sh) beside the app: the app posts a push
+to `http://ntfy:80`, and your phone's ntfy app reads it. Nothing leaves the tailnet.
+
+1. Expose ntfy on the tailnet with HTTPS:
+
+   ```bash
+   sudo tailscale serve --bg --https=8443 http://127.0.0.1:8090
+   tailscale serve status      # shows the :8443 URL
+   ```
+
+2. Install the **ntfy** app (iOS or Android). Add this server:
+
+   ```
+   https://<machine>.<tailnet>.ts.net:8443
+   ```
+
+3. In Mazzy Money open the account menu → **Settings**. Press **Generate** for a
+   topic, press **Save**, then **Send a test**. Subscribe to that exact topic in the
+   ntfy app; the test push should arrive within a few seconds.
+
+The topic name is the only thing protecting the pushes, so treat it like a password.
+Set `APP_URL` in `.env` to the app's tailnet address so a push opens the app when
+tapped, and `APP_TIMEZONE` if the household is not on `America/Denver` (the weekly
+recap arrives Sunday at 17:00 there). An empty `NTFY_URL` turns notifications off;
+the Settings page says so instead of failing.
+
+### What gets pushed
+
+- A bank needs a new login (once per connection per day).
+- A single new charge above the amount you set on the Settings page.
+- A budget reaching 90% and 100% this month (once each per budget per month).
+- A Sunday evening recap: what the week cost, what the month saved, and what still
+  needs review.
 
 ## Backups
 
