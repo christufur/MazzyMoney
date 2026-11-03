@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import SidebarLayout from '../components/layout/SidebarLayout';
 import { recurringAPI } from '../services/api';
 import type { RecurringResponse, RecurringSeries, RecurringStatus } from '../services/api';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import { money } from '@/lib/money';
 
 /** The labels the detector's intervals map to on the page. */
 const FREQUENCY_LABELS: Record<number, string> = {
@@ -39,23 +44,62 @@ const buildPayload = (series: RecurringSeries[]): RecurringResponse => {
   };
 };
 
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-
 /** Dates are UTC midnight in the API, so read them in UTC to avoid a day's drift. */
-const formatDate = (value: string) => {
+const shortDate = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('en-US', {
-    timeZone: 'UTC',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  return date.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
 };
+
+/** Phone stacks name over the facts; from md the columns line up under the header. */
+const ROW_GRID = 'md:grid-cols-[minmax(0,1fr)_8rem_6rem_6rem_6rem_auto]';
+
+interface SeriesRowProps {
+  row: RecurringSeries;
+  ignored: boolean;
+  busy: boolean;
+  onToggle: (row: RecurringSeries) => void;
+}
+
+const SeriesRow: React.FC<SeriesRowProps> = ({ row, ignored, busy, onToggle }) => (
+  <li
+    data-testid={`recurring-row-${row.id}`}
+    className={cn(
+      'ledger-line grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-3 last:border-b-0 md:gap-x-4',
+      ROW_GRID,
+      ignored && 'text-muted-foreground'
+    )}
+  >
+    <span className="min-w-0">
+      <span className={cn('block truncate text-[15px]', ignored ? 'text-muted-foreground' : 'text-ink')}>
+        {row.displayName}
+      </span>
+      <span className="mt-0.5 block text-xs md:hidden">
+        {frequencyLabel(row.intervalDays)} · ≈ {money(row.monthlyEquivalent)} a month · next{' '}
+        {shortDate(row.nextDate)}
+      </span>
+    </span>
+    <span className="hidden text-sm md:block">{frequencyLabel(row.intervalDays)}</span>
+    <span
+      className={cn('hidden text-right text-sm tabular-nums md:block', ignored ? 'text-muted-foreground' : 'text-ink')}
+    >
+      {money(row.averageAmount)}
+    </span>
+    <span className="hidden text-right text-sm tabular-nums md:block">≈ {money(row.monthlyEquivalent)}</span>
+    <span className="hidden text-right text-sm md:block">{shortDate(row.nextDate)}</span>
+    <span className="col-start-2 row-start-1 md:col-auto md:row-auto">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onToggle(row)}
+        disabled={busy}
+        className={cn('-mr-2 shrink-0', ignored ? 'text-ink' : 'text-muted-foreground')}
+      >
+        {busy ? 'Saving…' : ignored ? 'Restore' : 'Ignore'}
+      </Button>
+    </span>
+  </li>
+);
 
 const RecurringPage: React.FC = () => {
   const [data, setData] = useState<RecurringResponse | null>(null);
@@ -71,7 +115,7 @@ const RecurringPage: React.FC = () => {
       setData(await recurringAPI.getAll());
     } catch (err: any) {
       console.error('Error loading recurring charges:', err);
-      setError(err.response?.data?.error || 'Failed to load recurring charges.');
+      setError(err.response?.data?.error || 'Could not load repeating charges. Try again.');
     } finally {
       setLoading(false);
     }
@@ -88,7 +132,7 @@ const RecurringPage: React.FC = () => {
       setData(await recurringAPI.refresh());
     } catch (err: any) {
       console.error('Error refreshing recurring charges:', err);
-      setError(err.response?.data?.error || 'Failed to refresh recurring charges.');
+      setError(err.response?.data?.error || 'Could not look for repeating charges again. Try again.');
     } finally {
       setRefreshing(false);
     }
@@ -102,17 +146,15 @@ const RecurringPage: React.FC = () => {
       setError(null);
       const response = await recurringAPI.setStatus(row.id, nextStatus);
 
-      // Update in place so the totals and the next-30-days list stay in step with the table.
+      // Update in place so the total and the next-30-days list stay in step with the rows.
       setData((current) => {
         if (!current) return current;
-        const updated = current.series.map((item) =>
-          item.id === response.series.id ? response.series : item
-        );
+        const updated = current.series.map((item) => (item.id === response.series.id ? response.series : item));
         return buildPayload(updated);
       });
     } catch (err: any) {
       console.error('Error updating recurring charge:', err);
-      setError(err.response?.data?.error || 'Failed to update this recurring charge.');
+      setError(err.response?.data?.error || 'Could not update this charge. Try again.');
     } finally {
       setSavingId(null);
     }
@@ -128,159 +170,128 @@ const RecurringPage: React.FC = () => {
 
   const monthlyTotal = (data?.monthlyTotal ?? 0) / 100;
   const upcoming = data?.upcoming ?? [];
-
-  if (loading) {
-    return (
-      <SidebarLayout title="Recurring">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3">Loading recurring charges...</span>
-        </div>
-      </SidebarLayout>
-    );
-  }
-
-  const renderTable = (rows: RecurringSeries[], ignored: boolean) => (
-    <div className="overflow-x-auto">
-      <table className={`min-w-full divide-y divide-gray-200 ${ignored ? 'text-gray-400' : ''}`}>
-        <thead>
-          <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            <th className="px-4 py-3">Name</th>
-            <th className="px-4 py-3">Frequency</th>
-            <th className="px-4 py-3 text-right">Amount</th>
-            <th className="px-4 py-3 text-right">Per month</th>
-            <th className="px-4 py-3">Next date</th>
-            <th className="px-4 py-3 text-right">Action</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {rows.map((row) => (
-            <tr key={row.id} className={ignored ? 'opacity-60' : ''}>
-              <td className={`px-4 py-3 text-sm font-medium ${ignored ? 'text-gray-500' : 'text-gray-900'}`}>
-                {row.displayName}
-              </td>
-              <td className="px-4 py-3 text-sm">{frequencyLabel(row.intervalDays)}</td>
-              <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.averageAmount)}</td>
-              <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.monthlyEquivalent)}</td>
-              <td className="px-4 py-3 text-sm">{formatDate(row.nextDate)}</td>
-              <td className="px-4 py-3 text-sm text-right">
-                <button
-                  onClick={() => handleToggle(row)}
-                  disabled={savingId === row.id}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 ${
-                    ignored
-                      ? 'text-blue-600 hover:text-blue-800'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  {savingId === row.id ? 'Saving...' : ignored ? 'Restore' : 'Ignore'}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const hasSeries = (data?.series.length ?? 0) > 0;
 
   return (
     <SidebarLayout title="Recurring">
-      <div className="space-y-6">
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm">
-            <div className="flex justify-between items-center">
-              <span>{error}</span>
-              <button onClick={load} className="ml-4 text-red-600 hover:text-red-800 underline">
-                Try Again
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Monthly total */}
-        <div className="bg-linear-to-r from-purple-600 to-blue-600 rounded-xl shadow-lg text-white p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <p className="text-purple-100 text-sm">Recurring charges</p>
-              <h2 className="text-3xl font-bold mt-1">
-                ≈ {formatCurrency(monthlyTotal)} / month in recurring charges
-              </h2>
-              <p className="text-purple-100 text-sm mt-2">{activeSeries.length} active series</p>
-            </div>
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="inline-flex items-center justify-center px-4 py-2 bg-white/20 hover:bg-white/30 disabled:opacity-60 text-white rounded-lg font-medium transition-colors"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M5.5 9a7 7 0 0111.9-2.6L20 9M4 15l2.6 2.6A7 7 0 0018.5 15" />
-              </svg>
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
-          </div>
-        </div>
-
-        {/* Next 30 days */}
-        <div className="bg-white rounded-xl shadow-xs border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Next 30 days</h3>
-            <p className="text-sm text-gray-500 mt-1">Bills the detector expects to see soon.</p>
-          </div>
-          {upcoming.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-500">
-              No bills expected in the next 30 days.
-            </div>
-          ) : (
-            <ul className="divide-y divide-gray-100">
-              {upcoming.map((row) => (
-                <li key={row.id} className="px-6 py-3 flex items-center justify-between">
-                  <div className="flex items-center space-x-4 min-w-0">
-                    <span className="text-sm text-gray-500 w-24 shrink-0">{formatDate(row.nextDate)}</span>
-                    <span className="text-sm font-medium text-gray-900 truncate">{row.displayName}</span>
-                  </div>
-                  <span className="text-sm text-gray-700">{formatCurrency(row.averageAmount)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* All recurring */}
-        <div className="bg-white rounded-xl shadow-xs border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">All recurring</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Detected from your transactions. Ignore one to keep it out of the monthly total.
-            </p>
-          </div>
-
-          {(data?.series.length ?? 0) === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-linear-to-br from-purple-100 to-blue-100 rounded-xl flex items-center justify-center">
-                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M5.5 9a7 7 0 0111.9-2.6L20 9M4 15l2.6 2.6A7 7 0 0018.5 15" />
-                </svg>
-              </div>
-              <p className="text-gray-600">
-                No recurring charges found yet. They appear after a few months of transactions.
-              </p>
-            </div>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <div>
+          {loading && !data ? (
+            <Skeleton className="h-8 w-80" />
           ) : (
             <>
-              {activeSeries.length > 0 && renderTable(activeSeries, false)}
-
-              {ignoredSeries.length > 0 && (
-                <div className="border-t border-gray-200">
-                  <p className="px-6 pt-4 pb-2 text-sm font-medium text-gray-500">
-                    Ignored ({ignoredSeries.length})
-                  </p>
-                  {renderTable(ignoredSeries, true)}
-                </div>
-              )}
+              <p className="text-figure font-semibold text-ink">
+                About {money(monthlyTotal)} a month in repeating charges
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {activeSeries.length === 1 ? 'From 1 active series' : `From ${activeSeries.length} active series`}
+                {ignoredSeries.length > 0 && ` · ${ignoredSeries.length} ignored`}
+              </p>
             </>
           )}
         </div>
+        <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
+          <RefreshCw className={cn(refreshing && 'animate-spin')} />
+          Refresh
+        </Button>
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md bg-terra-tint px-4 py-3 text-sm text-terra"
+        >
+          <span>{error}</span>
+          <Button variant="outline" size="sm" onClick={load}>
+            Try again
+          </Button>
+        </div>
+      )}
+
+      <section aria-label="Next 30 days" className="sheet mb-8 px-5 py-5 md:px-6 md:py-6">
+        <h2 className="section-label">Next 30 days</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Bills the detector expects to see soon.</p>
+        {loading ? (
+          <div className="mt-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="mt-3 h-4 w-56" />
+            <Skeleton className="mt-3 h-4 w-48" />
+          </div>
+        ) : upcoming.length === 0 ? (
+          <p className="mt-3 text-[15px] text-muted-foreground">No bills expected in the next 30 days.</p>
+        ) : (
+          <ul className="mt-1">
+            {upcoming.map((row) => (
+              <li
+                key={row.id}
+                className="ledger-line grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 py-2.5 text-sm last:border-b-0"
+              >
+                <span className="text-muted-foreground">{shortDate(row.nextDate)}</span>
+                <span className="truncate">{row.displayName}</span>
+                <span className="text-right font-medium tabular-nums">{money(row.averageAmount)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-label="All recurring charges" className="sheet px-5 py-5 md:px-6 md:py-6">
+        <h2 className="section-label">All recurring</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Found from your transactions. Ignore one to keep it out of the monthly total.
+        </p>
+
+        {loading ? (
+          <div className="mt-3">
+            <Skeleton className="h-4 w-52" />
+            <Skeleton className="mt-3 h-4 w-44" />
+            <Skeleton className="mt-3 h-4 w-48" />
+          </div>
+        ) : !hasSeries ? (
+          <p className="mt-3 text-[15px] text-muted-foreground">
+            No recurring charges found yet. They appear after a few months of transactions.
+          </p>
+        ) : (
+          <>
+            <div
+              aria-hidden
+              className={cn(
+                'section-label mt-4 hidden border-b border-rule pb-2 md:grid md:gap-x-4',
+                ROW_GRID
+              )}
+            >
+              <span>Name</span>
+              <span>Repeats</span>
+              <span className="text-right">Amount</span>
+              <span className="text-right">A month</span>
+              <span className="text-right">Next</span>
+              <span />
+            </div>
+            <ul>
+              {activeSeries.map((row) => (
+                <SeriesRow key={row.id} row={row} ignored={false} busy={savingId === row.id} onToggle={handleToggle} />
+              ))}
+            </ul>
+
+            {ignoredSeries.length > 0 && (
+              <>
+                <h3 className="section-label mt-5 border-b border-rule pb-2">Ignored ({ignoredSeries.length})</h3>
+                <ul>
+                  {ignoredSeries.map((row) => (
+                    <SeriesRow
+                      key={row.id}
+                      row={row}
+                      ignored
+                      busy={savingId === row.id}
+                      onToggle={handleToggle}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
+        )}
+      </section>
     </SidebarLayout>
   );
 };

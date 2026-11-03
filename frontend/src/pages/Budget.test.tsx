@@ -6,6 +6,20 @@ import BudgetPage from './Budgets';
 import { budgetAPI } from '../services/api';
 import type { Budget, BudgetMonthResponse } from '../services/api';
 
+// Radix's Checkbox measures itself with a ResizeObserver; jsdom has none.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+if (!('ResizeObserver' in globalThis)) {
+  (globalThis as unknown as { ResizeObserver: typeof ResizeObserverStub }).ResizeObserver = ResizeObserverStub;
+}
+// Radix's Select scrolls the highlighted option into view; jsdom has no layout.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ logout: vi.fn(), user: null }),
   AuthProvider: ({ children }: { children: ReactNode }) => children,
@@ -26,8 +40,6 @@ vi.mock('recharts', async (importOriginal) => {
 });
 
 vi.mock('../services/api', () => {
-  const now = new Date().toISOString();
-
   return {
     budgetAPI: {
       getBudgets: vi.fn(),
@@ -55,6 +67,7 @@ const getBudgets = vi.mocked(budgetAPI.getBudgets);
 const updateAlert = vi.mocked(budgetAPI.updateAlert);
 const createAlert = vi.mocked(budgetAPI.createAlert);
 const deleteAlert = vi.mocked(budgetAPI.deleteAlert);
+const deleteBudget = vi.mocked(budgetAPI.deleteBudget);
 
 const MONTH = '2026-11';
 
@@ -69,12 +82,12 @@ const monthOffset = (offset: number) => {
 const currentMonth = monthOffset(0);
 const previousMonth = monthOffset(-1);
 
-const history = (month: string) =>
+const history = (month: string, budgeted = 400) =>
   Array.from({ length: 6 }, (_, index) => {
     const [year, monthNumber] = month.split('-').map(Number);
     return {
       month: new Date(Date.UTC(year, monthNumber - 6 + index, 1)).toISOString().slice(0, 7),
-      budgeted: 400,
+      budgeted,
       spent: index === 5 ? 200 : 100 + index,
     };
   });
@@ -125,6 +138,21 @@ const renderPage = () =>
     </MemoryRouter>
   );
 
+/** A budget's ledger row, whose header toggles its history and actions. */
+const expandRow = (id = 'budget-1') => fireEvent.click(screen.getByTestId(`budget-row-${id}`));
+
+/**
+ * Radix's Select opens from the keyboard without pointer capture, which jsdom
+ * lacks. Open it, then click the option in the listbox.
+ */
+const pickCategory = async (dialog: HTMLElement, value: string) => {
+  const trigger = within(dialog).getByRole('combobox', { name: 'Category' });
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+  const listbox = await screen.findByRole('listbox');
+  fireEvent.click(within(listbox).getByRole('option', { name: value }));
+};
+
 describe('Budgets page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -152,9 +180,10 @@ describe('Budgets page', () => {
       },
     });
     deleteAlert.mockResolvedValue(undefined);
+    deleteBudget.mockResolvedValue(undefined);
   });
 
-  it('renders the month totals and a budget card', async () => {
+  it('renders the month, the three totals, and one ledger row per budget', async () => {
     renderPage();
 
     await waitFor(() => {
@@ -168,22 +197,24 @@ describe('Budgets page', () => {
         year: 'numeric',
       })
     );
+    expect(screen.getByTestId('budget-month-position')).toHaveTextContent('This month');
 
-    // Totals card: budgeted, spent, remaining.
     const totals = screen.getByTestId('budget-totals');
     expect(within(totals).getByText('Budgeted')).toBeInTheDocument();
-    expect(within(totals).getByTestId('budgeted-total')).toHaveTextContent('$400.00');
+    expect(within(totals).getByTestId('budgeted-total')).toHaveTextContent('$400');
     expect(within(totals).getByText('Spent')).toBeInTheDocument();
-    expect(within(totals).getByTestId('spent-total')).toHaveTextContent('$200.00');
-    expect(within(totals).getByText('Remaining')).toBeInTheDocument();
-    expect(within(totals).getByTestId('remaining-total')).toHaveTextContent('$200.00');
+    expect(within(totals).getByTestId('spent-total')).toHaveTextContent('$200');
+    expect(within(totals).getByText('Left')).toBeInTheDocument();
+    expect(within(totals).getByTestId('remaining-total')).toHaveTextContent('$200');
+
+    // One row, and its actions stay folded away until the row is opened.
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
 
     expect(getBudgets).toHaveBeenCalledWith(currentMonth);
   });
 
-  it('requests the previous month when ◀ is pressed', async () => {
-    getBudgets.mockResolvedValue(payload());
-
+  it('requests the previous month when the previous arrow is pressed', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Groceries')).toBeInTheDocument());
 
@@ -219,6 +250,34 @@ describe('Budgets page', () => {
     });
   });
 
+  it('marks a line that went past its amount, and says what happens next', async () => {
+    getBudgets.mockResolvedValue(
+      payload({
+        budgets: [
+          budget({
+            spent: 450,
+            remaining: -50,
+            percentUsed: 112.5,
+            history: history(currentMonth),
+          }),
+        ],
+        totals: { budgeted: 400, spent: 450, available: 400, remaining: -50 },
+      })
+    );
+
+    renderPage();
+
+    const totals = await screen.findByTestId('budget-totals');
+    expect(within(totals).getByTestId('remaining-total')).toHaveTextContent('−$50');
+    expect(within(totals).getByTestId('remaining-total')).toHaveClass('text-terra');
+
+    // The row says how far past it is, and the footnote says what happens next.
+    expect(screen.getByText('$50 over')).toBeInTheDocument();
+    expect(
+      screen.getByText('Groceries went past the amount in November 2026. It starts fresh next month.')
+    ).toBeInTheDocument();
+  });
+
   it('shows the rollover amount when money carried in', async () => {
     getBudgets.mockResolvedValue(
       payload({
@@ -237,8 +296,8 @@ describe('Budgets page', () => {
 
     renderPage();
 
-    const card = await screen.findByTestId('budget-card-budget-1');
-    expect(within(card).getByTestId('rollover-budget-1')).toHaveTextContent(
+    const row = await screen.findByTestId('budget-card-budget-1');
+    expect(within(row).getByTestId('rollover-budget-1')).toHaveTextContent(
       'includes $75.00 rolled over'
     );
   });
@@ -250,8 +309,13 @@ describe('Budgets page', () => {
     expect(screen.queryByTestId('rollover-budget-1')).toBeNull();
   });
 
-  it('renders a six-month history chart for each budget', async () => {
+  it('opens a budget to show its six-month history chart', async () => {
     renderPage();
+
+    await screen.findByTestId('budget-row-budget-1');
+    expect(screen.queryByTestId('history-budget-1')).toBeNull();
+
+    expandRow();
 
     const chart = await screen.findByTestId('history-budget-1');
     // Six months of spending bars, plus the dashed line where the budget sits.
@@ -263,26 +327,53 @@ describe('Budgets page', () => {
     expect(chart.textContent).toContain('Nov');
   });
 
+  it('puts every history chart on one fixed scale', async () => {
+    getBudgets.mockResolvedValue(
+      payload({
+        budgets: [
+          budget({ month: currentMonth, history: history(currentMonth) }),
+          budget({
+            id: 'budget-2',
+            name: 'Rent',
+            category: 'Housing',
+            amount: 1000,
+            budgeted: 1000,
+            available: 1000,
+            spent: 1000,
+            remaining: 0,
+            percentUsed: 100,
+            history: history(currentMonth, 1000),
+          }),
+        ],
+        totals: { budgeted: 1400, spent: 1200, available: 1400, remaining: 200 },
+      })
+    );
+
+    renderPage();
+    await screen.findByTestId('budget-row-budget-2');
+
+    expandRow('budget-1');
+    const small = await screen.findByTestId('history-budget-1');
+    // The small budget's axis reaches the same top as the large one, not just its own $400.
+    await waitFor(() => expect(small.textContent).toContain('$1,100'));
+  });
+
   it('creates a budget with a rollover flag and a start month', async () => {
     vi.mocked(budgetAPI.createBudget).mockResolvedValue({ budget: budget() });
 
     renderPage();
     await waitFor(() => expect(screen.getByText('Groceries')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create Budget' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New budget' }));
 
-    const dialog = screen.getByRole('dialog', { name: 'Create budget' });
+    const dialog = screen.getByRole('dialog', { name: 'New budget' });
 
-    fireEvent.change(within(dialog).getByPlaceholderText('e.g., Groceries, Entertainment'), {
-      target: { value: 'Dining out' },
-    });
-    fireEvent.change(within(dialog).getByRole('combobox'), {
-      target: { value: 'Food & Dining' },
-    });
-    fireEvent.change(within(dialog).getByPlaceholderText('0.00'), { target: { value: '250' } });
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Dining out' } });
+    await pickCategory(dialog, 'Food & Dining');
+    fireEvent.change(within(dialog).getByLabelText('Monthly amount'), { target: { value: '250' } });
     fireEvent.click(within(dialog).getByLabelText('Roll over unused money to next month'));
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save Budget' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save budget' }));
 
     await waitFor(() => {
       expect(budgetAPI.createBudget).toHaveBeenCalledWith({
@@ -295,6 +386,20 @@ describe('Budgets page', () => {
     });
   });
 
+  it('shows validation errors under the fields', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Groceries')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'New budget' }));
+    const dialog = screen.getByRole('dialog', { name: 'New budget' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save budget' }));
+
+    expect(await within(dialog).findByText('Give this budget a name.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Pick a category.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Enter an amount above $0.')).toBeInTheDocument();
+    expect(budgetAPI.createBudget).not.toHaveBeenCalled();
+  });
+
   it('shows a duplicate category error inline', async () => {
     vi.mocked(budgetAPI.createBudget).mockRejectedValue({
       response: { data: { error: 'You already have a budget for Food & Dining' } },
@@ -303,48 +408,80 @@ describe('Budgets page', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Groceries')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create Budget' }));
-    const dialog = screen.getByRole('dialog', { name: 'Create budget' });
+    fireEvent.click(screen.getByRole('button', { name: 'New budget' }));
+    const dialog = screen.getByRole('dialog', { name: 'New budget' });
 
-    fireEvent.change(within(dialog).getByPlaceholderText('e.g., Groceries, Entertainment'), {
-      target: { value: 'Dining out' },
-    });
-    fireEvent.change(within(dialog).getByPlaceholderText('0.00'), { target: { value: '250' } });
-    fireEvent.change(within(dialog).getByRole('combobox'), { target: { value: 'Food & Dining' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save Budget' }));
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Dining out' } });
+    fireEvent.change(within(dialog).getByLabelText('Monthly amount'), { target: { value: '250' } });
+    await pickCategory(dialog, 'Food & Dining');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save budget' }));
 
     await waitFor(() => {
       expect(
-        within(screen.getByRole('dialog', { name: 'Create budget' })).getByText(
+        within(screen.getByRole('dialog', { name: 'New budget' })).getByText(
           'You already have a budget for Food & Dining'
         )
       ).toBeInTheDocument();
     });
   });
 
+  it('edits a budget from its expanded row', async () => {
+    vi.mocked(budgetAPI.updateBudget).mockResolvedValue({ budget: budget({ name: 'Food' }) });
+
+    renderPage();
+    await screen.findByTestId('budget-row-budget-1');
+    expandRow();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit budget' });
+
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Food' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => {
+      expect(budgetAPI.updateBudget).toHaveBeenCalledWith('budget-1', {
+        name: 'Food',
+        category: 'Food & Dining',
+        amount: 400,
+        rollover: false,
+      });
+    });
+  });
+
+  it('asks before deleting a budget', async () => {
+    renderPage();
+    await screen.findByTestId('budget-row-budget-1');
+    expandRow();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+
+    const confirm = screen.getByRole('alertdialog');
+    expect(within(confirm).getByText(/Groceries/)).toBeInTheDocument();
+    expect(deleteBudget).not.toHaveBeenCalled();
+
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => expect(deleteBudget).toHaveBeenCalledWith('budget-1'));
+  });
+
   it('renders existing alerts and allows management', async () => {
     renderPage();
 
+    await screen.findByTestId('budget-row-budget-1');
+    expandRow();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Alerts, 1 active' }));
+
+    const alertsDialog = await screen.findByRole('dialog', { name: 'Alerts for Groceries' });
+    expect(within(alertsDialog).getByText('Approaching budget · 80%')).toBeInTheDocument();
+
+    fireEvent.click(within(alertsDialog).getByLabelText('On'));
     await waitFor(() => {
-      expect(screen.getByText('1 alert active')).toBeInTheDocument();
+      expect(updateAlert).toHaveBeenCalledWith('budget-1', 'alert-1', { isEnabled: false });
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Manage' }));
-
-    await waitFor(() => {
-      expect(screen.getByText('Manage Alerts')).toBeInTheDocument();
-      expect(screen.getByText('Approaching budget • 80%')).toBeInTheDocument();
-    });
-
-    const alertsDialog = screen.getByRole('dialog', { name: 'Manage alerts' });
-
-    fireEvent.click(within(alertsDialog).getByRole('button', { name: 'Enabled' }));
-    await waitFor(() => {
-      expect(updateAlert).toHaveBeenCalled();
-    });
-
-    fireEvent.change(within(alertsDialog).getByRole('spinbutton'), { target: { value: '90' } });
-    fireEvent.click(within(alertsDialog).getByRole('button', { name: 'Add Alert' }));
+    fireEvent.change(within(alertsDialog).getByLabelText('At this percent'), { target: { value: '90' } });
+    fireEvent.click(within(alertsDialog).getByRole('button', { name: 'Add alert' }));
     await waitFor(() => {
       expect(createAlert).toHaveBeenCalled();
     });
@@ -357,5 +494,28 @@ describe('Budgets page', () => {
     await waitFor(() => {
       expect(deleteAlert).toHaveBeenCalledWith('budget-1', 'alert-1');
     });
+  });
+
+  it('offers the empty state with one sentence and one button', async () => {
+    getBudgets.mockResolvedValue({
+      month: currentMonth,
+      budgets: [],
+      totals: { budgeted: 0, spent: 0, available: 0, remaining: 0 },
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByText(
+        new RegExp(
+          `^No budgets in ${new Date(`${currentMonth}-01T00:00:00Z`).toLocaleDateString('en-US', {
+            timeZone: 'UTC',
+            month: 'long',
+            year: 'numeric',
+          })} — a budget is a monthly amount for one category`
+        )
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Plan a budget' })).toBeInTheDocument();
   });
 });
