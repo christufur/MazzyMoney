@@ -1,7 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FileUp, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { accountAPI } from '../../services/api';
-import type { AccountListItem, ManualAccountKind } from '../../services/api';
+import type {
+  AccountListItem,
+  CsvImportFormat,
+  CsvImportMapping,
+  CsvImportPreview,
+  CsvImportResult,
+  ManualAccountKind,
+} from '../../services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,7 +44,8 @@ import { money } from '@/lib/money';
 
 /**
  * Manual accounts are for the things Plaid does not connect well or cheaply:
- * the 401(k), cars, the house, and cash. Each one uses no Plaid Item.
+ * the 401(k), cars, the house, and cash. A manual card can also hold the charges
+ * Plaid never sees, imported from the card's own CSV statement.
  */
 const KIND_OPTIONS: Array<{ value: ManualAccountKind; label: string }> = [
   { value: 'retirement', label: 'Retirement (401k, IRA)' },
@@ -65,6 +74,402 @@ const errorMessage = (err: any, fallback = 'Something went wrong. Try again.') =
   const serverError = err?.response?.data?.error;
   return typeof serverError === 'string' && serverError.trim() ? serverError : fallback;
 };
+
+const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/* --- CSV import ---------------------------------------------------------- */
+
+/** The header cells of the file, so "Other bank" can offer them as columns. */
+export const csvHeaderRow = (csv: string): string[] => {
+  const line = csv.split(/\r?\n/, 1)[0] ?? '';
+  const cells: string[] = [];
+  let cell = '';
+  let quoted = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (quoted) {
+      if (char === '"' && line[i + 1] === '"') {
+        cell += '"';
+        i++;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        cell += char;
+      }
+    } else if (char === '"') {
+      quoted = true;
+    } else if (char === ',') {
+      cells.push(cell);
+      cell = '';
+    } else {
+      cell += char;
+    }
+  }
+  cells.push(cell);
+
+  return cells.map((value) => value.trim()).filter((value) => value.length > 0);
+};
+
+const NONE_COLUMN = '__none__';
+
+interface ColumnMap {
+  date: string;
+  description: string;
+  amount: string;
+  merchant: string;
+}
+
+const EMPTY_COLUMNS: ColumnMap = { date: '', description: '', amount: '', merchant: '' };
+
+/** A first guess from common header names; every guess is a Select the user can change. */
+const guessColumns = (headers: string[]): ColumnMap => {
+  const find = (...needles: string[]) =>
+    headers.find((header) => {
+      const lower = header.trim().toLowerCase();
+      return needles.some((needle) => lower === needle || lower.includes(needle));
+    }) ?? '';
+
+  return {
+    date: find('transaction date', 'date', 'posted'),
+    description: find('description', 'name', 'memo', 'payee', 'details'),
+    amount: find('amount', 'debit', 'charge'),
+    merchant: find('merchant', 'payee') || '',
+  };
+};
+
+const shortDate = (value: string) => {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+};
+
+/**
+ * One card statement at a time. The file is read in the browser and sent as text,
+ * so the server sees exactly what the bank exported. A dry run always comes first:
+ * the user sees the first five rows and the errors before anything is written.
+ */
+const CsvImportDialog: React.FC<{
+  account: AccountListItem;
+  onImported: () => Promise<void>;
+}> = ({ account, onImported }) => {
+  const [open, setOpen] = useState(false);
+  const [csv, setCsv] = useState('');
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [format, setFormat] = useState<CsvImportFormat>('apple-card');
+  const [columns, setColumns] = useState<ColumnMap>(EMPTY_COLUMNS);
+  const [negate, setNegate] = useState(false);
+  const [preview, setPreview] = useState<CsvImportPreview | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const headers = useMemo(() => (csv ? csvHeaderRow(csv) : []), [csv]);
+
+  const mapping = useMemo<CsvImportMapping | undefined>(() => {
+    if (format !== 'generic') return undefined;
+    if (!columns.date || !columns.description || !columns.amount) return undefined;
+    return {
+      date: columns.date,
+      description: columns.description,
+      amount: columns.amount,
+      ...(columns.merchant ? { merchant: columns.merchant } : {}),
+      ...(negate ? { negateAmount: true } : {}),
+    };
+  }, [format, columns, negate]);
+
+  const ready = csv.length > 0 && (format === 'apple-card' || Boolean(mapping));
+
+  const reset = () => {
+    setCsv('');
+    setFileName(null);
+    setFormat('apple-card');
+    setColumns(EMPTY_COLUMNS);
+    setNegate(false);
+    setPreview(null);
+    setError(null);
+    setChecking(false);
+    setImporting(false);
+  };
+
+  const handleFile = async (file: File | undefined) => {
+    setError(null);
+    setPreview(null);
+    if (!file) {
+      setCsv('');
+      setFileName(null);
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      setCsv(text);
+      setFileName(file.name);
+      // A new file gets fresh column guesses; the format choice is kept.
+      setColumns(guessColumns(csvHeaderRow(text)));
+    } catch {
+      setCsv('');
+      setFileName(null);
+      setError('Could not read that file. Choose the CSV export again.');
+    }
+  };
+
+  const handleFormat = (value: CsvImportFormat) => {
+    setFormat(value);
+    setPreview(null);
+    setError(null);
+  };
+
+  // A dry run on every change: no button to forget, and the count is always current.
+  useEffect(() => {
+    if (!open || !ready) {
+      setPreview(null);
+      return;
+    }
+
+    let cancelled = false;
+    setChecking(true);
+    setError(null);
+
+    accountAPI
+      .importCsv(account.id, {
+        csv,
+        format,
+        ...(mapping ? { mapping } : {}),
+        dryRun: true,
+      })
+      .then((result) => {
+        if (!cancelled) setPreview(result as CsvImportPreview);
+      })
+      .catch((err: any) => {
+        if (cancelled) return;
+        setPreview(null);
+        setError(errorMessage(err, 'Could not read that file. Check that it is a CSV export, then try again.'));
+      })
+      .finally(() => {
+        if (!cancelled) setChecking(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, ready, csv, format, mapping, account.id]);
+
+  const handleImport = async () => {
+    if (!preview || preview.total === 0) return;
+
+    try {
+      setImporting(true);
+      setError(null);
+      const result = (await accountAPI.importCsv(account.id, {
+        csv,
+        format,
+        ...(mapping ? { mapping } : {}),
+      })) as CsvImportResult;
+
+      toast.success(
+        `Imported ${count(result.imported, 'transaction')}, skipped ${result.skipped} already imported.`,
+        result.note ? { description: result.note } : undefined
+      );
+      setOpen(false);
+      reset();
+      await onImported();
+    } catch (err: any) {
+      setError(errorMessage(err, 'Could not import that file. Nothing was saved; try again.'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const columnSelect = (
+    label: string,
+    key: keyof ColumnMap,
+    placeholder: string,
+    includeNone = false
+  ) => (
+    <div className="grid gap-1.5">
+      <Label htmlFor={`import-${key}-${account.id}`}>{label}</Label>
+      <Select
+        value={columns[key] || (includeNone ? NONE_COLUMN : '')}
+        onValueChange={(value) =>
+          setColumns((current) => ({ ...current, [key]: value === NONE_COLUMN ? '' : value }))
+        }
+      >
+        <SelectTrigger id={`import-${key}-${account.id}`} className="w-full">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {includeNone && <SelectItem value={NONE_COLUMN}>None</SelectItem>}
+          {headers.map((header) => (
+            <SelectItem key={header} value={header}>
+              {header}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
+  const previewRows = preview?.preview.slice(0, 5) ?? [];
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="text-ink" onClick={() => setOpen(true)}>
+        <FileUp /> Import CSV
+      </Button>
+
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) reset();
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import CSV into {account.name}</DialogTitle>
+            <DialogDescription>
+              Adds the card's charges as transactions. Rows already imported are skipped.
+            </DialogDescription>
+          </DialogHeader>
+
+          <p className="rounded-md bg-paper px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+            Apple Card: in the Wallet app, open the card, tap a monthly statement, then Export
+            Transactions (CSV).
+          </p>
+
+          <div className="grid gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor={`import-file-${account.id}`}>CSV file</Label>
+              <Input
+                id={`import-file-${account.id}`}
+                type="file"
+                accept=".csv"
+                onChange={(event) => handleFile(event.target.files?.[0])}
+              />
+              {fileName && <p className="text-xs text-muted-foreground">{fileName}</p>}
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label htmlFor={`import-format-${account.id}`}>Format</Label>
+              <Select value={format} onValueChange={(value) => handleFormat(value as CsvImportFormat)}>
+                <SelectTrigger id={`import-format-${account.id}`} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="apple-card">Apple Card</SelectItem>
+                  <SelectItem value="generic">Other bank</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {format === 'generic' && (
+              <>
+                {csv.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Choose a file first; its column names appear here.
+                  </p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {columnSelect('Date column', 'date', 'Pick the date')}
+                    {columnSelect('Description column', 'description', 'Pick the description')}
+                    {columnSelect('Amount column', 'amount', 'Pick the amount')}
+                    {columnSelect('Merchant column', 'merchant', 'None', true)}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id={`import-negate-${account.id}`}
+                    checked={negate}
+                    onCheckedChange={(checked) => setNegate(checked === true)}
+                  />
+                  <Label htmlFor={`import-negate-${account.id}`} className="text-sm">
+                    Amounts are negative for purchases
+                  </Label>
+                </div>
+              </>
+            )}
+
+            {checking && <p className="text-sm text-muted-foreground">Checking the file…</p>}
+
+            {preview && !checking && (
+              <div className="rounded-md border border-rule">
+                <p className="border-b border-rule px-3 py-2 text-sm">
+                  {preview.total === 0
+                    ? 'Nothing to import in this file.'
+                    : `${count(preview.total, 'transaction')} ready to import.`}
+                </p>
+                {previewRows.length > 0 && (
+                  <ul>
+                    {previewRows.map((row, index) => (
+                      <li
+                        key={`${row.date}-${row.name}-${index}`}
+                        className="ledger-line grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-baseline gap-2 px-3 py-2 text-sm last:border-b-0"
+                      >
+                        <span className="text-muted-foreground">{shortDate(row.date)}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate">{row.name}</span>
+                          <span className="block text-xs text-muted-foreground">
+                            {row.isTransfer ? 'Transfer · ' : ''}
+                            {row.category}
+                          </span>
+                        </span>
+                        <span className="text-right tabular-nums">{money(row.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {preview.preview.length > previewRows.length && (
+                  <p className="px-3 py-2 text-xs text-muted-foreground">
+                    First {previewRows.length} of {preview.preview.length} rows shown.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {preview && preview.errors.length > 0 && (
+              <div role="alert" className="rounded-md bg-terra-tint px-3 py-2 text-sm text-terra">
+                <p>{count(preview.errors.length, 'row')} could not be read.</p>
+                <ul className="mt-1 list-disc pl-5 text-xs">
+                  {preview.errors.slice(0, 3).map((row) => (
+                    <li key={`${row.row}-${row.message}`}>
+                      Row {row.row}: {row.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {error && (
+              <p role="alert" className="rounded-md bg-terra-tint px-3 py-2 text-sm text-terra">
+                {error}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="mt-2">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={importing}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleImport}
+              disabled={!preview || preview.total === 0 || checking || importing}
+            >
+              {importing
+                ? 'Importing…'
+                : preview && preview.total > 0
+                  ? `Import ${count(preview.total, 'transaction')}`
+                  : 'Import transactions'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+/* --- rows --------------------------------------------------------------- */
 
 interface RowProps {
   account: AccountListItem;
@@ -128,17 +533,18 @@ const AccountRow: React.FC<RowProps> = ({ account, onSaved, onDelete, deleting }
           <p className="truncate text-[15px] text-ink">{account.name}</p>
           <p className="text-xs text-muted-foreground">{kindLabel(account.type)}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="tabular-nums text-ink">{signedBalance(account)}</span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="mr-1 tabular-nums text-ink">{signedBalance(account)}</span>
+          <CsvImportDialog account={account} onImported={onSaved} />
           {!editing && (
-            <Button variant="ghost" size="sm" onClick={open}>
+            <Button variant="ghost" size="sm" className="text-ink" onClick={open}>
               Update balance
             </Button>
           )}
           <Button
             variant="ghost"
             size="sm"
-            className="text-terra hover:bg-terra-tint hover:text-terra"
+            className="text-ink"
             onClick={() => onDelete(account)}
             disabled={deleting}
           >
@@ -197,7 +603,11 @@ const AccountRow: React.FC<RowProps> = ({ account, onSaved, onDelete, deleting }
   );
 };
 
-const ManualAccounts: React.FC = () => {
+/**
+ * The manual accounts section. On Connections it is one section of the page's
+ * single spread (`asSection`); on its own it keeps a sheet of its own.
+ */
+const ManualAccounts: React.FC<{ asSection?: boolean }> = ({ asSection = false }) => {
   const [accounts, setAccounts] = useState<AccountListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -298,20 +708,23 @@ const ManualAccounts: React.FC = () => {
   };
 
   return (
-    <section className="sheet" aria-label="Manual accounts">
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 p-6 md:p-8">
+    <section
+      aria-label="Manual accounts"
+      className={asSection ? 'border-t border-rule p-6 md:p-8' : 'sheet p-6 md:p-8'}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <h2 className="section-label">Manual accounts</h2>
           <p className="mt-1 text-[15px] text-muted-foreground">
             For accounts Plaid does not connect: 401(k), car, house, cash.
           </p>
         </div>
-        <Button variant="outline" onClick={openAdd}>
+        <Button variant="outline" size={asSection ? 'sm' : 'default'} onClick={openAdd}>
           <Plus /> Add account
         </Button>
       </div>
 
-      <div className="px-6 pb-6 md:px-8 md:pb-8">
+      <div className="mt-5">
         {loading ? (
           <>
             <span className="sr-only">Loading manual accounts</span>
@@ -345,9 +758,9 @@ const ManualAccounts: React.FC = () => {
                     key={account.id}
                     account={account}
                     onSaved={fetchManualAccounts}
-                    onDelete={(account) => {
+                    onDelete={(target) => {
                       setDeleteError(null);
-                      setDeleteTarget(account);
+                      setDeleteTarget(target);
                     }}
                     deleting={deletingId === account.id}
                   />

@@ -346,6 +346,58 @@ export interface BalanceSnapshotPoint {
   balance: number;
 }
 
+/** Apple Card exports its own columns; every other bank is mapped by hand. */
+export type CsvImportFormat = 'apple-card' | 'generic';
+
+/** Which column holds what, for a "Other bank" file. */
+export interface CsvImportMapping {
+  date: string;
+  description: string;
+  amount: string;
+  merchant?: string;
+  category?: string;
+  /** Purchases are negative in the file, so flip the sign on the way in. */
+  negateAmount?: boolean;
+}
+
+export interface CsvImportRequest {
+  csv: string;
+  format: CsvImportFormat;
+  mapping?: CsvImportMapping;
+  /** Writes nothing; returns `preview` and `errors` instead of a count. */
+  dryRun?: boolean;
+}
+
+/** One row a dry run would write. */
+export interface CsvImportPreviewRow {
+  date: string;
+  name: string;
+  amount: number;
+  category: string;
+  isTransfer: boolean;
+}
+
+/** A dry run: the rows it would add and the ones it could not read. */
+export interface CsvImportPreview {
+  preview: CsvImportPreviewRow[];
+  total: number;
+  errors: Array<{ row: number; message: string }>;
+}
+
+export interface CsvImportResult {
+  imported: number;
+  /** Rows already imported once (the same date, amount, and description). */
+  skipped: number;
+  /** Card payments stored as transfers, not spending. */
+  payments: number;
+  firstDate: string;
+  lastDate: string;
+  note?: string;
+}
+
+/** A dry run answers with `preview`; a real import with `imported`. */
+export type CsvImportResponse = CsvImportPreview | CsvImportResult;
+
 export const accountAPI = {
   /**
    * Get cached account information
@@ -394,6 +446,15 @@ export const accountAPI = {
 
   getManualHistory: async (id: string): Promise<{ snapshots: BalanceSnapshotPoint[] }> => {
     const response = await api.get(`/api/accounts/manual/${id}/history`);
+    return response.data;
+  },
+
+  /**
+   * Card spending Plaid cannot see: a CSV statement into a manual account.
+   * Pass `dryRun: true` first for a preview; the same call without it writes.
+   */
+  importCsv: async (accountId: string, body: CsvImportRequest): Promise<CsvImportResponse> => {
+    const response = await api.post(`/api/accounts/manual/${accountId}/import`, body);
     return response.data;
   },
 };

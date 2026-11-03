@@ -106,6 +106,26 @@ describe('Recurring page', () => {
     expect(screen.getByText('From 2 active series · 1 ignored')).toBeInTheDocument();
   });
 
+  it('puts every section in one spread, under the page title only', async () => {
+    renderPage();
+
+    await screen.findByText('All recurring');
+
+    // One spread holds the whole page: the summary, the next 30 days, all recurring, ignored.
+    const spread = screen.getByRole('region', { name: 'Recurring charges' });
+    expect(spread).toHaveClass('sheet');
+    expect(within(spread).getByRole('heading', { name: 'Next 30 days' })).toBeInTheDocument();
+    expect(within(spread).getByRole('heading', { name: 'All recurring' })).toBeInTheDocument();
+    expect(within(spread).getByRole('heading', { name: 'Ignored (1)' })).toBeInTheDocument();
+
+    // The page title comes from the layout, so no second title-size heading is drawn here.
+    const titleSized = screen
+      .getAllByRole('heading')
+      .filter((heading) => heading.className.includes('text-title'));
+    expect(titleSized).toHaveLength(1);
+    expect(titleSized[0]).toBe(screen.getByRole('heading', { level: 1, name: 'Recurring' }));
+  });
+
   it('lists the bills due in the next 30 days, soonest first', async () => {
     renderPage();
 
@@ -120,6 +140,42 @@ describe('Recurring page', () => {
 
     // Ignored series never show up under the next 30 days.
     expect(within(sectionFor('Next 30 days')).queryByText('Old Magazine')).not.toBeInTheDocument();
+  });
+
+  it('says a passed charge was expected and not seen, and still counts it', async () => {
+    getAll.mockResolvedValue(
+      payload({
+        series: [
+          series({
+            id: 'series-overdue',
+            merchantKey: 'spotify',
+            displayName: 'Spotify',
+            averageAmount: 11.99,
+            nextDate: daysFromNow(-6).toISOString(),
+            monthlyEquivalent: 11.99,
+          }),
+          series(),
+        ],
+        monthlyTotal: 2771,
+      })
+    );
+
+    renderPage();
+
+    // The row states the day it was due and that it has not arrived.
+    const row = await screen.findByTestId('recurring-row-series-overdue');
+    const expected = within(row).getAllByText(/^Expected .*, not seen yet$/);
+    expect(expected.length).toBeGreaterThan(0);
+    expect(expected[0].className).toContain('text-muted-foreground');
+
+    // The same line appears under Next 30 days, in muted text rather than a next date.
+    const upcoming = screen.getByTestId('upcoming-row-series-overdue');
+    expect(within(upcoming).getByText(/^Expected .*, not seen yet$/)).toBeInTheDocument();
+
+    // It is still part of the total, and the summary line says so.
+    expect(
+      screen.getByText('About $27.71 a month, including 1 charge not seen yet this cycle')
+    ).toBeInTheDocument();
   });
 
   it('shows every series with its frequency, and the ignored one muted at the bottom', async () => {
@@ -139,7 +195,10 @@ describe('Recurring page', () => {
     expect(within(netflix).getByText('≈ $15.72')).toBeInTheDocument();
     expect(within(netflix).getByRole('button', { name: 'Ignore' })).toBeInTheDocument();
 
-    expect(within(all).getByText('Ignored (1)')).toBeInTheDocument();
+    // The ignored series get their own ruled section at the bottom of the spread.
+    const ignoredSection = sectionFor('Ignored (1)');
+    expect(within(all).queryByText('Old Magazine')).not.toBeInTheDocument();
+    expect(within(ignoredSection).getByText('Old Magazine')).toBeInTheDocument();
 
     const ignoredRow = screen.getByTestId('recurring-row-series-ignored');
     expect(ignoredRow).toHaveClass('text-muted-foreground');
@@ -212,6 +271,8 @@ describe('Recurring page', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('About $0.00 a month in repeating charges')).toBeInTheDocument();
     expect(screen.getByText('No bills expected in the next 30 days.')).toBeInTheDocument();
+    // Nothing ignored means no empty heading at the bottom of the spread.
+    expect(screen.queryByRole('heading', { name: /^Ignored/ })).not.toBeInTheDocument();
   });
 
   it('shows a failed load inline', async () => {

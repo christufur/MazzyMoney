@@ -12,8 +12,13 @@ vi.mock('../contexts/AuthContext', () => ({
 }));
 
 // The manual accounts sheet has its own tests; here it only has to be on the page.
+// It renders a plain section here, which is what `asSection` turns it into on Connections.
 vi.mock('../components/accounts/ManualAccounts', () => ({
-  default: () => <div>Manual accounts</div>,
+  default: ({ asSection }: { asSection?: boolean }) => (
+    <section aria-label="Manual accounts">
+      <span>Manual accounts section ({asSection ? 'section' : 'card'})</span>
+    </section>
+  ),
 }));
 
 // Keep the options Link was given so a test can run the success callback.
@@ -108,20 +113,53 @@ afterEach(() => {
 });
 
 describe('Connections page', () => {
-  it('shows how many of the ten bank connections are used', async () => {
+  it('states how many of this server’s ten bank places are used and how many are yours', async () => {
     renderPage();
 
-    expect(await screen.findByText('Banks used: 3 of 10')).toBeInTheDocument();
+    // Three listed banks, so the second half says whose they are instead of repeating the count.
+    expect(
+      await screen.findByText('Banks used on this server: 3 of 10 · 3 are yours')
+    ).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Bank connections used' })).toHaveAttribute(
       'aria-valuenow',
       '3'
     );
   });
 
+  it('says "1 is yours" when the household only lists one, even if the server counts more', async () => {
+    // Another household member's Item takes a place on this server but is not in this list.
+    getItems.mockResolvedValue(itemsResponse({ items: [items[0]], used: 2 }));
+
+    renderPage();
+
+    expect(
+      await screen.findByText('Banks used on this server: 2 of 10 · 1 is yours')
+    ).toBeInTheDocument();
+  });
+
+  it('puts the limit line, the banks, and manual accounts in one spread with ruled sections', async () => {
+    renderPage();
+
+    await screen.findByText(/Banks used on this server/);
+
+    const spread = screen.getByRole('region', { name: 'Connections' });
+    expect(spread).toHaveClass('sheet');
+    expect(within(spread).getByRole('heading', { name: 'Banks' })).toBeInTheDocument();
+    // Manual accounts render as the last section of that spread, not as a second card.
+    expect(within(spread).getByRole('region', { name: 'Manual accounts' })).toBeInTheDocument();
+
+    // One title-size heading, and it is the layout's page title.
+    const titleSized = screen
+      .getAllByRole('heading')
+      .filter((heading) => heading.className.includes('text-title'));
+    expect(titleSized).toHaveLength(1);
+    expect(titleSized[0]).toHaveTextContent('Connections');
+  });
+
   it('shows Reconnect only for the bank that needs a new login', async () => {
     renderPage();
 
-    await screen.findByText('Banks used: 3 of 10');
+    await screen.findByText(/Banks used on this server/);
 
     // Link asks for its token first, so wait for the button label to settle.
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Reconnect' })).toHaveLength(1));
@@ -146,7 +184,7 @@ describe('Connections page', () => {
   it('shows the last sync time and the account subtype', async () => {
     renderPage();
 
-    await screen.findByText('Banks used: 3 of 10');
+    await screen.findByText(/Banks used on this server/);
 
     expect(within(bankSection('First Platypus Bank')).getByText(/^Last sync Nov 1, /)).toBeInTheDocument();
     expect(within(bankSection('Second Bank')).getByText('Not synced yet')).toBeInTheDocument();
@@ -157,7 +195,7 @@ describe('Connections page', () => {
 
     renderPage();
 
-    await screen.findByText('Banks used: 10 of 10');
+    await screen.findByText(/Banks used on this server: 10 of 10/);
 
     expect(await screen.findByRole('button', { name: 'Add bank' })).toBeDisabled();
     expect(
@@ -170,7 +208,7 @@ describe('Connections page', () => {
   it('removes a bank after the dialog confirmation, then reloads the list', async () => {
     renderPage();
 
-    await screen.findByText('Banks used: 3 of 10');
+    await screen.findByText(/Banks used on this server/);
 
     fireEvent.click(within(bankSection('First Platypus Bank')).getByRole('button', { name: 'Remove' }));
 
@@ -190,7 +228,7 @@ describe('Connections page', () => {
   it('does not remove a bank when the dialog is cancelled', async () => {
     renderPage();
 
-    await screen.findByText('Banks used: 3 of 10');
+    await screen.findByText(/Banks used on this server/);
 
     fireEvent.click(within(bankSection('First Platypus Bank')).getByRole('button', { name: 'Remove' }));
 
@@ -206,7 +244,7 @@ describe('Connections page', () => {
 
     renderPage();
 
-    await screen.findByText('Banks used: 3 of 10');
+    await screen.findByText(/Banks used on this server/);
 
     fireEvent.click(within(bankSection('First Platypus Bank')).getByRole('button', { name: 'Remove' }));
     const dialog = await screen.findByRole('alertdialog');
@@ -221,11 +259,12 @@ describe('Connections page', () => {
 
     renderPage();
 
-    expect(await screen.findByText('No banks connected yet')).toBeInTheDocument();
-    expect(screen.getByText('Banks used: 0 of 10')).toBeInTheDocument();
+    expect(await screen.findByText(/No banks connected yet/)).toBeInTheDocument();
+    expect(screen.getByText('Banks used on this server: 0 of 10 · 0 are yours')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Add bank' })).toBeEnabled();
-    // The manual accounts section stays on the page either way.
-    expect(screen.getByText('Manual accounts')).toBeInTheDocument();
+    // The manual accounts section stays on the page either way, as a section of the spread.
+    expect(screen.getByRole('region', { name: 'Manual accounts' })).toBeInTheDocument();
+    expect(screen.getByText('Manual accounts section (section)')).toBeInTheDocument();
   });
 
   it('says the banks could not be loaded instead of showing an empty ledger', async () => {

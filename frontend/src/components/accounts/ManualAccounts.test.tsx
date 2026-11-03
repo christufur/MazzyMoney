@@ -36,13 +36,18 @@ vi.mock('../../services/api', () => ({
     updateManualBalance: vi.fn(),
     deleteManual: vi.fn(),
     getManualHistory: vi.fn(),
+    importCsv: vi.fn(),
   },
 }));
+
+const toastMock = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }));
+vi.mock('sonner', () => ({ toast: toastMock }));
 
 const getAccounts = vi.mocked(accountAPI.getAccounts);
 const createManual = vi.mocked(accountAPI.createManual);
 const updateManualBalance = vi.mocked(accountAPI.updateManualBalance);
 const deleteManual = vi.mocked(accountAPI.deleteManual);
+const importCsv = vi.mocked(accountAPI.importCsv);
 
 const manualAccount = (overrides: Partial<AccountListItem> = {}): AccountListItem => ({
   id: 'acct-manual-1',
@@ -91,6 +96,7 @@ beforeEach(() => {
   createManual.mockResolvedValue({ account: manualAccount({ id: 'acct-new', name: 'House' }) });
   updateManualBalance.mockResolvedValue({ account: manualAccount() });
   deleteManual.mockResolvedValue(undefined);
+  importCsv.mockReset();
 });
 
 afterEach(() => {
@@ -203,6 +209,28 @@ describe('ManualAccounts', () => {
     expect(createManual).toHaveBeenCalledTimes(1);
     // The dialog stays open so the entry is not lost.
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('keeps the Delete action a ghost button in ink, not an error color', async () => {
+    render(<ManualAccounts />);
+
+    await screen.findByText('Fidelity 401(k)');
+
+    // Remove and Delete are ordinary quiet actions: terra is only for errors and over-limit.
+    const deleteButton = screen.getByRole('button', { name: 'Delete' });
+    expect(deleteButton).toHaveAttribute('data-variant', 'ghost');
+    expect(deleteButton.className).toContain('text-ink');
+    expect(deleteButton.className).not.toContain('text-terra');
+  });
+
+  it('renders as a section of the page spread when asked, with no card of its own', async () => {
+    render(<ManualAccounts asSection />);
+
+    const section = await screen.findByRole('region', { name: 'Manual accounts' });
+    expect(section.className).toContain('border-t');
+    expect(section.className).toContain('border-rule');
+    expect(section.className).not.toContain('sheet');
+    expect(screen.getByRole('heading', { name: 'Manual accounts' })).toBeInTheDocument();
   });
 
   it('updates a balance for today after Save, then reloads', async () => {
@@ -368,5 +396,178 @@ describe('ManualAccounts', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
     expect(await screen.findByText('Fidelity 401(k)')).toBeInTheDocument();
+  });
+
+  describe('CSV import', () => {
+    const APPLE_CSV = [
+      'Transaction Date,Clearing Date,Description,Merchant,Category,Type,Amount (USD)',
+      '10/08/2026,10/09/2026,ICLOUD STORAGE,Apple,Software,Purchase,2.99',
+      '10/07/2026,10/08/2026,BLUE BOTTLE COFFEE,Blue Bottle,Food & Drinks,Purchase,6.75',
+      '10/05/2026,10/06/2026,Payment Thank You,Apple,Payment,Payment,250.00',
+    ].join('\n');
+
+    /** A stand-in for the browser's File: `.text()` is what the dialog reads. */
+    const csvFile = (contents: string, name = 'apple-card.csv') => {
+      const file = new File([contents], name, { type: 'text/csv' });
+      Object.defineProperty(file, 'text', { value: async () => contents });
+      return file;
+    };
+
+    const previewResponse = {
+      preview: [
+        { date: '2026-10-08', name: 'ICLOUD STORAGE', amount: 2.99, category: 'Software', isTransfer: false },
+        { date: '2026-10-07', name: 'BLUE BOTTLE COFFEE', amount: 6.75, category: 'Food & Drinks', isTransfer: false },
+      ],
+      total: 3,
+      errors: [{ row: 4, message: 'Missing amount' }],
+    };
+
+    const importResponse = {
+      imported: 84,
+      skipped: 3,
+      payments: 0,
+      firstDate: '2026-10-01',
+      lastDate: '2026-10-31',
+      note: 'Card payments are stored as transfers.',
+    };
+
+    const openImportDialog = async () => {
+      render(<ManualAccounts />);
+      await screen.findByText('Fidelity 401(k)');
+      fireEvent.click(screen.getByRole('button', { name: 'Import CSV' }));
+      return screen.findByRole('dialog');
+    };
+
+    it('shows the Wallet app hint for Apple Card exports', async () => {
+      const dialog = await openImportDialog();
+
+      expect(
+        within(dialog).getByText(
+          'Apple Card: in the Wallet app, open the card, tap a monthly statement, then Export Transactions (CSV).'
+        )
+      ).toBeInTheDocument();
+      expect(within(dialog).getByLabelText('CSV file')).toHaveAttribute('accept', '.csv');
+    });
+
+    it('runs a dry run, shows the first rows and the error count, then imports for real', async () => {
+      importCsv
+        .mockResolvedValueOnce(previewResponse)
+        .mockResolvedValueOnce(importResponse);
+
+      const dialog = await openImportDialog();
+
+      fireEvent.change(within(dialog).getByLabelText('CSV file'), {
+        target: { files: [csvFile(APPLE_CSV)] },
+      });
+
+      // The dry run carries the file text and the chosen format, and nothing else yet.
+      await waitFor(() =>
+        expect(importCsv).toHaveBeenCalledWith('acct-manual-1', {
+          csv: APPLE_CSV,
+          format: 'apple-card',
+          dryRun: true,
+        })
+      );
+
+      expect(await within(dialog).findByText('3 transactions ready to import.')).toBeInTheDocument();
+      expect(within(dialog).getByText('ICLOUD STORAGE')).toBeInTheDocument();
+      expect(within(dialog).getByText('Oct 8')).toBeInTheDocument();
+      expect(within(dialog).getByText('1 row could not be read.')).toBeInTheDocument();
+      expect(within(dialog).getByText('Row 4: Missing amount')).toBeInTheDocument();
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Import 3 transactions' }));
+
+      // The real import is the same body without `dryRun`, and it writes before reloading.
+      await waitFor(() =>
+        expect(importCsv).toHaveBeenLastCalledWith('acct-manual-1', {
+          csv: APPLE_CSV,
+          format: 'apple-card',
+        })
+      );
+      await waitFor(() => expect(getAccounts).toHaveBeenCalledTimes(2));
+
+      expect(toastMock.success).toHaveBeenCalledWith(
+        'Imported 84 transactions, skipped 3 already imported.',
+        { description: 'Card payments are stored as transfers.' }
+      );
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('asks for the columns when the file is from another bank', async () => {
+      importCsv.mockResolvedValue(previewResponse);
+
+      const OTHER_CSV = 'Posted,Memo,Amount\n2026-10-01,Coffee,-4.25';
+      const dialog = await openImportDialog();
+
+      fireEvent.change(within(dialog).getByLabelText('CSV file'), {
+        target: { files: [csvFile(OTHER_CSV, 'bank.csv')] },
+      });
+
+      // Format starts on Apple Card, so nothing has been sent yet.
+      await waitFor(() => expect(importCsv).not.toHaveBeenCalled());
+
+      fireEvent.click(within(dialog).getByRole('combobox', { name: 'Format' }));
+      fireEvent.click(await within(await screen.findByRole('listbox')).findByRole('option', { name: 'Other bank' }));
+
+      // The header row fills the column pickers, and the guesses line up with this file.
+      await waitFor(() =>
+        expect(importCsv).toHaveBeenCalledWith('acct-manual-1', {
+          csv: OTHER_CSV,
+          format: 'generic',
+          mapping: { date: 'Posted', description: 'Memo', amount: 'Amount' },
+          dryRun: true,
+        })
+      );
+
+      // Negative amounts for purchases becomes an explicit part of the mapping.
+      await within(dialog).findByRole('checkbox', { name: 'Amounts are negative for purchases' });
+      fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Amounts are negative for purchases' }));
+
+      await waitFor(() =>
+        expect(importCsv).toHaveBeenLastCalledWith('acct-manual-1', {
+          csv: OTHER_CSV,
+          format: 'generic',
+          mapping: {
+            date: 'Posted',
+            description: 'Memo',
+            amount: 'Amount',
+            negateAmount: true,
+          },
+          dryRun: true,
+        })
+      );
+    });
+
+    it('says what happened when the dry run is rejected, and imports nothing', async () => {
+      importCsv.mockRejectedValueOnce({
+        response: { status: 400, data: { error: 'The file has no amount column.' } },
+      });
+
+      const dialog = await openImportDialog();
+      fireEvent.change(within(dialog).getByLabelText('CSV file'), {
+        target: { files: [csvFile(APPLE_CSV)] },
+      });
+
+      expect(await within(dialog).findByText('The file has no amount column.')).toBeInTheDocument();
+      // Nothing to import means the primary button stays disabled.
+      expect(within(dialog).getByRole('button', { name: 'Import transactions' })).toBeDisabled();
+    });
+
+    it('keeps the dialog open with the error when the real import fails', async () => {
+      importCsv
+        .mockResolvedValueOnce(previewResponse)
+        .mockRejectedValueOnce({ response: { status: 500, data: { error: 'The server ran out of room.' } } });
+
+      const dialog = await openImportDialog();
+      fireEvent.change(within(dialog).getByLabelText('CSV file'), {
+        target: { files: [csvFile(APPLE_CSV)] },
+      });
+
+      fireEvent.click(await within(dialog).findByRole('button', { name: 'Import 3 transactions' }));
+
+      expect(await within(dialog).findByText('The server ran out of room.')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(toastMock.success).not.toHaveBeenCalled();
+    });
   });
 });
