@@ -89,14 +89,24 @@ describe('NetWorthChart', () => {
     expect(getNetWorth).toHaveBeenCalledWith('6m');
   });
 
-  it('renders as two ruled sheets: the history, then the assets and liabilities', async () => {
+  it('puts the figure, the range, the chart, and the balances in one ruled spread', async () => {
     render(<NetWorthChart />);
 
-    expect(await screen.findByRole('region', { name: 'Net worth' })).toBeInTheDocument();
-    expect(screen.getByRole('tablist', { name: 'Net worth range' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Assets and liabilities' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Assets' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Liabilities' })).toBeInTheDocument();
+    const spread = await screen.findByRole('region', { name: 'Net worth' });
+    expect(spread).toHaveClass('sheet');
+
+    // Each part is a section of that spread, divided by a rule, not a separate card.
+    expect(within(spread).getByRole('tablist', { name: 'Net worth range' })).toBeInTheDocument();
+    expect(within(spread).getByRole('region', { name: 'Net worth history' })).toBeInTheDocument();
+    expect(within(spread).getByRole('region', { name: 'Assets and liabilities' })).toBeInTheDocument();
+    expect(within(spread).getByRole('heading', { name: 'Assets' })).toBeInTheDocument();
+    expect(within(spread).getByRole('heading', { name: 'Liabilities' })).toBeInTheDocument();
+
+    // No second title-size heading: the page title lives in the layout.
+    const titleSized = screen
+      .getAllByRole('heading')
+      .filter((heading) => heading.className.includes('text-title'));
+    expect(titleSized).toHaveLength(0);
   });
 
   it('lists a liability under Liabilities as a negative amount in ink, and totals each column', async () => {
@@ -104,8 +114,9 @@ describe('NetWorthChart', () => {
 
     await screen.findByTestId('net-worth-value');
 
-    const liabilities = screen.getByRole('heading', { name: 'Liabilities' }).parentElement as HTMLElement;
-    const assets = screen.getByRole('heading', { name: 'Assets' }).parentElement as HTMLElement;
+    const sections = screen.getByRole('region', { name: 'Assets and liabilities' });
+    const liabilities = within(sections).getByRole('heading', { name: 'Liabilities' }).parentElement as HTMLElement;
+    const assets = within(sections).getByRole('heading', { name: 'Assets' }).parentElement as HTMLElement;
 
     const liabilityList = within(liabilities).getByRole('list');
     const liability = within(liabilityList).getByText('−$22,000.00');

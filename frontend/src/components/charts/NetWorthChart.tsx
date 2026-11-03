@@ -1,4 +1,3 @@
-import { historyChange, realHistory } from '@/lib/networth';
 import React, { useEffect, useState } from 'react';
 import {
   AreaChart,
@@ -9,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { historyChange, realHistory } from '@/lib/networth';
 import { networthAPI } from '../../services/api';
 import type { NetWorthAccount, NetWorthRange, NetWorthResponse } from '../../services/api';
 import { Button } from '@/components/ui/button';
@@ -141,8 +141,8 @@ interface BalanceColumnProps {
 }
 
 const BalanceColumn: React.FC<BalanceColumnProps> = ({ label, accounts, total, empty }) => (
-  <div>
-    <h2 className="section-label">{label}</h2>
+  <div className="min-w-0">
+    <h3 className="section-label">{label}</h3>
     {accounts.length === 0 ? (
       <p className="mt-3 text-[15px] text-muted-foreground">{empty}</p>
     ) : (
@@ -211,111 +211,114 @@ const NetWorthChart: React.FC = () => {
   const changePositive = changeAmount >= 0;
 
   return (
-    <>
-      <section className="sheet" aria-label="Net worth">
-        <div className="p-6 md:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
-            <div className="min-w-0">
-              {loading && !data ? (
-                <Skeleton className="h-10 w-48" />
-              ) : (
-                <p className="text-title font-semibold text-ink" data-testid="net-worth-value">
-                  {data ? money(netWorth) : '—'}
-                </p>
-              )}
-              {data && !change && points.length === 1 && (
-                <p className="mt-1 text-sm text-muted-foreground">History starts {formatDay(points[0].date)}. The chart fills in as each day is recorded.</p>
-              )}
-              {data && change && (
-                <p className="mt-1 text-sm">
-                  <span
-                    className={cn('font-medium tabular-nums', changePositive ? 'text-sage-ink' : 'text-ink')}
-                    data-testid="net-worth-change"
-                  >
-                    {signedChange(changeAmount)}
-                  </span>
-                  {percent !== null && (
-                    <span className="ml-1.5 tabular-nums text-muted-foreground">({formatPercent(percent)})</span>
-                  )}
-                  <span className="ml-1.5 text-muted-foreground">since {formatDay(points[0].date)}</span>
-                </p>
-              )}
-            </div>
-
-            <Tabs value={range} onValueChange={(value) => setRange(value as NetWorthRange)}>
-              <TabsList variant="line" aria-label="Net worth range" className="gap-4">
-                {RANGE_OPTIONS.map((option) => (
-                  <TabsTrigger key={option.value} value={option.value} className="h-8 flex-none px-0">
-                    {option.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-          </div>
-
-          {error && (
-            <div
-              role="alert"
-              className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-md bg-terra-tint px-4 py-3 text-sm text-terra"
-            >
-              <span>{error}</span>
-              <Button variant="outline" size="sm" onClick={retry}>
-                Try again
-              </Button>
-            </div>
-          )}
-
-          <div className="mt-6">
+    <section aria-label="Net worth" className="sheet">
+      <div className="p-6 md:p-8">
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+          <div className="min-w-0">
             {loading && !data ? (
-              <Skeleton className="h-64 w-full" />
-            ) : points.length === 0 ? (
-              error ? null : (
-                <p className="text-[15px] text-muted-foreground">
-                  Net worth history starts after your first sync. Add manual accounts on the Connections
-                  page.
-                </p>
-              )
+              <Skeleton className="h-10 w-48" />
             ) : (
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={points} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid vertical={false} stroke="var(--border)" />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatShortDate}
-                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                      tickLine={false}
-                      axisLine={false}
-                      minTickGap={24}
-                    />
-                    <YAxis
-                      tickFormatter={formatAxisMoney}
-                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                      tickLine={false}
-                      axisLine={false}
-                      width={64}
-                    />
-                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--border)' }} />
-                    <Area
-                      type="monotone"
-                      dataKey="netWorth"
-                      name="Net worth"
-                      stroke="var(--sage)"
-                      strokeWidth={2}
-                      fill="var(--sage)"
-                      fillOpacity={0.08}
-                      isAnimationActive={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              <p className="text-figure font-semibold text-ink" data-testid="net-worth-value">
+                {data ? money(netWorth) : '—'}
+              </p>
+            )}
+            {data && !change && points.length === 1 && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                History starts {formatDay(points[0].date)}. The chart fills in as each day is recorded.
+              </p>
+            )}
+            {data && change && (
+              <p className="mt-1 text-sm">
+                <span
+                  className={cn('font-medium tabular-nums', changePositive ? 'text-sage-ink' : 'text-ink')}
+                  data-testid="net-worth-change"
+                >
+                  {signedChange(changeAmount)}
+                </span>
+                {percent !== null && (
+                  <span className="ml-1.5 tabular-nums text-muted-foreground">({formatPercent(percent)})</span>
+                )}
+                <span className="ml-1.5 text-muted-foreground">since {formatDay(points[0].date)}</span>
+              </p>
             )}
           </div>
+
+          <Tabs value={range} onValueChange={(value) => setRange(value as NetWorthRange)}>
+            <TabsList variant="line" aria-label="Net worth range" className="gap-4">
+              {RANGE_OPTIONS.map((option) => (
+                <TabsTrigger key={option.value} value={option.value} className="h-8 flex-none px-0">
+                  {option.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-md bg-terra-tint px-4 py-3 text-sm text-terra"
+          >
+            <span>{error}</span>
+            <Button variant="outline" size="sm" onClick={retry}>
+              Try again
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <section aria-label="Net worth history" className="border-t border-rule p-6 md:p-8">
+        {loading && !data ? (
+          <Skeleton className="h-64 w-full" />
+        ) : points.length === 0 ? (
+          error ? null : (
+            <p className="text-[15px] text-muted-foreground">
+              Net worth history starts after your first sync. Add manual accounts on the Connections
+              page.
+            </p>
+          )
+        ) : (
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={points} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="var(--border)" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={formatShortDate}
+                  tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={24}
+                />
+                <YAxis
+                  tickFormatter={formatAxisMoney}
+                  tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={64}
+                />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--border)' }} />
+                <Area
+                  type="monotone"
+                  dataKey="netWorth"
+                  name="Net worth"
+                  stroke="var(--sage)"
+                  strokeWidth={2}
+                  fill="var(--sage)"
+                  fillOpacity={0.08}
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </section>
 
       {accounts.length > 0 && (
-        <section className="sheet mt-6 grid gap-8 p-6 md:grid-cols-2 md:p-8" aria-label="Assets and liabilities">
+        <section
+          aria-label="Assets and liabilities"
+          className="grid gap-8 border-t border-rule p-6 md:grid-cols-2 md:p-8"
+        >
           <BalanceColumn
             label="Assets"
             accounts={assets}
@@ -330,7 +333,7 @@ const NetWorthChart: React.FC = () => {
           />
         </section>
       )}
-    </>
+    </section>
   );
 };
 
