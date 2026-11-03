@@ -245,3 +245,8 @@ scripts/local-only/
 config/local.json
 config/development.json
 config/production.json
+# Mazzy Money
+frontend/build/
+backend/prisma/generated/
+backups/
+.env.test
