@@ -217,7 +217,7 @@ router.get('/monthly-trends', async (req: Request, res: Response) => {
     `;
 
     const formattedData = (monthlyData as any[]).map(item => ({
-      month: new Date(item.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      month: new Date(item.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
       expenses: parseFloat(item.expenses) || 0,
       income: parseFloat(item.income) || 0,
       transactionCount: parseInt(item.transaction_count),
