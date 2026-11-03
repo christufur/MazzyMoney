@@ -60,13 +60,17 @@ const CustomSankeyFlow: React.FC<CustomSankeyProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  const drawn = useMemo(
-    () =>
-      flows
-        .map((flow) => ({ category: flow.category, amount: finite(flow.amount) }))
-        .filter((flow) => flow.amount > 0.005),
-    [flows]
-  );
+  // Small bands get grouped: below 4% a label has no room and only adds noise.
+  const drawn = useMemo(() => {
+    const all = flows
+      .map((flow) => ({ category: flow.category, amount: finite(flow.amount) }))
+      .filter((flow) => flow.amount > 0.005)
+      .sort((a, b) => b.amount - a.amount);
+    const total = all.reduce((sum, flow) => sum + flow.amount, 0);
+    const big = all.filter((flow, i) => i < 6 && flow.amount / (total || 1) >= 0.04);
+    const rest = all.slice(big.length).reduce((sum, flow) => sum + flow.amount, 0);
+    return rest > 0.005 ? [...big, { category: "Everything else", amount: rest }] : big;
+  }, [flows]);
 
   const kept = Math.max(0, finite(savings));
   const height = Math.max(220, Math.min(480, 96 + drawn.length * 44));
@@ -173,7 +177,14 @@ const CustomSankeyFlow: React.FC<CustomSankeyProps> = ({
     };
     const anchor = (node: any) => ((node.x0 ?? 0) > innerWidth / 2 - 90 ? "end" : "start");
 
-    const labels = g.append("g").selectAll("g").data(layoutNodes).enter().append("g");
+    // On narrow sheets the source label would sit on top of the first category; the figures above already state it.
+    const narrow = innerWidth < 560;
+    const labels = g
+      .append("g")
+      .selectAll("g")
+      .data(layoutNodes.filter((node: any) => !(narrow && node.kind === "source")))
+      .enter()
+      .append("g");
 
     labels
       .append("text")
