@@ -5,6 +5,7 @@ import fs from 'fs';
 import cron from 'node-cron';
 import { prisma } from './lib/prisma';
 import { TransactionSyncService } from './services/transactionSyncService';
+import { RecurringService } from './services/recurringService';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -13,6 +14,7 @@ import transactionRoutes from './routes/transactions';
 import { accountsRouter } from './routes/accounts';
 import budgets from './routes/budgets';
 import analyticsRoutes from './routes/analytics';
+import recurringRoutes from './routes/recurring';
 
 dotenv.config();
 
@@ -33,6 +35,7 @@ app.use('/api/transactions', transactionRoutes); // New cached transactions rout
 app.use('/api/accounts', accountsRouter); // New cached accounts route
 app.use('/api/budgets', budgets);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/recurring', recurringRoutes);
 
 // Health check endpoint
 app.get('/health', async (req: Request, res: Response) => {
@@ -65,6 +68,14 @@ const setupBackgroundSync = () => {
     console.log('Starting scheduled transaction sync...');
     TransactionSyncService.syncAll().catch((error) => {
       console.error('Scheduled transaction sync failed:', error);
+    });
+  }, { timezone: 'UTC' });
+
+  // Recurring series are detected once a night, after the day's syncs have landed.
+  cron.schedule('30 5 * * *', () => {
+    console.log('Starting scheduled recurring refresh...');
+    RecurringService.refreshAll().catch((error) => {
+      console.error('Scheduled recurring refresh failed:', error);
     });
   }, { timezone: 'UTC' });
 };

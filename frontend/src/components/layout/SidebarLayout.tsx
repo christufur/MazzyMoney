@@ -41,6 +41,15 @@ const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, title = "Overvi
       )
     },
     {
+      to: "/recurring",
+      label: "Recurring",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M5.5 9a7 7 0 0111.9-2.6L20 9M4 15l2.6 2.6A7 7 0 0018.5 15" />
+        </svg>
+      )
+    },
+    {
       to: "/insights", 
       label: "Insights", 
       icon: (
