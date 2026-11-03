@@ -317,7 +317,7 @@ const CustomSankeyFlow: React.FC<CustomSankeyProps> = ({
             <li key={`${flow.kind}-${flow.category}`} className="ledger-line py-3 text-[15px]">
               <div className="flex items-baseline gap-3">
                 <span className="min-w-0 flex-1 truncate">
-                  {sourceLabel} → {flow.category}
+                  {flow.category}
                 </span>
                 <span className="w-10 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
                   {shareLabel(flow.share)}

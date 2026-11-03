@@ -304,11 +304,11 @@ describe('Reports page', () => {
     const list = await screen.findByTestId('cash-flow-list');
     const rows = Array.from(list.querySelectorAll('li')).map((row) => row.textContent ?? '');
 
-    // Largest flow first, labelled "source → category" with its share and amount.
-    expect(rows[0]).toContain('Income → Housing');
+    // Largest flow first, labelled by category (the section says it is income) with share and amount.
+    expect(rows[0]).toContain('Housing');
     expect(rows[0]).toContain('28%');
     expect(rows[0]).toContain('$1,400.00');
-    expect(rows[1]).toContain('Income → Groceries');
+    expect(rows[1]).toContain('Groceries');
     expect(rows[1]).toContain('12%');
 
     // No diagram at all, and the list bars are thin and ink for spending.
