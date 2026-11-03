@@ -4,6 +4,7 @@ import { authenticateToken } from '../middleware/auth';
 import { TransactionSyncService } from '../services/transactionSyncService';
 import { CATEGORIES } from '../services/categories';
 import { COUNTED, cents } from '../services/analyticsService';
+import { cleanMerchantName } from '../services/merchantNames';
 
 const router = Router();
 router.use(authenticateToken);
@@ -419,6 +420,44 @@ router.put('/bulk', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error bulk updating transactions:', error);
     res.status(500).json({ error: 'Failed to update transactions' });
+  }
+});
+
+/**
+ * POST /api/transactions/clean-names
+ * One-time backfill (plan E4): give a readable name to the rows the bank sent as a raw memo.
+ *
+ * Only rows with no `merchantName` (Plaid had none) and no `merchantDisplay` (no rule renamed
+ * it and the user never set one) are touched, so running it twice changes nothing the second
+ * time and a name the household chose is never replaced. Registered before the `/:id` routes.
+ */
+router.post('/clean-names', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const rows = await prisma.transaction.findMany({
+      where: { userId, merchantName: null, merchantDisplay: null },
+      select: { id: true, name: true },
+    });
+
+    let updated = 0;
+
+    for (const row of rows) {
+      const cleaned = cleanMerchantName(row.name);
+      // The cleaner falls back to the memo when it has nothing to strip, so a row that would
+      // only be renamed to itself is left alone.
+      if (!cleaned || cleaned === row.name) {
+        continue;
+      }
+
+      await prisma.transaction.update({ where: { id: row.id }, data: { merchantDisplay: cleaned } });
+      updated++;
+    }
+
+    res.json({ updated });
+  } catch (error: any) {
+    console.error('Error cleaning merchant names:', error);
+    res.status(500).json({ error: 'Failed to clean merchant names' });
   }
 });
 

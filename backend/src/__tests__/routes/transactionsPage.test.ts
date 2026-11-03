@@ -309,6 +309,101 @@ describe('PUT /api/transactions/bulk', () => {
   });
 });
 
+describe('POST /api/transactions/clean-names', () => {
+  const post = (userId: string = USER_ID) =>
+    request(app).post('/api/transactions/clean-names').set('Authorization', authHeader(userId));
+
+  it('fills a readable name only on the rows that have neither a merchant nor a display name', async () => {
+    await prisma.transaction.createMany({
+      data: [
+        // Eligible: Plaid sent no merchant name and no rule renamed it.
+        tx('raw-memo', {
+          name: 'Withdrawal / DAVES HOT CHICKEN 1225 EL PASO TX Date 10/31/26 000000063049441404',
+          merchantName: null,
+          merchantDisplay: null,
+        }),
+        tx('raw-ach', {
+          name: 'Deposit NTESS, LLC / TYPE: PAYROLL ID: A850097942 CO: NTESS, LLC',
+          merchantName: null,
+          merchantDisplay: null,
+        }),
+        // Plaid gave a merchant name: that is the name, not the memo.
+        tx('named', { name: 'BLUE BOTTLE 1234', merchantName: 'Blue Bottle Coffee', primaryCategory: 'Food & Dining' }),
+        // A rule renamed it, and the household may have edited it: never overwrite.
+        tx('renamed', { name: 'Withdrawal / MAVERIK #752', merchantName: null, merchantDisplay: 'Maverik gas' }),
+      ],
+    });
+
+    const response = await post();
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ updated: 2 });
+
+    const rows = await prisma.transaction.findMany({
+      where: { userId: USER_ID, plaidTransactionId: { contains: 'raw-' } },
+    });
+    expect(rows.map((row) => row.merchantDisplay).sort()).toEqual(['Daves Hot Chicken', 'NTESS']);
+
+    const named = await prisma.transaction.findUnique({
+      where: { id: `tx-page-named-${stamp}` },
+    });
+    expect(named!.merchantDisplay).toBeNull();
+    expect(named!.merchantName).toBe('Blue Bottle Coffee');
+
+    const renamed = await prisma.transaction.findUnique({
+      where: { id: `tx-page-renamed-${stamp}` },
+    });
+    expect(renamed!.merchantDisplay).toBe('Maverik gas');
+  });
+
+  it('changes nothing on a second run', async () => {
+    await prisma.transaction.createMany({
+      data: [
+        tx('idempotent', {
+          name: 'POS PURCHASE STARBUCKS 4412',
+          merchantName: null,
+          merchantDisplay: null,
+        }),
+      ],
+    });
+
+    expect((await post()).body).toEqual({ updated: 1 });
+    expect((await post()).body).toEqual({ updated: 0 });
+  });
+
+  it("never touches another user's rows", async () => {
+    await prisma.transaction.createMany({
+      data: [
+        tx('mine-memo', {
+          name: 'Withdrawal / APPLE CASH SENT MONEY 1INFINITELOOP CA Date 10/31/26 0000000630',
+          merchantName: null,
+          merchantDisplay: null,
+        }),
+        tx('theirs-memo', {
+          userId: OTHER_USER_ID,
+          accountId: OTHER_ACCOUNT_ID,
+          name: 'Withdrawal / APPLE CASH SENT MONEY 1INFINITELOOP CA Date 10/31/26 0000000630',
+          merchantName: null,
+          merchantDisplay: null,
+        }),
+      ],
+    });
+
+    const response = await post();
+    expect(response.body).toEqual({ updated: 1 });
+
+    const theirs = await prisma.transaction.findUnique({
+      where: { id: `tx-page-theirs-memo-${stamp}` },
+    });
+    expect(theirs!.merchantDisplay).toBeNull();
+  });
+
+  it('requires authentication', async () => {
+    const response = await request(app).post('/api/transactions/clean-names');
+    expect(response.status).toBe(401);
+  });
+});
+
 describe('PUT /api/transactions/:id', () => {
   it('marks one row reviewed', async () => {
     const id = `tx-page-groceries-${stamp}`;

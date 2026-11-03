@@ -13,6 +13,7 @@
 import { prisma } from '../lib/prisma';
 import { plaidClient, plaidErrorCode } from '../lib/plaid';
 import { categorize, type RuleLike } from './categorizer';
+import { cleanMerchantName } from './merchantNames';
 import { BudgetSyncService } from './budgetSyncService';
 import {
   NotifyService,
@@ -453,6 +454,7 @@ export class TransactionSyncService {
 
       const categorized = this.categorizePlaidTransaction(transaction, accountId, rules);
       const fields = plaidFields(transaction, accountId);
+      const displayName = displayNameFor(transaction, categorized);
 
       // A USER/RULE category survives the pending -> posted hand-off.
       const keepCategory =
@@ -470,7 +472,7 @@ export class TransactionSyncService {
             categorySource: keepCategory?.categorySource ?? categorized.source,
             isTransfer: categorized.isTransfer,
             hidden: categorized.hidden,
-            merchantDisplay: categorized.merchantDisplay,
+            merchantDisplay: displayName,
             notes: carried?.notes ?? null,
             reviewed: carried?.reviewed ?? isOlderThanReviewWindow(fields.date),
           },
@@ -485,7 +487,7 @@ export class TransactionSyncService {
           !categorized.hidden &&
           fields.amount > largeChargeThreshold
         ) {
-          const name = categorized.merchantDisplay ?? fields.merchantName ?? fields.name;
+          const name = displayName ?? fields.merchantName ?? fields.name;
           await NotifyService.notify(userId, {
             kind: 'large-charge',
             key: created.id,
@@ -507,7 +509,7 @@ export class TransactionSyncService {
                   primaryCategory: categorized.category,
                   isTransfer: categorized.isTransfer,
                   hidden: categorized.hidden,
-                  merchantDisplay: categorized.merchantDisplay,
+                  merchantDisplay: nextDisplayName(existing, displayName),
                 }
               : {}),
             ...(carried ? { notes: carried.notes, reviewed: carried.reviewed } : {}),
@@ -569,7 +571,7 @@ export class TransactionSyncService {
             categorySource: categorized.source,
             isTransfer: categorized.isTransfer,
             hidden: categorized.hidden,
-            merchantDisplay: categorized.merchantDisplay,
+            merchantDisplay: displayNameFor(transaction, categorized),
           },
         });
       } else if (existing.categorySource === 'PLAID') {
@@ -581,7 +583,7 @@ export class TransactionSyncService {
             primaryCategory: categorized.category,
             isTransfer: categorized.isTransfer,
             hidden: categorized.hidden,
-            merchantDisplay: categorized.merchantDisplay,
+            merchantDisplay: nextDisplayName(existing, displayNameFor(transaction, categorized)),
           },
         });
       } else {
@@ -690,6 +692,41 @@ export class TransactionSyncService {
       rules
     );
   }
+}
+
+/**
+ * The display name a row should carry after this sync (plan E4).
+ *
+ * A rule's `setMerchant` wins: it is the household's own name. When the bank sends no
+ * `merchant_name`, the memo is cleaned into something a person can read ("Withdrawal /
+ * DAVES HOT CHICKEN 1225 EL PASO TX Date …" -> "Daves Hot Chicken"). When Plaid does send a
+ * merchant name, it is already readable and stays the only name on the row.
+ */
+function displayNameFor(
+  transaction: PlaidTransactionLike,
+  categorized: { merchantDisplay: string | null }
+): string | null {
+  if (categorized.merchantDisplay) {
+    return categorized.merchantDisplay;
+  }
+
+  const merchantName = transaction.merchant_name?.trim();
+  if (merchantName) {
+    return null;
+  }
+
+  return cleanMerchantName(transaction.name) || null;
+}
+
+/**
+ * What a re-synced row's `merchantDisplay` becomes: only a row that has none gets the new
+ * name. A name a rule or the user put there is never overwritten by a replay.
+ */
+function nextDisplayName(
+  existing: { merchantDisplay: string | null },
+  proposed: string | null
+): string | null {
+  return existing.merchantDisplay ?? proposed;
 }
 
 /** Fields that always come straight from Plaid, whatever the category source is. */
