@@ -10,9 +10,14 @@ import {
 } from 'recharts';
 import { networthAPI } from '../../services/api';
 import type { NetWorthAccount, NetWorthRange, NetWorthResponse } from '../../services/api';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
+import { money } from '@/lib/money';
 
 /**
- * Net worth over time (W4.5). The server already counts credit cards and loans
+ * Net worth over time. The server already counts credit cards and loans
  * negative, so every number here is used as-is.
  */
 const RANGE_OPTIONS: Array<{ value: NetWorthRange; label: string }> = [
@@ -27,25 +32,13 @@ const DEFAULT_RANGE: NetWorthRange = '6m';
 
 const MINUS = '\u2212';
 
-const formatMoney = (amount: number) =>
-  amount.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+/** A change over the range: "+$1,500.50" / "−$250.25". */
+const signedChange = (amount: number) => `${amount < 0 ? MINUS : '+'}${money(Math.abs(amount))}`;
 
-/** Signed change: "+$120.00" / "−$120.00" with a real minus sign. */
-const formatSignedMoney = (amount: number) => {
-  const sign = amount < 0 ? MINUS : '+';
-  return `${sign}${formatMoney(Math.abs(amount))}`;
-};
+/** A balance: "$25,000.00" / "−$22,000.00". */
+const signedBalance = (amount: number) => `${amount < 0 ? MINUS : ''}${money(Math.abs(amount))}`;
 
-const formatPercent = (percent: number) =>
-  `${percent < 0 ? MINUS : '+'}${Math.abs(percent).toFixed(1)}%`;
-
-const formatSignedPercent = (percent: number | null) =>
-  percent === null ? null : formatPercent(percent);
+const formatPercent = (percent: number) => `${percent < 0 ? MINUS : '+'}${Math.abs(percent).toFixed(1)}%`;
 
 /** Compact axis labels: $1.2k, $1.2M. */
 const formatAxisMoney = (amount: number) => {
@@ -89,7 +82,7 @@ interface ChartTooltipProps {
   payload?: Array<{ payload?: { netWorth?: number; assets?: number; liabilities?: number } }>;
 }
 
-/** Tooltip with the net worth plus what is behind it: assets and liabilities. */
+/** A small paper stub: the day, then the three figures behind it. */
 const ChartTooltip: React.FC<ChartTooltipProps> = ({ active, label, payload }) => {
   if (!active || !payload?.length) return null;
 
@@ -97,38 +90,77 @@ const ChartTooltip: React.FC<ChartTooltipProps> = ({ active, label, payload }) =
   if (!point) return null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-xs px-3 py-2 text-sm">
-      <p className="font-medium text-gray-900 mb-1">{formatLongDate(String(label))}</p>
-      <p className="text-gray-900">Net worth: {formatMoney(point.netWorth ?? 0)}</p>
-      <p className="text-gray-600">Assets: {formatMoney(point.assets ?? 0)}</p>
-      <p className="text-gray-600">Liabilities: {formatMoney(point.liabilities ?? 0)}</p>
+    <div className="min-w-[12rem] rounded-md border border-rule bg-card px-3 py-2">
+      <p className="mb-1.5 text-xs text-muted-foreground">{formatLongDate(String(label))}</p>
+      <dl className="space-y-0.5 text-sm">
+        <div className="flex justify-between gap-4">
+          <dt className="text-ink">Net worth</dt>
+          <dd className="font-semibold tabular-nums text-ink">{money(point.netWorth ?? 0)}</dd>
+        </div>
+        <div className="flex justify-between gap-4 text-xs">
+          <dt className="text-muted-foreground">Assets</dt>
+          <dd className="tabular-nums text-muted-foreground">{money(point.assets ?? 0)}</dd>
+        </div>
+        <div className="flex justify-between gap-4 text-xs">
+          <dt className="text-muted-foreground">Liabilities</dt>
+          <dd className="tabular-nums text-muted-foreground">
+            {signedBalance(-Math.abs(point.liabilities ?? 0))}
+          </dd>
+        </div>
+      </dl>
     </div>
   );
 };
 
-/** One line in the Assets or Liabilities column. Liabilities read as negative. */
-const AccountBalanceRow: React.FC<{ account: NetWorthAccount }> = ({ account }) => {
+/** One ledger row: the account, a quiet "manual" tag when it is, and its balance. */
+const BalanceRow: React.FC<{ account: NetWorthAccount }> = ({ account }) => {
   const amount = account.isLiability ? -Math.abs(account.balance) : account.balance;
 
   return (
-    <li className="flex items-center justify-between py-2">
-      <span className="text-sm text-gray-700 truncate pr-3" title={account.name}>
-        {account.name}
-        {account.isManual && <span className="text-xs text-gray-400"> · manual</span>}
+    <li className="ledger-line flex items-baseline justify-between gap-3 py-2.5 text-[15px] last:border-b-0">
+      <span className="flex min-w-0 items-baseline gap-2">
+        <span className="truncate" title={account.name}>
+          {account.name}
+        </span>
+        {account.isManual && <span className="shrink-0 text-xs text-muted-foreground">manual</span>}
       </span>
-      <span className={`text-sm font-medium ${account.isLiability ? 'text-red-600' : 'text-gray-900'}`}>
-        {formatMoney(amount)}
-      </span>
+      <span className="shrink-0 tabular-nums text-ink">{signedBalance(amount)}</span>
     </li>
   );
 };
+
+interface BalanceColumnProps {
+  label: string;
+  accounts: NetWorthAccount[];
+  total: number;
+  empty: string;
+}
+
+const BalanceColumn: React.FC<BalanceColumnProps> = ({ label, accounts, total, empty }) => (
+  <div>
+    <h2 className="section-label">{label}</h2>
+    {accounts.length === 0 ? (
+      <p className="mt-3 text-[15px] text-muted-foreground">{empty}</p>
+    ) : (
+      <ul className="mt-1">
+        {accounts.map((account) => (
+          <BalanceRow key={account.id} account={account} />
+        ))}
+      </ul>
+    )}
+    <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-rule pt-3 text-[15px]">
+      <span className="text-muted-foreground">Total</span>
+      <span className="font-semibold tabular-nums text-ink">{signedBalance(total)}</span>
+    </div>
+  </div>
+);
 
 const NetWorthChart: React.FC = () => {
   const [range, setRange] = useState<NetWorthRange>(DEFAULT_RANGE);
   const [data, setData] = useState<NetWorthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Bumping this re-runs the fetch for the same range (the Retry button).
+  // Bumping this re-runs the fetch for the same range (the Try again button).
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -170,151 +202,127 @@ const NetWorthChart: React.FC = () => {
 
   const netWorth = data?.current.netWorth ?? 0;
   const changeAmount = data?.change.amount ?? 0;
-  const changePercent = data?.change.percent ?? null;
+  const percent = data?.change.percent ?? null;
   const changePositive = changeAmount >= 0;
-  const changeClasses = changePositive ? 'text-green-600' : 'text-red-600';
-  const percentLabel = formatSignedPercent(changePercent);
 
   return (
-    <section
-      className="bg-white rounded-xl shadow-xs border border-gray-200 p-6"
-      aria-label="Net worth"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Net worth</h2>
-          <p className="text-3xl md:text-4xl font-bold text-gray-900 mt-2" data-testid="net-worth-value">
-            {loading && !data ? '--' : formatMoney(netWorth)}
-          </p>
-          {data && (
-            <p className="text-sm mt-1">
-              <span className={`font-medium ${changeClasses}`} data-testid="net-worth-change">
-                {formatSignedMoney(changeAmount)}
-              </span>
-              {percentLabel && <span className={`ml-2 font-medium ${changeClasses}`}>({percentLabel})</span>}
-              <span className="text-gray-500 ml-2">in this range</span>
-            </p>
-          )}
-        </div>
+    <>
+      <section className="sheet" aria-label="Net worth">
+        <div className="p-6 md:p-8">
+          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+            <div className="min-w-0">
+              {loading && !data ? (
+                <Skeleton className="h-10 w-48" />
+              ) : (
+                <p className="text-title font-semibold text-ink" data-testid="net-worth-value">
+                  {data ? money(netWorth) : '—'}
+                </p>
+              )}
+              {data && (
+                <p className="mt-1 text-sm">
+                  <span
+                    className={cn('font-medium tabular-nums', changePositive ? 'text-sage-ink' : 'text-ink')}
+                    data-testid="net-worth-change"
+                  >
+                    {signedChange(changeAmount)}
+                  </span>
+                  {percent !== null && (
+                    <span className="ml-1.5 tabular-nums text-muted-foreground">({formatPercent(percent)})</span>
+                  )}
+                  <span className="ml-1.5 text-muted-foreground">in this range</span>
+                </p>
+              )}
+            </div>
 
-        <div className="flex items-center gap-1" role="group" aria-label="Net worth range">
-          {RANGE_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setRange(option.value)}
-              aria-pressed={range === option.value}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                range === option.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+            <Tabs value={range} onValueChange={(value) => setRange(value as NetWorthRange)}>
+              <TabsList variant="line" aria-label="Net worth range" className="gap-4">
+                {RANGE_OPTIONS.map((option) => (
+                  <TabsTrigger key={option.value} value={option.value} className="h-8 flex-none px-0">
+                    {option.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-md bg-terra-tint px-4 py-3 text-sm text-terra"
             >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
+              <span>{error}</span>
+              <Button variant="outline" size="sm" onClick={retry}>
+                Try again
+              </Button>
+            </div>
+          )}
 
-      {error && (
-        <div className="mt-4 bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg flex justify-between items-center">
-          <span>{error}</span>
-          <button type="button" onClick={retry} className="underline font-medium">
-            Retry
-          </button>
-        </div>
-      )}
-
-      <div className="mt-6">
-        {loading && !data ? (
-          <p className="text-sm text-gray-500">Loading net worth history…</p>
-        ) : points.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            Net worth history starts after your first sync. Add manual accounts on the Connections
-            page.
-          </p>
-        ) : (
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={points} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="netWorthFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={formatShortDate}
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  tickLine={false}
-                  axisLine={false}
-                  minTickGap={24}
-                />
-                <YAxis
-                  tickFormatter={formatAxisMoney}
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={64}
-                />
-                <Tooltip content={<ChartTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="netWorth"
-                  name="Net worth"
-                  stroke="#2563eb"
-                  strokeWidth={2}
-                  fill="url(#netWorthFill)"
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
-
-      {(assets.length > 0 || liabilities.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-gray-200">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">
-              Assets
-              <span className="ml-2 font-normal text-gray-500">
-                {formatMoney(data?.current.assets ?? 0)}
-              </span>
-            </h3>
-            {assets.length === 0 ? (
-              <p className="text-sm text-gray-400">No asset accounts.</p>
+          <div className="mt-6">
+            {loading && !data ? (
+              <Skeleton className="h-64 w-full" />
+            ) : points.length === 0 ? (
+              error ? null : (
+                <p className="text-[15px] text-muted-foreground">
+                  Net worth history starts after your first sync. Add manual accounts on the Connections
+                  page.
+                </p>
+              )
             ) : (
-              <ul className="divide-y divide-gray-100">
-                {assets.map((account) => (
-                  <AccountBalanceRow key={account.id} account={account} />
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">
-              Liabilities
-              <span className="ml-2 font-normal text-gray-500">
-                {formatMoney(data?.current.liabilities ?? 0)}
-              </span>
-            </h3>
-            {liabilities.length === 0 ? (
-              <p className="text-sm text-gray-400">No liabilities.</p>
-            ) : (
-              <ul className="divide-y divide-gray-100">
-                {liabilities.map((account) => (
-                  <AccountBalanceRow key={account.id} account={account} />
-                ))}
-              </ul>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={points} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid vertical={false} stroke="var(--border)" />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={formatShortDate}
+                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      tickLine={false}
+                      axisLine={false}
+                      minTickGap={24}
+                    />
+                    <YAxis
+                      tickFormatter={formatAxisMoney}
+                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={64}
+                    />
+                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--border)' }} />
+                    <Area
+                      type="monotone"
+                      dataKey="netWorth"
+                      name="Net worth"
+                      stroke="var(--sage)"
+                      strokeWidth={2}
+                      fill="var(--sage)"
+                      fillOpacity={0.08}
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </div>
         </div>
+      </section>
+
+      {accounts.length > 0 && (
+        <section className="sheet mt-6 grid gap-8 p-6 md:grid-cols-2 md:p-8" aria-label="Assets and liabilities">
+          <BalanceColumn
+            label="Assets"
+            accounts={assets}
+            total={data?.current.assets ?? 0}
+            empty="No asset accounts."
+          />
+          <BalanceColumn
+            label="Liabilities"
+            accounts={liabilities}
+            total={-Math.abs(data?.current.liabilities ?? 0)}
+            empty="No liabilities."
+          />
+        </section>
       )}
-    </section>
+    </>
   );
 };
 

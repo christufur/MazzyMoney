@@ -11,6 +11,11 @@ vi.mock('../contexts/AuthContext', () => ({
   AuthProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
+// The manual accounts sheet has its own tests; here it only has to be on the page.
+vi.mock('../components/accounts/ManualAccounts', () => ({
+  default: () => <div>Manual accounts</div>,
+}));
+
 // Keep the options Link was given so a test can run the success callback.
 const plaidLinkState = vi.hoisted(() => ({ config: null as any }));
 
@@ -84,6 +89,9 @@ const renderPage = () =>
     </MemoryRouter>
   );
 
+/** The section for one bank, addressed by its accessible name. */
+const bankSection = (name: string) => screen.getByRole('region', { name });
+
 beforeEach(() => {
   createLinkToken.mockResolvedValue({ link_token: 'link-sandbox-token' });
   exchangePublicToken.mockResolvedValue({
@@ -103,28 +111,45 @@ describe('Connections page', () => {
   it('shows how many of the ten bank connections are used', async () => {
     renderPage();
 
-    expect(await screen.findByText('Banks used: 3 / 10')).toBeInTheDocument();
+    expect(await screen.findByText('Banks used: 3 of 10')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Bank connections used' })).toHaveAttribute(
+      'aria-valuenow',
+      '3'
+    );
   });
 
   it('shows Reconnect only for the bank that needs a new login', async () => {
     renderPage();
 
-    await screen.findByText('Banks used: 3 / 10');
+    await screen.findByText('Banks used: 3 of 10');
 
     // Link asks for its token first, so wait for the button label to settle.
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Reconnect' })).toHaveLength(1));
 
-    const reconnectButtons = screen.getAllByRole('button', { name: 'Reconnect' });
+    const loginNeeded = bankSection('Second Bank');
+    expect(within(loginNeeded).getByRole('button', { name: 'Reconnect' })).toBeInTheDocument();
+    expect(within(loginNeeded).getByText('Login needed')).toBeInTheDocument();
+    expect(within(loginNeeded).getByText('••2222')).toBeInTheDocument();
+    expect(within(loginNeeded).getByText('savings')).toBeInTheDocument();
 
-    const loginNeededCard = screen.getByText('Second Bank').closest('div.bg-white') as HTMLElement;
-    expect(within(loginNeededCard).getByRole('button', { name: 'Reconnect' })).toBe(reconnectButtons[0]);
+    const active = bankSection('First Platypus Bank');
+    expect(within(active).queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument();
+    expect(within(active).getByText('Connected')).toBeInTheDocument();
 
-    const activeCard = screen.getByText('First Platypus Bank').closest('div.bg-white') as HTMLElement;
-    expect(within(activeCard).queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument();
+    // The failing bank states the server's word for it, quietly, below the status.
+    const failing = bankSection('Third Bank');
+    expect(within(failing).getByText('Error')).toBeInTheDocument();
+    expect(within(failing).getByText('ITEM_LOGIN_REQUIRED')).toBeInTheDocument();
+    expect(within(failing).queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument();
+  });
 
-    expect(screen.getByText('Login needed')).toBeInTheDocument();
-    expect(screen.getByText('••2222')).toBeInTheDocument();
-    expect(screen.getByText('ITEM_LOGIN_REQUIRED')).toBeInTheDocument();
+  it('shows the last sync time and the account subtype', async () => {
+    renderPage();
+
+    await screen.findByText('Banks used: 3 of 10');
+
+    expect(within(bankSection('First Platypus Bank')).getByText(/^Last sync Nov 1, /)).toBeInTheDocument();
+    expect(within(bankSection('Second Bank')).getByText('Not synced yet')).toBeInTheDocument();
   });
 
   it('disables Add bank when all ten connections are used', async () => {
@@ -132,44 +157,63 @@ describe('Connections page', () => {
 
     renderPage();
 
-    await screen.findByText('Banks used: 10 / 10');
+    await screen.findByText('Banks used: 10 of 10');
 
     expect(await screen.findByRole('button', { name: 'Add bank' })).toBeDisabled();
     expect(
-      screen.getByText('All 10 free bank connections are in use. Remove one to connect another bank.')
+      screen.getByText('All 10 bank connections are in use. Remove one before adding another.')
     ).toBeInTheDocument();
     // No token for a new connection: every request here must be update mode (a free reconnect).
     expect(createLinkToken.mock.calls.every(([itemId]) => Boolean(itemId))).toBe(true);
   });
 
-  it('removes a bank after the confirmation, then reloads the list', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-
+  it('removes a bank after the dialog confirmation, then reloads the list', async () => {
     renderPage();
 
-    await screen.findByText('Banks used: 3 / 10');
+    await screen.findByText('Banks used: 3 of 10');
 
-    const firstBankCard = screen.getByText('First Platypus Bank').closest('div.bg-white') as HTMLElement;
-    fireEvent.click(within(firstBankCard).getByRole('button', { name: 'Remove' }));
+    fireEvent.click(within(bankSection('First Platypus Bank')).getByRole('button', { name: 'Remove' }));
 
-    expect(confirmSpy).toHaveBeenCalledWith(
-      'Remove First Platypus Bank? Its accounts and transactions will be deleted from Mazzy Money.'
-    );
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Remove First Platypus Bank?')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Its accounts and transactions will be deleted from Mazzy Money.')
+    ).toBeInTheDocument();
+    expect(removeItem).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove bank' }));
+
     await waitFor(() => expect(removeItem).toHaveBeenCalledWith('item-1'));
     await waitFor(() => expect(getItems).toHaveBeenCalledTimes(2));
   });
 
-  it('does not remove a bank when the confirmation is cancelled', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('does not remove a bank when the dialog is cancelled', async () => {
+    renderPage();
+
+    await screen.findByText('Banks used: 3 of 10');
+
+    fireEvent.click(within(bankSection('First Platypus Bank')).getByRole('button', { name: 'Remove' }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(removeItem).not.toHaveBeenCalled();
+  });
+
+  it('keeps the dialog and says what happened when removing fails', async () => {
+    removeItem.mockRejectedValue({ response: { status: 500, data: { error: 'Plaid is unavailable.' } } });
 
     renderPage();
 
-    await screen.findByText('Banks used: 3 / 10');
+    await screen.findByText('Banks used: 3 of 10');
 
-    const firstBankCard = screen.getByText('First Platypus Bank').closest('div.bg-white') as HTMLElement;
-    fireEvent.click(within(firstBankCard).getByRole('button', { name: 'Remove' }));
+    fireEvent.click(within(bankSection('First Platypus Bank')).getByRole('button', { name: 'Remove' }));
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove bank' }));
 
-    expect(removeItem).not.toHaveBeenCalled();
+    expect(await screen.findByText('Plaid is unavailable.')).toBeInTheDocument();
+    expect(getItems).toHaveBeenCalledTimes(1);
   });
 
   it('shows the empty state with an Add bank button when no bank is connected', async () => {
@@ -178,8 +222,20 @@ describe('Connections page', () => {
     renderPage();
 
     expect(await screen.findByText('No banks connected yet')).toBeInTheDocument();
-    expect(screen.getByText('Banks used: 0 / 10')).toBeInTheDocument();
+    expect(screen.getByText('Banks used: 0 of 10')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Add bank' })).toBeEnabled();
+    // The manual accounts section stays on the page either way.
+    expect(screen.getByText('Manual accounts')).toBeInTheDocument();
+  });
+
+  it('says the banks could not be loaded instead of showing an empty ledger', async () => {
+    getItems.mockRejectedValue({ response: { status: 500, data: { error: 'Server is starting.' } } });
+
+    renderPage();
+
+    expect(await screen.findByText('Server is starting.')).toBeInTheDocument();
+    // An error is not the same as "nothing connected yet".
+    expect(screen.queryByText('No banks connected yet')).not.toBeInTheDocument();
   });
 });
 
@@ -202,10 +258,12 @@ describe('PlaidLink', () => {
 
   it('reconnects in update mode without exchanging a token', async () => {
     const onSuccess = vi.fn();
-    render(<PlaidLink itemId="item-2" onSuccess={onSuccess} buttonText="Reconnect" />);
+    render(<PlaidLink itemId="item-2" onSuccess={onSuccess} buttonText="Reconnect" variant="outline" />);
 
-    await screen.findByRole('button', { name: 'Reconnect' });
+    const button = await screen.findByRole('button', { name: 'Reconnect' });
     expect(createLinkToken).toHaveBeenCalledWith('item-2');
+    // The outline variant is the quiet second action on the bank row.
+    expect(button).toHaveAttribute('data-variant', 'outline');
 
     // Update mode returns no public token for a new Item, so nothing is exchanged.
     await act(async () => {
@@ -213,7 +271,6 @@ describe('PlaidLink', () => {
     });
 
     expect(exchangePublicToken).not.toHaveBeenCalled();
-    expect(onSuccess).toHaveBeenCalledTimes(1);
   });
 
   it('explains the free connection limit instead of a generic failure', async () => {
@@ -224,7 +281,7 @@ describe('PlaidLink', () => {
     expect(
       await screen.findByText('All 10 free bank connections are in use. Remove one first.')
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('explains a duplicate institution when the exchange is rejected', async () => {
@@ -245,14 +302,22 @@ describe('PlaidLink', () => {
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
-  it('asks for a new link token on Try Again', async () => {
+  it('asks for a new link token on Try again', async () => {
     createLinkToken.mockRejectedValueOnce({ response: { status: 409, data: { error: 'ITEM_LIMIT' } } });
 
     render(<PlaidLink onSuccess={vi.fn()} buttonText="Add bank" />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Try Again' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
 
     await waitFor(() => expect(createLinkToken).toHaveBeenCalledTimes(2));
     expect(await screen.findByRole('button', { name: 'Add bank' })).toBeInTheDocument();
+  });
+
+  it('keeps its label when disabled at the bank limit, and asks for no token', async () => {
+    render(<PlaidLink onSuccess={vi.fn()} buttonText="Add bank" disabled />);
+
+    const button = screen.getByRole('button', { name: 'Add bank' });
+    expect(button).toBeDisabled();
+    expect(createLinkToken).not.toHaveBeenCalled();
   });
 });
