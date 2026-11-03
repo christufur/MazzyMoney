@@ -43,6 +43,7 @@ vi.mock('../services/api', () => {
   return {
     budgetAPI: {
       getBudgets: vi.fn(),
+      getSuggestions: vi.fn(),
       createBudget: vi.fn(),
       updateBudget: vi.fn(),
       deleteBudget: vi.fn(),
@@ -64,6 +65,8 @@ vi.mock('../services/api', () => {
 });
 
 const getBudgets = vi.mocked(budgetAPI.getBudgets);
+const getSuggestions = vi.mocked(budgetAPI.getSuggestions);
+const createBudget = vi.mocked(budgetAPI.createBudget);
 const updateAlert = vi.mocked(budgetAPI.updateAlert);
 const createAlert = vi.mocked(budgetAPI.createAlert);
 const deleteAlert = vi.mocked(budgetAPI.deleteAlert);
@@ -181,6 +184,8 @@ describe('Budgets page', () => {
     });
     deleteAlert.mockResolvedValue(undefined);
     deleteBudget.mockResolvedValue(undefined);
+    createBudget.mockResolvedValue({ budget: budget() });
+    getSuggestions.mockResolvedValue({ months: [], suggestions: [] });
   });
 
   it('renders the month, the three totals, and one ledger row per budget', async () => {
@@ -517,5 +522,149 @@ describe('Budgets page', () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Plan a budget' })).toBeInTheDocument();
+    // The same two ways in from an empty ledger: the header row and one beside the sentence.
+    expect(screen.getAllByRole('button', { name: 'Suggest budgets' })).toHaveLength(2);
+  });
+
+  it('draws the month as a normal-size control, not a second page title', async () => {
+    renderPage();
+    await screen.findByTestId('budget-month');
+
+    const heading = screen.getByTestId('budget-month');
+    expect(heading.tagName).toBe('H2');
+    expect(heading.className).toContain('text-lg');
+    expect(heading.className).not.toContain('text-title');
+    // Only the layout's own title is title-size.
+    expect(document.querySelectorAll('.text-title')).toHaveLength(1);
+  });
+
+  describe('suggestions', () => {
+    const suggestions = (
+      rows: Array<{ category: string; average: number; suggested: number; monthsWithSpending?: number }>
+    ) => ({
+      months: ['2026-08', '2026-09', '2026-10'],
+      suggestions: rows.map((row) => ({ monthsWithSpending: 3, ...row })),
+    });
+
+    it('creates the checked rows with the amounts that were typed', async () => {
+      getSuggestions.mockResolvedValue(
+        suggestions([
+          { category: 'Groceries', average: 512.4, suggested: 520 },
+          { category: 'Food & Dining', average: 233.33, suggested: 240 },
+          { category: 'Transportation', average: 84, suggested: 90 },
+        ])
+      );
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Groceries')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Suggest budgets' }));
+
+      const dialog = await screen.findByRole('dialog', { name: 'Suggest budgets' });
+      await waitFor(() => expect(within(dialog).getByText('Food & Dining')).toBeInTheDocument());
+
+      // Each row says what the last three months cost and starts from the suggestion.
+      expect(within(dialog).getByText('about $512 a month over the last 3 months')).toBeInTheDocument();
+      expect(within(dialog).getByLabelText('Groceries monthly amount')).toHaveValue('520');
+
+      // Untick one, edit another's amount, and turn on rollover for all of them.
+      fireEvent.click(within(dialog).getByLabelText('Transportation'));
+      fireEvent.change(within(dialog).getByLabelText('Food & Dining monthly amount'), {
+        target: { value: '275' },
+      });
+      fireEvent.click(within(dialog).getByLabelText('Roll over unused money'));
+
+      expect(within(dialog).getByRole('button', { name: 'Create 2 budgets' })).toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create 2 budgets' }));
+
+      await waitFor(() => expect(createBudget).toHaveBeenCalledTimes(2));
+
+      expect(createBudget).toHaveBeenCalledWith({
+        name: 'Groceries',
+        category: 'Groceries',
+        amount: 520,
+        rollover: true,
+        startMonth: currentMonth,
+      });
+      expect(createBudget).toHaveBeenCalledWith({
+        name: 'Food & Dining',
+        category: 'Food & Dining',
+        amount: 275,
+        rollover: true,
+        startMonth: currentMonth,
+      });
+      // The unchecked row was never created.
+      expect(createBudget).not.toHaveBeenCalledWith(
+        expect.objectContaining({ category: 'Transportation' })
+      );
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: 'Suggest budgets' })).not.toBeInTheDocument();
+      });
+      // The page reloads so the new budgets appear.
+      expect(getBudgets).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows a duplicate as an error on its own row and keeps the others', async () => {
+      getSuggestions.mockResolvedValue(
+        suggestions([
+          { category: 'Groceries', average: 300, suggested: 300 },
+          { category: 'Shopping', average: 200, suggested: 200 },
+        ])
+      );
+      createBudget
+        .mockRejectedValueOnce({ response: { data: { error: 'You already have a budget for Groceries' } } })
+        .mockResolvedValueOnce({ budget: budget({ id: 'budget-2', name: 'Shopping', category: 'Shopping' }) });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Groceries')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Suggest budgets' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Suggest budgets' });
+      await waitFor(() => expect(within(dialog).getByText('Shopping')).toBeInTheDocument());
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create 2 budgets' }));
+
+      expect(
+        await within(dialog).findByText('You already have a budget for Groceries')
+      ).toBeInTheDocument();
+      // The row that failed stays so it can be fixed or unticked.
+      expect(within(dialog).getByTestId('suggestion-Groceries')).toBeInTheDocument();
+      expect(createBudget).toHaveBeenCalledTimes(2);
+    });
+
+    it('says so when every regular category already has a budget', async () => {
+      getSuggestions.mockResolvedValue({ months: ['2026-08', '2026-09', '2026-10'], suggestions: [] });
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Groceries')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Suggest budgets' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Suggest budgets' });
+
+      expect(
+        await within(dialog).findByText(
+          'No suggestions: every category with regular spending already has a budget.'
+        )
+      ).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Create 0 budgets' })).toBeDisabled();
+    });
+
+    it('rejects an emptied amount before it creates anything', async () => {
+      getSuggestions.mockResolvedValue(suggestions([{ category: 'Groceries', average: 300, suggested: 300 }]));
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Groceries')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Suggest budgets' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Suggest budgets' });
+      await waitFor(() => expect(within(dialog).getByLabelText('Groceries monthly amount')).toHaveValue('300'));
+
+      fireEvent.change(within(dialog).getByLabelText('Groceries monthly amount'), { target: { value: '' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create 1 budget' }));
+
+      expect(await within(dialog).findByText('Enter an amount above $0.')).toBeInTheDocument();
+      expect(createBudget).not.toHaveBeenCalled();
+    });
   });
 });

@@ -52,6 +52,20 @@ const serializeBudget = async (
   };
 };
 
+// GET /api/budgets/suggestions - What the last 3 full months say to budget.
+// Registered before /:id so a suggestion request is never read as a budget id.
+router.get('/suggestions', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { months, suggestions } = await BudgetSyncService.suggestBudgets(userId);
+
+    res.json({ months, suggestions });
+  } catch (error: any) {
+    console.error('Error fetching budget suggestions:', error);
+    res.status(500).json({ error: 'Failed to fetch budget suggestions' });
+  }
+});
+
 // GET /api/budgets?month=YYYY-MM - Budgets with spending, rollover and history
 router.get('/', async (req: Request, res: Response) => {
   try {

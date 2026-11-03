@@ -55,6 +55,32 @@ export interface BudgetHistoryPoint {
   spent: number;
 }
 
+/** One category the last few months say is worth a budget. */
+export interface BudgetSuggestion {
+  category: string;
+  /** Net spending averaged over the months read, in dollars. */
+  average: number;
+  /** `average` rounded up to the next $10, the amount to offer. */
+  suggested: number;
+  /** How many of those months had any spending at all. */
+  monthsWithSpending: number;
+}
+
+export interface BudgetSuggestionResult {
+  /** The full calendar months read, oldest first, as `YYYY-MM`. */
+  months: string[];
+  suggestions: BudgetSuggestion[];
+}
+
+/** How many full calendar months a suggestion looks at. */
+const SUGGESTION_MONTHS = 3;
+/** Below this average a category is too small to be worth a budget. */
+const SUGGESTION_MIN_AVERAGE = 20;
+/** Suggested amounts are rounded up to a multiple of this many dollars. */
+const SUGGESTION_STEP = 10;
+/** Neither of these is spending a household plans a budget for. */
+const NEVER_SUGGESTED: ReadonlySet<string> = new Set(['Transfer', 'Income']);
+
 const ZERO_SNAPSHOT = (month: string): BudgetMonthSnapshot => ({
   month,
   budgeted: 0,
@@ -222,6 +248,77 @@ export class BudgetSyncService {
     const snapshot = await this.budgetForMonth(budget, this.currentMonth());
     const { spent, remaining, percentUsed } = snapshot;
     return { spent, remaining, percentUsed };
+  }
+
+  /**
+   * What the last few full months say to budget.
+   *
+   * Only full calendar months count, so a half-finished current month never drags
+   * an average down. Spending is net of refunds within the month and floored at
+   * zero, like a budget's own month. Categories that already have an active budget,
+   * the Transfer and Income categories, and anything averaging under $20 are left
+   * out. Suggestions are sorted by average, largest first.
+   */
+  static async suggestBudgets(userId: string): Promise<BudgetSuggestionResult> {
+    // The last N months before this one: this month is still being spent.
+    const months = Array.from({ length: SUGGESTION_MONTHS }, (_, index) =>
+      addMonths(this.currentMonth(), -(SUGGESTION_MONTHS - index))
+    );
+
+    const [budgets, transactions] = await Promise.all([
+      prisma.budget.findMany({
+        where: { userId, isActive: true },
+        select: { category: true }
+      }),
+      prisma.transaction.findMany({
+        where: {
+          userId,
+          ...COUNTED,
+          primaryCategory: { not: null },
+          date: { gte: monthRange(months[0]).start, lt: monthRange(months[months.length - 1]).endExclusive }
+        },
+        select: { amount: true, date: true, primaryCategory: true }
+      })
+    ]);
+
+    const budgeted = new Set(budgets.map(budget => budget.category));
+
+    // Net per category per month, then floored at 0 the way a budget month is.
+    const byCategory = new Map<string, Map<string, number>>();
+    for (const row of transactions) {
+      const category = row.primaryCategory;
+      if (!category || budgeted.has(category) || NEVER_SUGGESTED.has(category)) continue;
+
+      const perMonth = byCategory.get(category) ?? new Map<string, number>();
+      const key = monthKey(row.date);
+      perMonth.set(key, (perMonth.get(key) ?? 0) + row.amount);
+      byCategory.set(category, perMonth);
+    }
+
+    const suggestions: BudgetSuggestion[] = [];
+    for (const [category, perMonth] of byCategory) {
+      let total = 0;
+      let monthsWithSpending = 0;
+      for (const month of months) {
+        const net = Math.max(0, perMonth.get(month) ?? 0);
+        total += net;
+        if (net > 0) monthsWithSpending += 1;
+      }
+
+      const average = cents(total / months.length);
+      if (average < SUGGESTION_MIN_AVERAGE) continue;
+
+      suggestions.push({
+        category,
+        average,
+        suggested: Math.ceil(average / SUGGESTION_STEP) * SUGGESTION_STEP,
+        monthsWithSpending
+      });
+    }
+
+    suggestions.sort((a, b) => b.average - a.average);
+
+    return { months, suggestions };
   }
 
   /**
