@@ -14,6 +14,7 @@ import InsightsPage from './pages/Insights';
 import TransactionsPage from './pages/Transactions';
 import BudgetsPage from './pages/Budgets';
 import RecurringPage from './pages/Recurring';
+import RulesPage from './pages/Rules';
 import ConnectionsPage from './pages/Connections';
 import NetWorthPage from './pages/NetWorth';
 import { Toaster } from '@/components/ui/sonner';
@@ -125,6 +126,15 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <RecurringPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/rules"
+            element={
+              <ProtectedRoute>
+                <RulesPage />
               </ProtectedRoute>
             }
           />
