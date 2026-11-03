@@ -40,10 +40,8 @@ app.get('/health', async (req: Request, res: Response) => {
     // Check database connection
     await prisma.$queryRaw`SELECT 1`;
     
-    // Check sync status
-    const activeUsers = await prisma.user.count({
-      where: { plaidItemId: { not: null } }
-    });
+    // Check sync status: one row per connected bank on the whole server (cost rule 6.5 #5).
+    const activeUsers = await prisma.plaidItem.count();
 
     res.json({
       status: 'healthy',
@@ -59,96 +57,16 @@ app.get('/health', async (req: Request, res: Response) => {
   }
 });
 
-// Background sync scheduler
+// Background sync scheduler: one sweep every 4 hours, UTC, so the cron job and the dates agree.
 const setupBackgroundSync = () => {
   console.log('Setting up background sync scheduler...');
-  
-  // Run every 4 hours during business hours (9 AM - 9 PM EST)
-  cron.schedule('0 9,13,17,21 * * *', async () => {
-    console.log('Starting scheduled background sync...');
-    await runBackgroundSync();
-  });
 
-  // Also run a light sync every hour to catch new transactions
-  cron.schedule('0 * * * *', async () => {
-    console.log('Starting hourly sync for active users...');
-    await runHourlySync();
-  });
-};
-
-const runBackgroundSync = async () => {
-  try {
-    // Get all users with Plaid connections that haven't been synced in the last 2 hours
-    const usersToSync = await prisma.user.findMany({
-      where: {
-        plaidItemId: { not: null },
-        syncStatus: { notIn: ['SYNCING', 'TOKEN_EXPIRED'] },
-        OR: [
-          { lastSyncAt: null },
-          { lastSyncAt: { lt: new Date(Date.now() - 2 * 60 * 60 * 1000) } }
-        ]
-      },
-      select: { id: true, email: true }
+  cron.schedule('0 */4 * * *', () => {
+    console.log('Starting scheduled transaction sync...');
+    TransactionSyncService.syncAll().catch((error) => {
+      console.error('Scheduled transaction sync failed:', error);
     });
-
-    console.log(`Found ${usersToSync.length} users to sync`);
-
-    for (const user of usersToSync) {
-      try {
-        console.log(`Syncing user: ${user.email}`);
-        const result = await TransactionSyncService.syncUserTransactions(user.id);
-        
-        if (result.success) {
-          console.log(`✅ User ${user.email}: ${result.newTransactions} new transactions`);
-        } else {
-          console.log(`❌ User ${user.email}: ${result.error}`);
-        }
-      } catch (error) {
-        console.error(`Failed to sync user ${user.email}:`, error);
-      }
-      
-      // Add small delay between users to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-
-    console.log('Background sync completed');
-  } catch (error) {
-    console.error('Background sync failed:', error);
-  }
-};
-
-const runHourlySync = async () => {
-  try {
-    // Only sync users who have been active recently (logged in within last 24 hours)
-    // and haven't been synced in the last hour
-    const activeUsers = await prisma.user.findMany({
-      where: {
-        plaidItemId: { not: null },
-        syncStatus: { notIn: ['SYNCING', 'TOKEN_EXPIRED'] },
-        lastSyncAt: { lt: new Date(Date.now() - 60 * 60 * 1000) }, // Last synced over 1 hour ago
-        updatedAt: { gt: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Active in last 24 hours
-      },
-      select: { id: true, email: true }
-    });
-
-    console.log(`Found ${activeUsers.length} active users for hourly sync`);
-
-    for (const user of activeUsers) {
-      try {
-        const result = await TransactionSyncService.syncUserTransactions(user.id);
-        if (result.success && result.newTransactions > 0) {
-          console.log(`✅ Hourly sync - User ${user.email}: ${result.newTransactions} new transactions`);
-        }
-      } catch (error) {
-        console.error(`Hourly sync failed for user ${user.email}:`, error);
-      }
-      
-      // Smaller delay for hourly sync
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-  } catch (error) {
-    console.error('Hourly sync failed:', error);
-  }
+  }, { timezone: 'UTC' });
 };
 
 // Manual sync endpoint for testing
@@ -166,8 +84,10 @@ app.post('/api/admin/sync-all', async (req: Request, res: Response) => {
 
   try {
     console.log('Manual sync triggered via admin endpoint');
-    runBackgroundSync(); // Don't await - let it run in background
-    
+    TransactionSyncService.syncAll().catch((error) => {
+      console.error('Admin sync failed:', error);
+    });
+
     res.json({ 
       message: 'Background sync started',
       timestamp: new Date().toISOString()
@@ -196,8 +116,9 @@ const startServer = async () => {
     await prisma.$connect();
     console.log('✅ Database connected');
 
-    // Setup background sync scheduler
+    // Recover Items left in SYNCING by a process that stopped mid-sync (H9).
     if (process.env.NODE_ENV !== 'test') {
+      await TransactionSyncService.resetStuckSyncs();
       setupBackgroundSync();
     }
 

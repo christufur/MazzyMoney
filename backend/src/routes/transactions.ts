@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/auth';
 import { TransactionSyncService } from '../services/transactionSyncService';
-import { SmartCategorizationService } from '../services/smartCategorizationService';
 
 const router = Router();
 router.use(authenticateToken);
@@ -234,30 +233,29 @@ router.get('/monthly-trends', async (req: Request, res: Response) => {
 
 /**
  * POST /api/transactions/sync
- * Trigger manual sync
+ * Body: { force?: boolean }
+ * Starts a background sync and returns at once; the client polls /sync-status.
  */
 router.post('/sync', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { force = false } = req.body;
+    const force = Boolean(req.body?.force);
 
-    // Check if sync is already in progress
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { syncStatus: true }
+    // One run per user at a time: a second click must not start a parallel pull.
+    const syncing = await prisma.plaidItem.count({
+      where: { userId, status: 'SYNCING' }
     });
 
-    if (user?.syncStatus === 'SYNCING') {
+    if (syncing > 0) {
       return res.status(409).json({
         error: 'Sync already in progress',
         status: 'SYNCING'
       });
     }
 
-    // Start sync (run in background)
     const syncPromise = force
       ? TransactionSyncService.fullResync(userId)
-      : TransactionSyncService.syncUserTransactions(userId);
+      : TransactionSyncService.syncUser(userId);
 
     // Don't await - let it run in background
     syncPromise.catch(error => {
@@ -313,18 +311,12 @@ router.put('/:id/category', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
-    // Update transaction category
+    // Update transaction category. Correcting a category makes the user the owner of it,
+    // so later syncs never overwrite it (H8).
     const updatedTransaction = await prisma.transaction.update({
       where: { id },
-      data: { primaryCategory: category }
+      data: { primaryCategory: category, categorySource: 'USER' }
     });
-
-    // Learn from this correction
-    await SmartCategorizationService.learnFromCorrection(
-      id, 
-      transaction.primaryCategory || 'Other', 
-      category
-    );
 
     res.json({ 
       success: true,
@@ -336,38 +328,6 @@ router.put('/:id/category', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error updating transaction category:', error);
     res.status(500).json({ error: 'Failed to update transaction category' });
-  }
-});
-
-/**
- * GET /api/transactions/:id/suggestions
- * Get categorization suggestions for a transaction
- */
-router.get('/:id/suggestions', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user!.id;
-
-    // Verify transaction belongs to user
-    const transaction = await prisma.transaction.findFirst({
-      where: { id, userId },
-      select: { name: true, merchantName: true }
-    });
-
-    if (!transaction) {
-      return res.status(404).json({ error: 'Transaction not found' });
-    }
-
-    // Get smart categorization suggestions
-    const suggestions = await SmartCategorizationService.getSuggestions(
-      transaction.name,
-      transaction.merchantName || undefined
-    );
-
-    res.json({ suggestions });
-  } catch (error: any) {
-    console.error('Error getting categorization suggestions:', error);
-    res.status(500).json({ error: 'Failed to get suggestions' });
   }
 });
 

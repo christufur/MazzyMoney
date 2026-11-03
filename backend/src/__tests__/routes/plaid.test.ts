@@ -48,6 +48,12 @@ const accountsGet = mock(async (_args: any) => ({
   },
 }));
 
+// The exchange route starts the first transaction sync in the background (W2.3), so this fake
+// must answer it: one empty page means "nothing new" and the Item settles back to ACTIVE.
+const transactionsSync = mock(async (_args: any) => ({
+  data: { added: [], modified: [], removed: [], next_cursor: '', has_more: false },
+}));
+
 // No real network calls: every test uses this fake through lib/plaid.
 mock.module('../../lib/plaid', () => ({
   plaidClient: {
@@ -57,6 +63,7 @@ mock.module('../../lib/plaid', () => ({
     institutionsGetById,
     accountsGet,
     itemRemove,
+    transactionsSync,
   },
   ITEM_LIMIT,
   plaidErrorCode: (err: any) => err?.response?.data?.error_code,
@@ -93,6 +100,16 @@ const deleteMyItems = () =>
   prisma.plaidItem.deleteMany({
     where: { userId: { in: [USER_ID, OTHER_USER_ID] } },
   });
+
+/** The exchange starts the first sync in the background; wait for the mocks to finish. */
+const waitForSyncToSettle = async (itemId: string) => {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const item = await prisma.plaidItem.findUnique({ where: { id: itemId } });
+    if (item && item.status !== 'SYNCING') return item;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Plaid item ${itemId} stayed in SYNCING`);
+};
 
 describe('Plaid connections API', () => {
   beforeAll(async () => {
@@ -224,12 +241,11 @@ describe('Plaid connections API', () => {
     });
     expect(response.body.item.accessToken).toBeUndefined();
 
-    const item = await prisma.plaidItem.findFirst({ where: { userId: USER_ID } });
-    expect(item).not.toBeNull();
-    expect(item!.accessToken).toBe(`access-new-${stamp}`);
-    expect(item!.itemId).toBe(NEW_PLAID_ITEM_ID);
-    expect(item!.institutionId).toBe('ins_test');
-    expect(item!.status).toBe('ACTIVE');
+    const item = await waitForSyncToSettle(response.body.item.id);
+    expect(item.accessToken).toBe(`access-new-${stamp}`);
+    expect(item.itemId).toBe(NEW_PLAID_ITEM_ID);
+    expect(item.institutionId).toBe('ins_test');
+    expect(item.status).toBe('ACTIVE');
 
     const accounts = await prisma.account.findMany({
       where: { userId: USER_ID },
@@ -251,7 +267,8 @@ describe('Plaid connections API', () => {
       creditLimit: 1000,
       isLiability: true,
     });
-    expect(accountsGet).toHaveBeenCalledTimes(1);
+    // The exchange calls accountsGet itself, and the first sync calls it once more (W2.3).
+    expect(accountsGet).toHaveBeenCalledTimes(2);
   });
 
   it('rejects a second item for the same institution and removes it at Plaid', async () => {

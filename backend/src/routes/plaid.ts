@@ -3,6 +3,7 @@ import { Products, CountryCode } from 'plaid';
 import { prisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/auth';
 import { plaidClient, ITEM_LIMIT, plaidErrorCode } from '../lib/plaid';
+import { TransactionSyncService } from '../services/transactionSyncService';
 
 const router = Router();
 
@@ -163,7 +164,10 @@ router.post('/exchange', async (req: Request, res: Response) => {
       });
     }
 
-    // W2.3 starts the first transaction sync here.
+    // First transaction sync, off the request: Link should not wait for a full history pull.
+    TransactionSyncService.syncItem(item.id).catch((syncError) => {
+      console.error(`First sync failed for item ${item.id}:`, syncError);
+    });
 
     res.json({
       item: {
