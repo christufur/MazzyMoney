@@ -17,7 +17,7 @@
   --secondary: #efece4;
   --secondary-foreground: #22252b;
   --muted: #efece4;               /* bar tracks */
-  --muted-foreground: #5a5d64;    /* AA on paper and on white */
+  --muted-foreground: #6d6a63;    /* warm ink-soft; 4.9:1 on paper, 5.4:1 on white, 4.6:1 on tracks */
   --accent: #efece4;
   --accent-foreground: #22252b;
   --destructive: #a75c3a;         /* terra, AA as text */
@@ -82,6 +82,11 @@
     font-feature-settings: 'tnum' 1;
   }
   :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  ::selection { background: var(--sage-tint); color: var(--foreground); }
+  html { scrollbar-color: var(--input) transparent; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--input); border-radius: 999px; border: 3px solid var(--background); }
+  ::-webkit-scrollbar-track { background: transparent; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
