@@ -1,12 +1,22 @@
 import { prisma } from '../lib/prisma';
 import { EmailService } from './emailService';
 import { AlertType, Budget } from '../../prisma/generated/prisma';
-import { COUNTED, cents } from './analyticsService';
+import { cents } from './analyticsService';
 
+/**
+ * What a budget looks like in the month being checked. `budgetForMonth` returns
+ * more than this; the alerts only need these fields.
+ */
 export interface BudgetSpendingSnapshot {
   spent: number;
   remaining: number;
   percentUsed: number;
+  /** `YYYY-MM`. Defaults to the current UTC month when missing. */
+  month?: string;
+  /** Monthly amount plus rollover. Defaults to `budget.amount` when missing. */
+  available?: number;
+  budgeted?: number;
+  rolloverIn?: number;
 }
 
 interface AlertContext {
@@ -14,6 +24,7 @@ interface AlertContext {
   snapshot: BudgetSpendingSnapshot;
   alertType: AlertType;
   thresholdPercent: number;
+  available: number;
 }
 
 const DEFAULT_ALERTS: Array<{ alertType: AlertType; thresholdPercent: number }> = [
@@ -25,6 +36,19 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD'
 });
+
+/** `YYYY-MM` for a date, read in UTC. */
+const monthKey = (date: Date) =>
+  `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+
+/** `[start, endExclusive)` as UTC dates for a `YYYY-MM` month. */
+const monthRange = (month: string) => {
+  const [year, monthNumber] = month.split('-').map(Number);
+  return {
+    start: new Date(Date.UTC(year, monthNumber - 1, 1)),
+    endExclusive: new Date(Date.UTC(year, monthNumber, 1))
+  };
+};
 
 export class BudgetAlertService {
   /**
@@ -55,6 +79,9 @@ export class BudgetAlertService {
 
   /**
    * Evaluate all alerts for a given budget snapshot and send notifications when needed.
+   *
+   * A budget repeats every month, so "already notified" means "already notified for
+   * this budget, this alert, and this month" (matched on the notification's `sentAt`).
    */
   static async evaluateBudgetAlerts(
     budget: Budget,
@@ -74,6 +101,9 @@ export class BudgetAlertService {
       return;
     }
 
+    const month = snapshot.month ?? monthKey(new Date());
+    const { start, endExclusive } = monthRange(month);
+    const available = cents(snapshot.available ?? budget.amount);
     const userEmail = opts.userEmail ?? await this.getUserEmail(budget.userId);
 
     for (const alert of alerts) {
@@ -81,7 +111,8 @@ export class BudgetAlertService {
         budget,
         snapshot,
         alertType: alert.alertType,
-        thresholdPercent: alert.thresholdPercent
+        thresholdPercent: alert.thresholdPercent,
+        available
       })) {
         continue;
       }
@@ -89,10 +120,7 @@ export class BudgetAlertService {
       const notificationAlreadySent = await prisma.budgetAlertNotification.findFirst({
         where: {
           alertId: alert.id,
-          sentAt: {
-            gte: budget.startDate,
-            ...(budget.endDate ? { lte: budget.endDate } : {})
-          }
+          sentAt: { gte: start, lt: endExclusive }
         }
       });
 
@@ -109,7 +137,7 @@ export class BudgetAlertService {
           thresholdPercent: alert.thresholdPercent,
           currentPercent: snapshot.percentUsed,
           spent: snapshot.spent,
-          budgetAmount: budget.amount
+          budgetAmount: available
         }
       });
 
@@ -121,13 +149,15 @@ export class BudgetAlertService {
             budget,
             snapshot,
             alertType: alert.alertType,
-            thresholdPercent: alert.thresholdPercent
+            thresholdPercent: alert.thresholdPercent,
+            available
           }),
           html: this.buildEmailHtml({
             budget,
             snapshot,
             alertType: alert.alertType,
-            thresholdPercent: alert.thresholdPercent
+            thresholdPercent: alert.thresholdPercent,
+            available
           })
         });
 
@@ -144,7 +174,15 @@ export class BudgetAlertService {
     }
   }
 
+  /**
+   * Re-check every active budget of a user against the current month.
+   *
+   * `budgetSyncService` imports this module, so the calculator is loaded here
+   * instead of at the top of the file to keep the import graph one-way.
+   */
   static async evaluateUserBudgets(userId: string): Promise<void> {
+    const { BudgetSyncService } = await import('./budgetSyncService');
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true }
@@ -161,40 +199,10 @@ export class BudgetAlertService {
       }
     });
 
+    const month = BudgetSyncService.currentMonth();
+
     for (const budget of budgets) {
-      const now = new Date();
-      const effectiveEndDate = budget.endDate || now;
-
-      let snapshot: BudgetSpendingSnapshot;
-
-      if (now < budget.startDate || now > effectiveEndDate) {
-        snapshot = {
-          spent: 0,
-          remaining: cents(budget.amount),
-          percentUsed: 0
-        };
-      } else {
-        const categorySpending = await prisma.transaction.aggregate({
-          where: {
-            userId: budget.userId,
-            ...COUNTED,
-            primaryCategory: budget.category,
-            amount: { gt: 0 },
-            date: {
-              gte: budget.startDate,
-              lte: effectiveEndDate
-            }
-          },
-          _sum: { amount: true }
-        });
-
-        const spent = cents(categorySpending._sum.amount || 0);
-        const remaining = cents(budget.amount - spent);
-        const percentUsed = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
-
-        snapshot = { spent, remaining, percentUsed };
-      }
-
+      const snapshot = await BudgetSyncService.budgetForMonth(budget, month);
       await this.evaluateBudgetAlerts(budget, snapshot, { userEmail: user.email });
     }
   }
@@ -218,25 +226,25 @@ export class BudgetAlertService {
   }
 
   private static buildEmailBody(context: AlertContext): string {
-    const { budget, snapshot, thresholdPercent } = context;
+    const { budget, snapshot, thresholdPercent, available } = context;
     return [
       `Budget: ${budget.name} (${budget.category})`,
       `Threshold: ${thresholdPercent.toFixed(1)}%`,
       `Current usage: ${snapshot.percentUsed.toFixed(1)}%`,
-      `Spent: ${currencyFormatter.format(snapshot.spent)} of ${currencyFormatter.format(budget.amount)}`,
+      `Spent: ${currencyFormatter.format(snapshot.spent)} of ${currencyFormatter.format(available)}`,
       '',
       'Log in to your Money dashboard to review recent transactions and adjust your spending plan if needed.'
     ].join('\n');
   }
 
   private static buildEmailHtml(context: AlertContext): string {
-    const { budget, snapshot, thresholdPercent } = context;
+    const { budget, snapshot, thresholdPercent, available } = context;
     return `
       <h2>Budget Alert: ${budget.name}</h2>
       <p>Your ${budget.category} budget has reached <strong>${snapshot.percentUsed.toFixed(1)}%</strong> of the allocated amount.</p>
       <ul>
         <li><strong>Threshold:</strong> ${thresholdPercent.toFixed(1)}%</li>
-        <li><strong>Spent:</strong> ${currencyFormatter.format(snapshot.spent)} of ${currencyFormatter.format(budget.amount)}</li>
+        <li><strong>Spent:</strong> ${currencyFormatter.format(snapshot.spent)} of ${currencyFormatter.format(available)}</li>
         <li><strong>Remaining:</strong> ${currencyFormatter.format(snapshot.remaining)}</li>
       </ul>
       <p>Visit your Money dashboard to review recent transactions and adjust your plan.</p>
@@ -264,4 +272,3 @@ export class BudgetAlertService {
     return user?.email;
   }
 }
-

@@ -10,38 +10,70 @@ export interface BudgetAlert {
   updatedAt: string;
 }
 
-interface Budget {
+/** One month of a budget's history, for the per-budget bar chart. */
+export interface BudgetHistoryPoint {
+  month: string;
+  budgeted: number;
+  spent: number;
+}
+
+/**
+ * A budget is a category plus a monthly amount, active from its start month
+ * onward. `amount` is what the user set; the month fields describe the month
+ * that was requested.
+ */
+export interface Budget {
   id: string;
   name: string;
   category: string;
   amount: number;
-  period: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
-  spent: number;
-  remaining: number;
-  percentUsed: number;
-  isActive: boolean;
+  rollover: boolean;
   startDate: string;
-  endDate?: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
   budgetAlerts?: BudgetAlert[];
+  /** The requested month, `YYYY-MM`. */
+  month: string;
+  /** The monthly amount. */
+  budgeted: number;
+  spent: number;
+  /** Unspent (or overspent, when negative) money carried in from last month. */
+  rolloverIn: number;
+  /** `budgeted + rolloverIn`. */
+  available: number;
+  remaining: number;
+  percentUsed: number;
+  history: BudgetHistoryPoint[];
+}
+
+export interface BudgetTotals {
+  budgeted: number;
+  spent: number;
+  available: number;
+  remaining: number;
+}
+
+export interface BudgetMonthResponse {
+  month: string;
+  budgets: Budget[];
+  totals: BudgetTotals;
 }
 
 interface CreateBudgetRequest {
   name: string;
   category: string;
   amount: number;
-  period: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
-  startDate?: string;
+  rollover?: boolean;
+  /** `YYYY-MM`; defaults to the current month. */
+  startMonth?: string;
 }
 
 interface UpdateBudgetRequest {
   name?: string;
   category?: string;
   amount?: number;
-  period?: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
-  startDate?: string;
-  endDate?: string;
+  rollover?: boolean;
 }
 
 interface BudgetAlertRequest {
@@ -426,8 +458,9 @@ export const analyticsAPI = {
 };
 
 export const budgetAPI = {
-  getBudgets: async (): Promise<{ budgets: Budget[] }> => {
-    const response = await api.get('/api/budgets');
+  /** Budgets for one month, `YYYY-MM` (defaults to the current month on the server). */
+  getBudgets: async (month?: string): Promise<BudgetMonthResponse> => {
+    const response = await api.get('/api/budgets', { params: month ? { month } : undefined });
     return response.data;
   },
 
