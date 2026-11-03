@@ -2,21 +2,42 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/auth';
 import { TransactionSyncService } from '../services/transactionSyncService';
+import { CATEGORIES } from '../services/categories';
 import { COUNTED, cents } from '../services/analyticsService';
 
 const router = Router();
 router.use(authenticateToken);
 
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 200;
+const MAX_BULK_IDS = 500;
+const NOTES_MAX_LENGTH = 500;
+
+/** A positive integer query value, or the fallback when it is missing or junk. */
+const positiveInt = (value: unknown, fallback: number): number => {
+  const parsed = typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+
+const isCategory = (value: unknown): value is string =>
+  typeof value === 'string' && (CATEGORIES as readonly string[]).includes(value);
+
 /**
  * GET /api/transactions
- * Get cached transactions with filtering and pagination
+ * Get cached transactions with filtering and pagination.
+ *
+ * Hidden rows are left out unless `includeHidden=true`; transfers are shown by
+ * default (`transfers=exclude|only` changes that). The list is for browsing, so
+ * the money totals in `summary` still never count transfers or hidden rows.
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
     const {
       page = '1',
-      limit = '50',
+      limit = String(DEFAULT_PAGE_SIZE),
       category,
       accountId,
       search,
@@ -24,29 +45,43 @@ router.get('/', async (req: Request, res: Response) => {
       dateTo,
       amountMin,
       amountMax,
-      type // 'income', 'expense', or 'all'
+      type, // 'income', 'expense', or 'all'
+      reviewed,
+      includeHidden,
+      transfers,
     } = req.query;
 
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
+    const pageNum = positiveInt(page, 1);
+    const limitNum = Math.min(positiveInt(limit, DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
     const skip = (pageNum - 1) * limitNum;
 
     // Build where clause
     const where: any = { userId };
 
+    if (reviewed === 'true') where.reviewed = true;
+    else if (reviewed === 'false') where.reviewed = false;
+
+    if (includeHidden !== 'true') where.hidden = false;
+
+    if (transfers === 'exclude') where.isTransfer = false;
+    else if (transfers === 'only') where.isTransfer = true;
+
     if (category) {
-      where.primaryCategory = category;
+      where.primaryCategory = category as string;
     }
 
     if (accountId) {
-      where.accountId = accountId;
+      where.accountId = accountId as string;
     }
 
-    if (search) {
-      where.name = {
-        contains: search as string,
-        mode: 'insensitive'
-      };
+    if (search && String(search).trim()) {
+      const term = String(search).trim();
+      where.OR = [
+        { name: { contains: term, mode: 'insensitive' } },
+        { merchantName: { contains: term, mode: 'insensitive' } },
+        { merchantDisplay: { contains: term, mode: 'insensitive' } },
+        { notes: { contains: term, mode: 'insensitive' } },
+      ];
     }
 
     if (dateFrom || dateTo) {
@@ -78,15 +113,15 @@ router.get('/', async (req: Request, res: Response) => {
               name: true,
               type: true,
               subtype: true,
-              mask: true
-            }
-          }
+              mask: true,
+            },
+          },
         },
         orderBy: { date: 'desc' },
         skip,
-        take: limitNum
+        take: limitNum,
       }),
-      prisma.transaction.count({ where })
+      prisma.transaction.count({ where }),
     ]);
 
     // Calculate summary stats for the filtered results.
@@ -96,24 +131,24 @@ router.get('/', async (req: Request, res: Response) => {
     const summaryStats = await prisma.transaction.aggregate({
       where: { AND: [where, COUNTED] },
       _sum: {
-        amount: true
+        amount: true,
       },
       _count: {
-        id: true
-      }
+        id: true,
+      },
     });
 
     const totalAmount = cents(summaryStats._sum.amount || 0);
     const income = await prisma.transaction.aggregate({
       where: { AND: [where, COUNTED, { amount: { lt: 0 } }] },
       _sum: { amount: true },
-      _count: { id: true }
+      _count: { id: true },
     });
 
     const expenses = await prisma.transaction.aggregate({
       where: { AND: [where, COUNTED, { amount: { gt: 0 } }] },
       _sum: { amount: true },
-      _count: { id: true }
+      _count: { id: true },
     });
 
     const incomeTotal = cents(Math.abs(income._sum.amount || 0));
@@ -126,7 +161,7 @@ router.get('/', async (req: Request, res: Response) => {
         totalPages: Math.ceil(totalCount / limitNum),
         totalCount,
         hasNext: skip + limitNum < totalCount,
-        hasPrev: pageNum > 1
+        hasPrev: pageNum > 1,
       },
       summary: {
         totalTransactions: summaryStats._count.id || 0,
@@ -135,13 +170,30 @@ router.get('/', async (req: Request, res: Response) => {
         incomeCount: income._count.id,
         expenses: expenseTotal,
         expenseCount: expenses._count.id,
-        netAmount: cents(incomeTotal - expenseTotal)
-      }
+        netAmount: cents(incomeTotal - expenseTotal),
+      },
     });
-
   } catch (error: any) {
     console.error('Error fetching transactions:', error);
     res.status(500).json({ error: 'Failed to fetch transactions' });
+  }
+});
+
+/**
+ * GET /api/transactions/review-count
+ * How many rows the review queue still has (not reviewed, not hidden).
+ */
+router.get('/review-count', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const count = await prisma.transaction.count({
+      where: { userId, reviewed: false, hidden: false },
+    });
+
+    res.json({ count });
+  } catch (error: any) {
+    console.error('Error counting transactions to review:', error);
+    res.status(500).json({ error: 'Failed to count transactions to review' });
   }
 });
 
@@ -158,7 +210,7 @@ router.get('/categories', async (req: Request, res: Response) => {
       userId,
       ...COUNTED,
       amount: { gt: 0 }, // Only expenses
-      primaryCategory: { not: null }
+      primaryCategory: { not: null },
     };
 
     if (dateFrom || dateTo) {
@@ -171,26 +223,25 @@ router.get('/categories', async (req: Request, res: Response) => {
       by: ['primaryCategory'],
       where,
       _sum: {
-        amount: true
+        amount: true,
       },
       _count: {
-        id: true
+        id: true,
       },
       orderBy: {
         _sum: {
-          amount: 'desc'
-        }
-      }
+          amount: 'desc',
+        },
+      },
     });
 
     const result = categorySpending.map(item => ({
       category: item.primaryCategory,
       amount: cents(item._sum.amount || 0),
-      transactionCount: item._count.id
+      transactionCount: item._count.id,
     }));
 
     res.json(result);
-
   } catch (error: any) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Failed to fetch categories' });
@@ -230,11 +281,10 @@ router.get('/monthly-trends', async (req: Request, res: Response) => {
       expenses: cents(parseFloat(item.expenses) || 0),
       income: cents(parseFloat(item.income) || 0),
       transactionCount: parseInt(item.transaction_count),
-      netAmount: cents((parseFloat(item.income) || 0) - (parseFloat(item.expenses) || 0))
+      netAmount: cents((parseFloat(item.income) || 0) - (parseFloat(item.expenses) || 0)),
     }));
 
     res.json(formattedData);
-
   } catch (error: any) {
     console.error('Error fetching monthly trends:', error);
     res.status(500).json({ error: 'Failed to fetch monthly trends' });
@@ -253,13 +303,13 @@ router.post('/sync', async (req: Request, res: Response) => {
 
     // One run per user at a time: a second click must not start a parallel pull.
     const syncing = await prisma.plaidItem.count({
-      where: { userId, status: 'SYNCING' }
+      where: { userId, status: 'SYNCING' },
     });
 
     if (syncing > 0) {
       return res.status(409).json({
         error: 'Sync already in progress',
-        status: 'SYNCING'
+        status: 'SYNCING',
       });
     }
 
@@ -274,9 +324,8 @@ router.post('/sync', async (req: Request, res: Response) => {
 
     res.json({
       message: 'Sync started',
-      status: 'SYNCING'
+      status: 'SYNCING',
     });
-
   } catch (error: any) {
     console.error('Error starting sync:', error);
     res.status(500).json({ error: 'Failed to start sync' });
@@ -299,6 +348,81 @@ router.get('/sync-status', async (req: Request, res: Response) => {
 });
 
 /**
+ * PUT /api/transactions/bulk
+ * Body: { ids: string[], category?, reviewed?, hidden?, isTransfer? }
+ *
+ * All ids must belong to the user, otherwise nothing changes. A category change
+ * marks the category as the user's own so a later sync never overwrites it (H8).
+ * Registered before PUT /:id so "bulk" is not read as an id.
+ */
+router.put('/bulk', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { ids, category, reviewed, hidden, isTransfer } = req.body ?? {};
+
+    if (
+      !Array.isArray(ids) ||
+      ids.length === 0 ||
+      ids.length > MAX_BULK_IDS ||
+      ids.some(id => typeof id !== 'string' || id.trim() === '')
+    ) {
+      return res.status(400).json({
+        error: `ids must be an array of 1 to ${MAX_BULK_IDS} transaction ids`,
+      });
+    }
+
+    const uniqueIds = Array.from(new Set(ids as string[]));
+    const data: any = {};
+
+    if (category !== undefined) {
+      if (!isCategory(category)) {
+        return res.status(400).json({ error: 'Unknown category' });
+      }
+      data.primaryCategory = category;
+      data.categorySource = 'USER';
+    }
+
+    const flags: Array<[string, unknown]> = [
+      ['reviewed', reviewed],
+      ['hidden', hidden],
+      ['isTransfer', isTransfer],
+    ];
+
+    for (const [field, value] of flags) {
+      if (value === undefined) continue;
+      if (!isBoolean(value)) {
+        return res.status(400).json({ error: `${field} must be true or false` });
+      }
+      data[field] = value;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
+
+    const owned = await prisma.transaction.count({
+      where: { userId, id: { in: uniqueIds } },
+    });
+
+    if (owned !== uniqueIds.length) {
+      return res.status(403).json({
+        error: 'One or more transactions do not belong to you',
+      });
+    }
+
+    const result = await prisma.transaction.updateMany({
+      where: { userId, id: { in: uniqueIds } },
+      data,
+    });
+
+    res.json({ updated: result.count });
+  } catch (error: any) {
+    console.error('Error bulk updating transactions:', error);
+    res.status(500).json({ error: 'Failed to update transactions' });
+  }
+});
+
+/**
  * PUT /api/transactions/:id/category
  * Update transaction category and learn from correction
  */
@@ -312,9 +436,13 @@ router.put('/:id/category', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Category is required' });
     }
 
+    if (!isCategory(category)) {
+      return res.status(400).json({ error: 'Unknown category' });
+    }
+
     // Verify transaction belongs to user
     const transaction = await prisma.transaction.findFirst({
-      where: { id, userId }
+      where: { id, userId },
     });
 
     if (!transaction) {
@@ -325,15 +453,15 @@ router.put('/:id/category', async (req: Request, res: Response) => {
     // so later syncs never overwrite it (H8).
     const updatedTransaction = await prisma.transaction.update({
       where: { id },
-      data: { primaryCategory: category, categorySource: 'USER' }
+      data: { primaryCategory: category, categorySource: 'USER' },
     });
 
-    res.json({ 
+    res.json({
       success: true,
       transaction: {
         id: updatedTransaction.id,
-        primaryCategory: updatedTransaction.primaryCategory
-      }
+        primaryCategory: updatedTransaction.primaryCategory,
+      },
     });
   } catch (error: any) {
     console.error('Error updating transaction category:', error);
@@ -351,9 +479,19 @@ router.put('/:id/notes', async (req: Request, res: Response) => {
     const { notes } = req.body;
     const userId = req.user!.id;
 
+    if (notes !== undefined && notes !== null && typeof notes !== 'string') {
+      return res.status(400).json({ error: 'Notes must be text' });
+    }
+
+    if (typeof notes === 'string' && notes.length > NOTES_MAX_LENGTH) {
+      return res.status(400).json({
+        error: `Notes must be ${NOTES_MAX_LENGTH} characters or fewer`,
+      });
+    }
+
     // Verify transaction belongs to user
     const transaction = await prisma.transaction.findFirst({
-      where: { id, userId }
+      where: { id, userId },
     });
 
     if (!transaction) {
@@ -363,15 +501,15 @@ router.put('/:id/notes', async (req: Request, res: Response) => {
     // Update transaction notes
     const updatedTransaction = await prisma.transaction.update({
       where: { id },
-      data: { notes: notes || null }
+      data: { notes: notes || null },
     });
 
-    res.json({ 
+    res.json({
       success: true,
       transaction: {
         id: updatedTransaction.id,
-        notes: updatedTransaction.notes
-      }
+        notes: updatedTransaction.notes,
+      },
     });
   } catch (error: any) {
     console.error('Error updating transaction notes:', error);
@@ -379,5 +517,62 @@ router.put('/:id/notes', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * PUT /api/transactions/:id
+ * Body: { reviewed?, hidden?, isTransfer? }
+ * The row-level review/hide/transfer switches (W4.1).
+ */
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const { reviewed, hidden, isTransfer } = req.body ?? {};
+
+    const data: any = {};
+    const flags: Array<[string, unknown]> = [
+      ['reviewed', reviewed],
+      ['hidden', hidden],
+      ['isTransfer', isTransfer],
+    ];
+
+    for (const [field, value] of flags) {
+      if (value === undefined) continue;
+      if (!isBoolean(value)) {
+        return res.status(400).json({ error: `${field} must be true or false` });
+      }
+      data[field] = value;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
+
+    const transaction = await prisma.transaction.findFirst({
+      where: { id, userId },
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    const updatedTransaction = await prisma.transaction.update({
+      where: { id },
+      data,
+    });
+
+    res.json({
+      success: true,
+      transaction: {
+        id: updatedTransaction.id,
+        reviewed: updatedTransaction.reviewed,
+        hidden: updatedTransaction.hidden,
+        isTransfer: updatedTransaction.isTransfer,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error updating transaction:', error);
+    res.status(500).json({ error: 'Failed to update transaction' });
+  }
+});
 
 export default router;
