@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName: string) => Promise<void>;
+  register: (email: string, password: string, fullName: string, inviteCode?: string) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
   refreshUser: () => Promise<void>;
@@ -44,7 +44,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Try to load saved user data
       if (savedUser) {
         try {
-          setUser(JSON.parse(savedUser));
+          // Older versions stored the Plaid access token here; drop it.
+          const { plaidAccessToken, ...cleanUser } = JSON.parse(savedUser);
+          setUser(cleanUser);
         } catch (error) {
           console.error('Error parsing saved user data:', error);
           localStorage.removeItem('userData');
@@ -80,11 +82,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (email: string, password: string, fullName: string) => {
+  const register = async (email: string, password: string, fullName: string, inviteCode?: string) => {
     setLoading(true);
     try {
-      const response = await authAPI.register(email, password, fullName);
-      const { token: newToken, userWithoutPassword: userData } = response;
+      const response = await authAPI.register(email, password, fullName, inviteCode);
+      const { token: newToken, user: userData } = response;
       
       setUser(userData);
       setTokenState(newToken);
@@ -102,10 +104,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setTokenState(null);
     removeAuthToken();
     localStorage.removeItem('userData');
-  };
-
-  const blanktest = () => {
-    console.log('blanktest');
   };
 
   // Update user data (useful for bank connection updates)

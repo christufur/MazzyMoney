@@ -5,7 +5,8 @@ export const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    fullName: ''
+    fullName: '',
+    inviteCode: ''
   });
   const [error, setError] = useState('');
   const { register, loading } = useAuth();
@@ -33,7 +34,7 @@ export const RegisterForm: React.FC = () => {
     }
     
     try {
-      await register(formData.email, formData.password, formData.fullName);
+      await register(formData.email, formData.password, formData.fullName, formData.inviteCode || undefined);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed');
     }
@@ -91,6 +92,20 @@ export const RegisterForm: React.FC = () => {
         />
       </div>
       
+      <div className="mb-6">
+        <label className="block text-gray-700 text-sm font-bold mb-2">
+          Invite code
+        </label>
+        <input
+          type="text"
+          name="inviteCode"
+          value={formData.inviteCode}
+          onChange={handleChange}
+          placeholder="Not needed for the first account"
+          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+        />
+      </div>
+
       <button
         type="submit"
         disabled={loading}

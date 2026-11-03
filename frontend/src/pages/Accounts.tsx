@@ -93,8 +93,7 @@ const AccountsPage: React.FC = () => {
             // If it's a token expiration, update user state
             if (err.response?.data?.reconnect_required) {
                 updateUser({
-                    plaidItemId: null,
-                    plaidAccessToken: null
+                    plaidItemId: null
                 });
             }
         } finally {
@@ -112,7 +111,6 @@ const AccountsPage: React.FC = () => {
         // Update user state to show connected
         updateUser({
             plaidItemId: 'connected', // Will be updated with real data from backend
-            plaidAccessToken: 'connected'
         });
 
         // Wait a moment for the backend sync to start
@@ -136,8 +134,7 @@ const AccountsPage: React.FC = () => {
 
             // Update user state
             updateUser({
-                plaidItemId: null,
-                plaidAccessToken: null
+                plaidItemId: null
             });
 
             // Refresh accounts data
@@ -169,8 +166,7 @@ const AccountsPage: React.FC = () => {
             if (err.response?.data?.reconnect_required) {
                 alert('Your connection has expired. Please reconnect your bank account.');
                 updateUser({
-                    plaidItemId: null,
-                    plaidAccessToken: null
+                    plaidItemId: null
                 });
                 await fetchAccounts();
             } else {

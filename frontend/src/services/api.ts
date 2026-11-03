@@ -78,9 +78,9 @@ if (savedToken) {
 
 // API methods
 export const authAPI = {
-  register: async (email: string, password: string, fullName: string) => {
+  register: async (email: string, password: string, fullName: string, inviteCode?: string) => {
     const response = await api.post('/api/auth/register', {
-      email, password, fullName
+      email, password, fullName, inviteCode
     });
     return response.data;
   },
@@ -259,6 +259,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Token expired or invalid
       removeAuthToken();
+      localStorage.removeItem('userData');
       window.location.href = '/login';
     }
     
