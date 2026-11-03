@@ -16,6 +16,7 @@ import { accountsRouter } from './routes/accounts';
 import budgets from './routes/budgets';
 import analyticsRoutes from './routes/analytics';
 import recurringRoutes from './routes/recurring';
+import rulesRoutes from './routes/rules';
 import { netWorthRouter } from './routes/networth';
 
 dotenv.config();
@@ -39,6 +40,7 @@ app.use('/api/accounts', accountsRouter); // New cached accounts route
 app.use('/api/budgets', budgets);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/recurring', recurringRoutes);
+app.use('/api/rules', rulesRoutes);
 app.use('/api/networth', netWorthRouter);
 
 // Health check endpoint
