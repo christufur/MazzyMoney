@@ -237,10 +237,11 @@ export class TransactionSyncService {
     }, null);
 
     let status: SyncStatusName;
-    if (!lastSyncAt) {
-      status = 'NEVER_SYNCED';
-    } else if (items.some((item) => item.status === 'SYNCING')) {
+    // SYNCING first: the frontend polls only while it sees SYNCING, including the very first sync.
+    if (items.some((item) => item.status === 'SYNCING')) {
       status = 'SYNCING';
+    } else if (!lastSyncAt) {
+      status = 'NEVER_SYNCED';
     } else if (items.some((item) => item.status === 'LOGIN_REQUIRED')) {
       // The frontend calls this state TOKEN_EXPIRED and shows "please reconnect".
       status = 'TOKEN_EXPIRED';
