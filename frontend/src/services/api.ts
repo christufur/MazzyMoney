@@ -51,7 +51,7 @@ interface BudgetAlertRequest {
   isEnabled?: boolean;
 }
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -232,7 +232,7 @@ export const accountAPI = {
 api.interceptors.request.use(
   (config) => {
     // Only log in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log('🚀 API Request:', config.method?.toUpperCase(), config.url, config.params || config.data);
     }
     return config;
@@ -246,13 +246,13 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     // Only log in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log('✅ API Response:', response.status, response.config.url);
     }
     return response;
   },
   (error) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log('❌ API Error:', error.response?.status, error.response?.config?.url, error.response?.data);
     }
     
