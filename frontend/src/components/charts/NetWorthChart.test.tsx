@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { vi, beforeEach, afterEach, describe, it, expect } from 'vitest';
 import NetWorthChart from './NetWorthChart';
 import { networthAPI } from '../../services/api';
@@ -23,6 +23,10 @@ vi.mock('../../services/api', () => ({
 }));
 
 const getNetWorth = vi.mocked(networthAPI.get);
+
+/** Radix Tabs selects on press-down, which is what a real press does first. */
+const chooseRange = (name: string) =>
+  fireEvent.mouseDown(screen.getByRole('tab', { name }), { button: 0 });
 
 const response = (overrides: Partial<NetWorthResponse> = {}): NetWorthResponse => ({
   current: { assets: 30000, liabilities: 22000, netWorth: 8000 },
@@ -77,42 +81,61 @@ describe('NetWorthChart', () => {
 
     const change = screen.getByTestId('net-worth-change');
     expect(change).toHaveTextContent('+$1,500.50');
-    expect(change.className).toContain('text-green-600');
+    // Money in over the range is sage, not a Tailwind green.
+    expect(change.className).toContain('text-sage-ink');
     expect(screen.getByText('(+23.1%)')).toBeInTheDocument();
 
     // The first load uses the default range.
     expect(getNetWorth).toHaveBeenCalledWith('6m');
   });
 
-  it('does not call the API for the old hero metrics and shows the card heading', async () => {
+  it('renders as two ruled sheets: the history, then the assets and liabilities', async () => {
     render(<NetWorthChart />);
 
-    expect(await screen.findByRole('heading', { name: 'Net worth' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Net worth range' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Net worth' })).toBeInTheDocument();
+    expect(screen.getByRole('tablist', { name: 'Net worth range' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Assets and liabilities' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Assets' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Liabilities' })).toBeInTheDocument();
   });
 
-  it('lists a liability under Liabilities as a negative amount in red', async () => {
+  it('lists a liability under Liabilities as a negative amount in ink, and totals each column', async () => {
     render(<NetWorthChart />);
 
     await screen.findByTestId('net-worth-value');
 
-    expect(screen.getByText('Liabilities')).toBeInTheDocument();
-    expect(screen.getByText('Assets')).toBeInTheDocument();
+    const liabilities = screen.getByRole('heading', { name: 'Liabilities' }).parentElement as HTMLElement;
+    const assets = screen.getByRole('heading', { name: 'Assets' }).parentElement as HTMLElement;
 
-    const liability = screen.getByText('-$22,000.00');
+    const liabilityList = within(liabilities).getByRole('list');
+    const liability = within(liabilityList).getByText('−$22,000.00');
     expect(liability).toBeInTheDocument();
-    expect(liability.className).toContain('text-red-600');
+    // Money owed is stated plainly, not colored as an error.
+    expect(liability.className).toContain('text-ink');
+    expect(liability.className).not.toContain('text-terra');
 
-    // Assets stay positive and neutral colored.
-    const asset = screen.getByText('$25,000.00');
-    expect(asset).toBeInTheDocument();
-    expect(asset.className).not.toContain('text-red-600');
+    expect(within(assets).getByText('Everyday Checking')).toBeInTheDocument();
+    expect(within(assets).getByText('$25,000.00')).toBeInTheDocument();
+    expect(within(liabilities).queryByText('Everyday Checking')).not.toBeInTheDocument();
 
-    // The manual account is marked as such so it is clear where it came from.
-    expect(screen.getByText('Fidelity 401(k)', { exact: false })).toBeInTheDocument();
+    // Totals close each column.
+    expect(within(assets).getByText('Total').parentElement).toHaveTextContent('$30,000.00');
+    expect(within(liabilities).getByText('Total').parentElement).toHaveTextContent('−$22,000.00');
   });
 
-  it('shows a negative change in red with a minus sign', async () => {
+  it('marks a manual account with a muted tag', async () => {
+    render(<NetWorthChart />);
+
+    await screen.findByTestId('net-worth-value');
+
+    const manualRow = screen.getByText('Fidelity 401(k)').closest('li') as HTMLElement;
+    expect(within(manualRow).getByText('manual')).toBeInTheDocument();
+
+    const plaidRow = screen.getByText('Everyday Checking').closest('li') as HTMLElement;
+    expect(within(plaidRow).queryByText('manual')).not.toBeInTheDocument();
+  });
+
+  it('shows a negative change in ink with a minus sign', async () => {
     getNetWorth.mockResolvedValue(
       response({ change: { amount: -250.25, percent: -3.03 } })
     );
@@ -123,22 +146,24 @@ describe('NetWorthChart', () => {
 
     const change = screen.getByTestId('net-worth-change');
     expect(change).toHaveTextContent('\u2212$250.25');
-    expect(change.className).toContain('text-red-600');
+    expect(change.className).toContain('text-ink');
+    expect(change.className).not.toContain('text-sage-ink');
   });
 
-  it('requests range=1y when the 1Y button is clicked', async () => {
+  it('asks for 1y when the 1Y range is chosen', async () => {
     render(<NetWorthChart />);
 
     await screen.findByTestId('net-worth-value');
     getNetWorth.mockClear();
 
-    fireEvent.click(screen.getByRole('button', { name: '1Y' }));
+    chooseRange('1Y');
 
     await waitFor(() => expect(getNetWorth).toHaveBeenCalledWith('1y'));
-    expect(screen.getByRole('button', { name: '1Y' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('tab', { name: '1Y' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: '6M' })).toHaveAttribute('aria-selected', 'false');
   });
 
-  it('requests every range from its own button', async () => {
+  it('requests every range from its own tab', async () => {
     render(<NetWorthChart />);
 
     await screen.findByTestId('net-worth-value');
@@ -149,7 +174,7 @@ describe('NetWorthChart', () => {
       ['All', 'all'],
     ] as const) {
       getNetWorth.mockClear();
-      fireEvent.click(screen.getByRole('button', { name: label }));
+      chooseRange(label);
       await waitFor(() => expect(getNetWorth).toHaveBeenCalledWith(value));
     }
   });
@@ -171,6 +196,20 @@ describe('NetWorthChart', () => {
     expect(screen.getByTestId('net-worth-change')).toHaveTextContent('+$0.00');
   });
 
+  it('keeps the chart visible while a new range loads', async () => {
+    render(<NetWorthChart />);
+
+    await screen.findByTestId('net-worth-value');
+
+    // A request that never answers keeps the loading state in place.
+    getNetWorth.mockReturnValue(new Promise<NetWorthResponse>(() => {}));
+    chooseRange('1M');
+    await waitFor(() => expect(getNetWorth).toHaveBeenCalledWith('1m'));
+
+    // The old points stay until the new answer arrives, so the figure does not blank out.
+    expect(screen.getByTestId('net-worth-value')).toHaveTextContent('$8,000.00');
+  });
+
   it('shows an inline error with a retry that reloads the data', async () => {
     getNetWorth.mockRejectedValueOnce({
       response: { status: 500, data: { error: 'Failed to fetch net worth' } },
@@ -180,10 +219,23 @@ describe('NetWorthChart', () => {
 
     expect(await screen.findByText('Failed to fetch net worth')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
     await waitFor(() => expect(getNetWorth).toHaveBeenCalledTimes(2));
     expect(await screen.findByTestId('net-worth-value')).toHaveTextContent('$8,000.00');
     expect(screen.queryByText('Failed to fetch net worth')).not.toBeInTheDocument();
+  });
+
+  it('does not read as "no history yet" when the request failed', async () => {
+    getNetWorth.mockRejectedValueOnce({
+      response: { status: 500, data: { error: 'Failed to fetch net worth' } },
+    });
+
+    render(<NetWorthChart />);
+
+    expect(await screen.findByText('Failed to fetch net worth')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Net worth history starts after your first sync/)
+    ).not.toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { usePlaidLink } from 'react-plaid-link';
 import { plaidAPI } from '../../services/api';
+import { Button } from '@/components/ui/button';
 
 interface PlaidLinkProps {
   onSuccess: () => void;
@@ -8,7 +9,10 @@ interface PlaidLinkProps {
   itemId?: string;
   buttonText?: string;
   className?: string;
-  variant?: 'primary' | 'secondary';
+  /** Maps to the shadcn Button variants; the primary (default) one is the plain ink button. */
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  /** Maps to the shadcn Button sizes. */
+  size?: 'default' | 'sm' | 'lg';
   disabled?: boolean;
 }
 
@@ -36,12 +40,27 @@ const errorMessageFor = (err: any, fallback: string): string => {
   }
 };
 
+/** The old "primary"/"secondary" names, mapped onto the shadcn variants. */
+const buttonVariant = (variant: PlaidLinkProps['variant']) => {
+  switch (variant) {
+    case 'secondary':
+      return 'secondary' as const;
+    case 'outline':
+      return 'outline' as const;
+    case 'ghost':
+      return 'ghost' as const;
+    default:
+      return 'default' as const;
+  }
+};
+
 export const PlaidLink: React.FC<PlaidLinkProps> = ({
   onSuccess,
   itemId,
-  buttonText = 'Connect Bank Account',
+  buttonText = 'Connect bank',
   className,
   variant = 'primary',
+  size = 'default',
   disabled = false,
 }) => {
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -119,83 +138,41 @@ export const PlaidLink: React.FC<PlaidLinkProps> = ({
     open();
   }, [open]);
 
-  // Determine button classes based on variant
-  const getButtonClasses = () => {
-    const baseClasses =
-      'font-bold py-2 px-4 rounded-sm focus:outline-hidden focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200';
-
-    if (className) return `${baseClasses} ${className}`;
-
-    if (variant === 'primary') {
-      return `${baseClasses} bg-green-500 hover:bg-green-700 text-white`;
-    } else {
-      return `${baseClasses} bg-gray-500 hover:bg-gray-700 text-white`;
-    }
-  };
-
-  const retryButton = (
-    <button onClick={requestLinkToken} className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-sm">
-      Try Again
-    </button>
-  );
-
-  const errorBanner = error ? (
-    <div className="text-sm text-red-700 bg-red-100 border border-red-400 px-3 py-2 rounded-sm mb-2">{error}</div>
-  ) : null;
-
-  if (loading) {
-    return (
-      <button disabled className={getButtonClasses()}>
-        <span className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-          Preparing Connection...
-        </span>
-      </button>
-    );
-  }
+  const resolvedVariant = buttonVariant(variant);
 
   if (error) {
     return (
-      <div className="text-left">
-        {errorBanner}
-        {retryButton}
+      <div className={className}>
+        <p role="alert" className="text-sm text-terra">
+          {error}
+        </p>
+        <Button variant="outline" size="sm" className="mt-2" onClick={requestLinkToken}>
+          Try again
+        </Button>
       </div>
     );
   }
 
-  if (disabled) {
-    return (
-      <button disabled className={getButtonClasses()}>
-        {buttonText}
-      </button>
-    );
-  }
-
-  if (!ready || !linkToken) {
-    return (
-      <button disabled className={getButtonClasses()}>
-        <span className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-          Preparing Connection...
-        </span>
-      </button>
-    );
-  }
-
-  if (exchanging) {
-    return (
-      <button disabled className={getButtonClasses()}>
-        <span className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-          Connecting Bank...
-        </span>
-      </button>
-    );
-  }
+  // A disabled button never asked for a token, so it keeps its own label.
+  const waiting = !disabled && (loading || exchanging || !ready || !linkToken);
+  const label = disabled
+    ? buttonText
+    : loading
+      ? 'Preparing connection…'
+      : exchanging
+        ? 'Connecting bank…'
+        : buttonText;
 
   return (
-    <button onClick={handleClick} className={getButtonClasses()} disabled={disabled}>
-      {buttonText}
-    </button>
+    <Button
+      variant={resolvedVariant}
+      size={size}
+      className={className}
+      onClick={handleClick}
+      disabled={disabled || waiting}
+      aria-busy={waiting || undefined}
+    >
+      {label}
+    </Button>
   );
 };

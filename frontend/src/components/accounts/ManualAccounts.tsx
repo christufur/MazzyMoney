@@ -1,6 +1,38 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { accountAPI } from '../../services/api';
 import type { AccountListItem, ManualAccountKind } from '../../services/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { money } from '@/lib/money';
 
 /**
  * Manual accounts are for the things Plaid does not connect well or cheaply:
@@ -21,38 +53,28 @@ const kindLabel = (kind: string) => {
   return option ? option.label : kind.replace(/_/g, ' ');
 };
 
-const formatMoney = (amount: number) =>
-  amount.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
-const formatSignedBalance = (account: AccountListItem) => {
-  const amount = account.isLiability
-    ? -Math.abs(account.balances.current)
-    : account.balances.current;
-  return formatMoney(amount);
+/** Assets read plain; money owed reads with a real minus in ink. */
+const signedBalance = (account: AccountListItem) => {
+  const amount = account.isLiability ? -Math.abs(account.balances.current) : account.balances.current;
+  return amount < 0 ? `−${money(Math.abs(amount))}` : money(amount);
 };
 
 const todayIsoDate = () => new Date().toISOString().slice(0, 10);
 
-const errorMessage = (err: any) => {
+const errorMessage = (err: any, fallback = 'Something went wrong. Try again.') => {
   const serverError = err?.response?.data?.error;
-  if (typeof serverError === 'string' && serverError.trim()) {
-    return serverError;
-  }
-  return 'Something went wrong. Try again.';
+  return typeof serverError === 'string' && serverError.trim() ? serverError : fallback;
 };
 
-interface BalanceRowProps {
+interface RowProps {
   account: AccountListItem;
   onSaved: () => Promise<void>;
+  onDelete: (account: AccountListItem) => void;
+  deleting: boolean;
 }
 
-/** Inline "Update balance" editor: amount plus an optional past date. */
-const BalanceRow: React.FC<BalanceRowProps> = ({ account, onSaved }) => {
+/** One ledger row. "Update balance" opens an inline amount plus an optional past date. */
+const AccountRow: React.FC<RowProps> = ({ account, onSaved, onDelete, deleting }) => {
   const [editing, setEditing] = useState(false);
   const [balance, setBalance] = useState('');
   const [date, setDate] = useState(todayIsoDate);
@@ -64,6 +86,11 @@ const BalanceRow: React.FC<BalanceRowProps> = ({ account, onSaved }) => {
     setDate(todayIsoDate());
     setError(null);
     setEditing(true);
+  };
+
+  const close = () => {
+    setEditing(false);
+    setError(null);
   };
 
   const handleSave = async () => {
@@ -94,64 +121,79 @@ const BalanceRow: React.FC<BalanceRowProps> = ({ account, onSaved }) => {
     }
   };
 
-  if (!editing) {
-    return (
-      <div className="flex flex-col items-end gap-1">
-        <button
-          onClick={open}
-          className="text-sm font-medium text-blue-600 hover:text-blue-800"
-        >
-          Update balance
-        </button>
-        {error && <p className="text-xs text-red-600">{error}</p>}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col items-end gap-2">
-      <div className="flex items-center space-x-2">
-        <label className="sr-only" htmlFor={`balance-${account.id}`}>
-          New balance for {account.name}
-        </label>
-        <input
-          id={`balance-${account.id}`}
-          type="number"
-          step="0.01"
-          value={balance}
-          onChange={(event) => setBalance(event.target.value)}
-          className="w-32 px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        <label className="sr-only" htmlFor={`balance-date-${account.id}`}>
-          Balance date for {account.name}
-        </label>
-        <input
-          id={`balance-date-${account.id}`}
-          type="date"
-          value={date}
-          max={todayIsoDate()}
-          onChange={(event) => setDate(event.target.value)}
-          className="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
+    <li className="ledger-line py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0">
+          <p className="truncate text-[15px] text-ink">{account.name}</p>
+          <p className="text-xs text-muted-foreground">{kindLabel(account.type)}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="tabular-nums text-ink">{signedBalance(account)}</span>
+          {!editing && (
+            <Button variant="ghost" size="sm" onClick={open}>
+              Update balance
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-terra hover:bg-terra-tint hover:text-terra"
+            onClick={() => onDelete(account)}
+            disabled={deleting}
+          >
+            {deleting ? 'Deleting…' : 'Delete'}
+          </Button>
+        </div>
       </div>
-      <div className="flex items-center space-x-3">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-        <button
-          onClick={() => setEditing(false)}
-          disabled={saving}
-          className="text-sm text-gray-500 hover:text-gray-700"
-        >
-          Cancel
-        </button>
-      </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
-    </div>
+
+      {editing && (
+        <div className="mt-2 flex flex-wrap items-end gap-3 rounded-md bg-paper p-3">
+          <div>
+            <Label htmlFor={`balance-${account.id}`} className="mb-1 text-xs text-muted-foreground">
+              New balance
+            </Label>
+            <Input
+              id={`balance-${account.id}`}
+              aria-label={`New balance for ${account.name}`}
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              value={balance}
+              onChange={(event) => setBalance(event.target.value)}
+              className="w-36 tabular-nums"
+            />
+          </div>
+          <div>
+            <Label htmlFor={`balance-date-${account.id}`} className="mb-1 text-xs text-muted-foreground">
+              Date
+            </Label>
+            <Input
+              id={`balance-date-${account.id}`}
+              aria-label={`Balance date for ${account.name}`}
+              type="date"
+              value={date}
+              max={todayIsoDate()}
+              onChange={(event) => setDate(event.target.value)}
+              className="w-40 tabular-nums"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={close} disabled={saving}>
+              Cancel
+            </Button>
+          </div>
+          {error && (
+            <p role="alert" className="w-full text-sm text-terra">
+              {error}
+            </p>
+          )}
+        </div>
+      )}
+    </li>
   );
 };
 
@@ -160,9 +202,12 @@ const ManualAccounts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AccountListItem | null>(null);
+  // A failed delete stays in the dialog with the buttons, not on the page behind it.
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Add form
+  // Add form: one dialog, fields reset when it opens.
+  const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<ManualAccountKind>('retirement');
   const [balance, setBalance] = useState('');
@@ -177,7 +222,7 @@ const ManualAccounts: React.FC = () => {
       const all: AccountListItem[] = response?.accounts ?? [];
       setAccounts(all.filter((account) => account.isManual));
     } catch (err: any) {
-      setLoadError(errorMessage(err));
+      setLoadError(errorMessage(err, 'Could not load your manual accounts. Try again.'));
     } finally {
       setLoading(false);
     }
@@ -186,6 +231,15 @@ const ManualAccounts: React.FC = () => {
   useEffect(() => {
     fetchManualAccounts();
   }, [fetchManualAccounts]);
+
+  const openAdd = () => {
+    setName('');
+    setKind('retirement');
+    setBalance('');
+    setIsLiability(false);
+    setFormError(null);
+    setAddOpen(true);
+  };
 
   const handleKindChange = (value: ManualAccountKind) => {
     setKind(value);
@@ -216,6 +270,7 @@ const ManualAccounts: React.FC = () => {
         balance: parsedBalance,
         isLiability,
       });
+      setAddOpen(false);
       setName('');
       setKind('retirement');
       setBalance('');
@@ -229,174 +284,199 @@ const ManualAccounts: React.FC = () => {
   };
 
   const handleDelete = async (account: AccountListItem) => {
-    const confirmed = window.confirm(
-      `Delete ${account.name}? Its balance history will be deleted too.`
-    );
-    if (!confirmed) {
-      return;
-    }
-
     try {
       setDeletingId(account.id);
-      setActionError(null);
+      setDeleteError(null);
       await accountAPI.deleteManual(account.id);
+      setDeleteTarget(null);
       await fetchManualAccounts();
     } catch (err: any) {
-      setActionError(errorMessage(err));
+      setDeleteError(errorMessage(err, `Could not delete ${account.name}. Try again.`));
     } finally {
       setDeletingId(null);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="mb-4">
-        <h3 className="text-xl font-semibold text-gray-900">Manual accounts</h3>
-        <p className="text-sm text-gray-500 mt-1">
-          For accounts Plaid does not connect: 401(k), car, house, cash.
-        </p>
+    <section className="sheet" aria-label="Manual accounts">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 p-6 md:p-8">
+        <div className="min-w-0">
+          <h2 className="section-label">Manual accounts</h2>
+          <p className="mt-1 text-[15px] text-muted-foreground">
+            For accounts Plaid does not connect: 401(k), car, house, cash.
+          </p>
+        </div>
+        <Button variant="outline" onClick={openAdd}>
+          <Plus /> Add account
+        </Button>
       </div>
 
-      {loading ? (
-        <div className="flex items-center text-gray-500 py-4">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-sm">Loading manual accounts...</span>
-        </div>
-      ) : (
-        <>
-          {loadError && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm mb-4">
-              <div className="flex justify-between items-center">
+      <div className="px-6 pb-6 md:px-8 md:pb-8">
+        {loading ? (
+          <>
+            <span className="sr-only">Loading manual accounts</span>
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="mt-2 h-14 w-full" />
+          </>
+        ) : (
+          <>
+            {loadError && (
+              <div
+                role="alert"
+                className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md bg-terra-tint px-4 py-3 text-sm text-terra"
+              >
                 <span>{loadError}</span>
-                <button
-                  onClick={() => fetchManualAccounts()}
-                  className="ml-4 text-red-600 hover:text-red-800 underline"
-                >
-                  Try Again
-                </button>
+                <Button variant="outline" size="sm" onClick={() => fetchManualAccounts()}>
+                  Try again
+                </Button>
               </div>
-            </div>
-          )}
+            )}
 
-          {actionError && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-sm mb-4 text-sm">
-              {actionError}
-            </div>
-          )}
+            {accounts.length === 0 ? (
+              loadError ? null : (
+                <p className="text-[15px] text-muted-foreground">
+                  No manual accounts yet. Add the 401(k), car, house, or cash.
+                </p>
+              )
+            ) : (
+              <ul>
+                {accounts.map((account) => (
+                  <AccountRow
+                    key={account.id}
+                    account={account}
+                    onSaved={fetchManualAccounts}
+                    onDelete={(account) => {
+                      setDeleteError(null);
+                      setDeleteTarget(account);
+                    }}
+                    deleting={deletingId === account.id}
+                  />
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
 
-          {accounts.length === 0 ? (
-            <p className="text-gray-600 text-sm py-2">
-              No manual accounts yet. Add the 401(k), car, house, or cash below.
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray-100 border-t border-gray-200">
-              {accounts.map((account) => (
-                <li
-                  key={account.id}
-                  className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{account.name}</p>
-                    <p className="text-xs text-gray-500 capitalize">{kindLabel(account.type)}</p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span
-                      className={`text-sm font-semibold ${
-                        account.isLiability ? 'text-red-600' : 'text-gray-900'
-                      }`}
-                    >
-                      {formatSignedBalance(account)}
-                    </span>
-                    <BalanceRow account={account} onSaved={fetchManualAccounts} />
-                    <button
-                      onClick={() => handleDelete(account)}
-                      disabled={deletingId === account.id}
-                      className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
-                    >
-                      {deletingId === account.id ? 'Deleting...' : 'Delete'}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <form onSubmit={handleCreate}>
+            <DialogHeader>
+              <DialogTitle>Add a manual account</DialogTitle>
+              <DialogDescription>
+                For what Plaid does not connect: the 401(k), car, house, or cash.
+              </DialogDescription>
+            </DialogHeader>
 
-          <form onSubmit={handleCreate} className="mt-6 pt-6 border-t border-gray-200">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Add account</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <label htmlFor="manual-name" className="block text-xs font-medium text-gray-500 mb-1">
-                  Name
-                </label>
-                <input
+            <div className="mt-4 grid gap-4">
+              <div className="grid gap-1.5">
+                <Label htmlFor="manual-name">Name</Label>
+                <Input
                   id="manual-name"
                   type="text"
                   value={name}
                   maxLength={80}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Fidelity 401(k)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              <div>
-                <label htmlFor="manual-kind" className="block text-xs font-medium text-gray-500 mb-1">
-                  Kind
-                </label>
-                <select
-                  id="manual-kind"
-                  value={kind}
-                  onChange={(event) => handleKindChange(event.target.value as ManualAccountKind)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {KIND_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="manual-kind">Kind</Label>
+                <Select value={kind} onValueChange={(value) => handleKindChange(value as ManualAccountKind)}>
+                  <SelectTrigger id="manual-kind" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {KIND_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <label htmlFor="manual-balance" className="block text-xs font-medium text-gray-500 mb-1">
-                  Balance
-                </label>
-                <input
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="manual-balance">Balance</Label>
+                <Input
                   id="manual-balance"
                   type="number"
+                  inputMode="decimal"
                   step="0.01"
                   value={balance}
                   onChange={(event) => setBalance(event.target.value)}
                   placeholder="0.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="tabular-nums"
                 />
               </div>
-              <div className="flex items-end">
-                <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={isLiability}
-                    onChange={(event) => setIsLiability(event.target.checked)}
-                    className="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>This is a liability</span>
-                </label>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="manual-liability"
+                  checked={isLiability}
+                  onCheckedChange={(checked) => setIsLiability(checked === true)}
+                />
+                <Label htmlFor="manual-liability" className="text-sm">
+                  This is money owed
+                </Label>
               </div>
+
+              {formError && (
+                <p role="alert" className="text-sm text-terra">
+                  {formError}
+                </p>
+              )}
             </div>
 
-            {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
-
-            <div className="mt-4">
-              <button
-                type="submit"
-                disabled={creating}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                {creating ? 'Adding...' : 'Add account'}
-              </button>
-            </div>
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="ghost" onClick={() => setAddOpen(false)} disabled={creating}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={creating}>
+                {creating ? 'Adding…' : 'Add account'}
+              </Button>
+            </DialogFooter>
           </form>
-        </>
-      )}
-    </div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>Its balance history will be deleted too.</AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError && (
+            <p role="alert" className="text-sm text-terra">
+              {deleteError}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(deletingId)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={Boolean(deletingId)}
+              onClick={(event) => {
+                // Keep the dialog open while the request runs; the list reloads first.
+                event.preventDefault();
+                if (deleteTarget) handleDelete(deleteTarget);
+              }}
+            >
+              {deletingId ? 'Deleting…' : 'Delete account'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
   );
 };
 
