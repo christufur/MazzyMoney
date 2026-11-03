@@ -252,3 +252,17 @@ Direction chosen 2026-11-03 on the impeccable decision page. Contract: `.impecca
 | D6 | Finish review (impeccable-finish-reviewer), fixes, DESIGN.md (impeccable-documenter) | orchestrator |
 
 Image-mockup skills (taste-skill imagegen) need image generation, which this machine does not have; the build is code-led, as impeccable requires for app screens anyway.
+
+### Wave D style rules (every redesign agent follows these)
+
+Read first: `.impeccable/surfaces/frontend-src-app-tsx.md` (the direction contract), `frontend/src/index.css` (tokens), and the two finished reference files `frontend/src/pages/Overview.tsx` and `frontend/src/components/layout/SidebarLayout.tsx`. Match them.
+
+- **Colors: tokens only.** `bg-paper` (page), `bg-card` / `.sheet` (the white spread, `rounded-lg border border-rule`), `text-ink`, `text-muted-foreground`, `border-rule`, `bg-muted` (bar tracks), `text-sage-ink` / `bg-sage` / `bg-sage-tint` (money in, saved, on track), `text-terra` / `bg-terra` / `bg-terra-tint` (ONLY over budget, needs attention, errors). No other color anywhere: no Tailwind palette classes (`blue-*`, `gray-*`, `green-*`, `red-*`, `purple-*`, `indigo-*`, `yellow-*`, `orange-*`, `emerald-*`, …), no hex colors in className.
+- **Charts:** Recharts colors from CSS variables: `var(--sage)` main series, `var(--ink)` / `var(--muted-foreground)` secondary, `var(--terra)` only for over/negative, `var(--border)` grid lines. Category series that need several hues: use sage, ink, `#8a8f98`, `#b9a98a`, `#6f8f9b`, `#a3b8ab` — muted, never rainbow.
+- **Banned:** gradients, `shadow-md/lg/xl`, colored side borders, emoji, `alert()`, `window.confirm()` (use the shadcn `AlertDialog`), hero banners, big-number-plus-small-label stat cards in colored boxes, ALL-CAPS text except the `.section-label` class for section headings, icon tiles in colored squares.
+- **Structure:** one `.sheet` spread per page section, rows separated by `.ledger-line` (dashed) or `border-rule`, section headings use `<h2 className="section-label">`. Page title comes from `SidebarLayout title=`.
+- **Money:** `money()` / `moneyWhole()` from `@/lib/money`, tabular figures (already global). Money out = ink, money in = `text-sage-ink` with `+`. Use a real minus `−` for negatives.
+- **Controls:** shadcn components from `@/components/ui/*` (Button, Input, Select, Checkbox, Dialog, AlertDialog, Tabs, Badge, DropdownMenu, Tooltip, Popover, Progress, Textarea, Skeleton, Sheet) and lucide-react icons (stroke 1.75). Toasts: `import { toast } from 'sonner'`.
+- **Copy:** sentence case, plain verbs, errors say what happened and what to do.
+- **Keep every behavior, API call, and test passing.** If a test queries old copy, update the test to the new copy, never delete coverage.
+- **Gate:** `grep -nE "(blue|purple|indigo|gray|green|red|yellow|orange|pink|emerald|violet|teal|cyan|slate|zinc|neutral|stone|amber|lime|sky|rose|fuchsia)-[0-9]{2,3}|gradient|shadow-(md|lg|xl)" <your files>` prints nothing, and `/Users/cmeraz/.claude/plugins/cache/impeccable/impeccable/4.7.0/skills/impeccable/scripts/impeccable detect --json <your files>` reports no findings you did not explain.
