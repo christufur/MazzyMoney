@@ -10,40 +10,30 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
 import Overview from "./pages/Overview";
-import './App.css';
 import InsightsPage from './pages/Insights';
 import TransactionsPage from './pages/Transactions';
 import BudgetsPage from './pages/Budgets';
 import RecurringPage from './pages/Recurring';
 import ConnectionsPage from './pages/Connections';
+import NetWorthPage from './pages/NetWorth';
+import { Toaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
-// Loading spinner
 const LoadingSpinner: React.FC = () => (
-  <div className="flex justify-center items-center h-screen">
-    <div className="animate-pulse flex space-x-4">
-      <div className="rounded-full bg-blue-400 h-6 w-6"></div>
-      <div className="flex-1 space-y-2">
-        <div className="text-lg">Loading...</div>
-      </div>
-    </div>
+  <div className="flex h-screen items-center justify-center bg-paper" role="status">
+    <span className="text-sm text-muted-foreground">Opening your ledger…</span>
   </div>
 );
 
-// Auth layout wrapper
-const AuthLayout: React.FC<{
-  children: React.ReactNode;
-  title: string;
-}> = ({ children, title }) => (
-  <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-    <div className="sm:mx-auto sm:w-full sm:max-w-md">
-      <h1 className="text-center text-3xl font-extrabold text-gray-900 mb-8">
-        Money App
-      </h1>
-    </div>
-    <div className="sm:mx-auto sm:w-full sm:max-w-md">
-      <div className="bg-white py-8 px-4 shadow-sm sm:rounded-lg sm:px-10">
+const AuthLayout: React.FC<{ children: React.ReactNode; title: string; footer: React.ReactNode }> = ({ children, title, footer }) => (
+  <div className="flex min-h-screen flex-col items-center justify-center bg-paper px-5 py-12">
+    <div className="w-full max-w-sm">
+      <p className="mb-10 text-center text-[15px] font-semibold tracking-tight text-ink">Mazzy Money</p>
+      <div className="sheet px-6 py-8 sm:px-8">
+        <h1 className="mb-6 text-2xl font-semibold text-ink">{title}</h1>
         {children}
       </div>
+      <p className="mt-6 text-center text-sm text-muted-foreground">{footer}</p>
     </div>
   </div>
 );
@@ -62,13 +52,14 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const { user, loading } = useAuth();
   if (loading) return <LoadingSpinner />;
-  return user ? <Navigate to="/dashboard" replace /> : <>{children}</>;
+  return user ? <Navigate to="/overview" replace /> : <>{children}</>;
 };
 
 // Main App
 const App: React.FC = () => {
   return (
     <AuthProvider>
+      <TooltipProvider>
       <Router>
         <Routes>
           {/* Login */}
@@ -76,19 +67,11 @@ const App: React.FC = () => {
             path="/login"
             element={
               <PublicRoute>
-                <AuthLayout title="Sign In">
+                <AuthLayout
+                  title="Sign in"
+                  footer={<>New to this server? <Link to="/register" className="font-medium text-ink underline underline-offset-4">Create an account</Link></>}
+                >
                   <LoginForm />
-                  <div className="mt-6 text-center">
-                    <p className="text-sm text-gray-600">
-                      Don&apos;t have an account?{' '}
-                      <Link
-                        to="/register"
-                        className="text-blue-600 hover:text-blue-500 font-medium"
-                      >
-                        Sign up
-                      </Link>
-                    </p>
-                  </div>
                 </AuthLayout>
               </PublicRoute>
             }
@@ -99,19 +82,11 @@ const App: React.FC = () => {
             path="/register"
             element={
               <PublicRoute>
-                <AuthLayout title="Create Account">
+                <AuthLayout
+                  title="Create an account"
+                  footer={<>Already have an account? <Link to="/login" className="font-medium text-ink underline underline-offset-4">Sign in</Link></>}
+                >
                   <RegisterForm />
-                  <div className="mt-6 text-center">
-                    <p className="text-sm text-gray-600">
-                      Already have an account?{' '}
-                      <Link
-                        to="/login"
-                        className="text-blue-600 hover:text-blue-500 font-medium"
-                      >
-                        Sign in
-                      </Link>
-                    </p>
-                  </div>
                 </AuthLayout>
               </PublicRoute>
             }
@@ -164,6 +139,15 @@ const App: React.FC = () => {
           />
 
           <Route
+            path="/net-worth"
+            element={
+              <ProtectedRoute>
+                <NetWorthPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/connections"
             element={
               <ProtectedRoute>
@@ -182,6 +166,8 @@ const App: React.FC = () => {
           <Route path="/" element={<Navigate to="/overview" replace />} />
         </Routes>
       </Router>
+      <Toaster position="bottom-right" />
+      </TooltipProvider>
     </AuthProvider>
   );
 };

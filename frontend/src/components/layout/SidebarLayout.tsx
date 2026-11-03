@@ -1,165 +1,235 @@
 import React, { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
+import {
+  BarChart3,
+  BookOpen,
+  Ellipsis,
+  Landmark,
+  LogOut,
+  ReceiptText,
+  Repeat,
+  TrendingUp,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { transactionAPI } from "../../services/api";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
   title?: string;
+  /** Pages that draw their own heading (the monthly spread) pass false. */
+  showTitle?: boolean;
 }
 
-const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, title = "Overview" }) => {
-  const { logout, user } = useAuth();
-  const userInitial = user?.fullName?.trim().charAt(0).toUpperCase() || "U";
-  const [reviewCount, setReviewCount] = useState(0);
+type NavItem = { to: string; label: string; short: string; icon: LucideIcon; phone: boolean };
 
-  // W4.1: the review queue is the daily habit, so its size is on the nav item.
+// Daily-loop sections first; the phone tab bar keeps the first four and puts the rest under More.
+const NAV: NavItem[] = [
+  { to: "/overview", label: "This month", short: "Month", icon: BookOpen, phone: true },
+  { to: "/transactions", label: "Transactions", short: "Transactions", icon: ReceiptText, phone: true },
+  { to: "/budgets", label: "Budgets", short: "Budgets", icon: Wallet, phone: true },
+  { to: "/recurring", label: "Recurring", short: "Recurring", icon: Repeat, phone: true },
+  { to: "/net-worth", label: "Net worth", short: "Net worth", icon: TrendingUp, phone: false },
+  { to: "/insights", label: "Reports", short: "Reports", icon: BarChart3, phone: false },
+  { to: "/connections", label: "Connections", short: "Connections", icon: Landmark, phone: false },
+];
+
+function useReviewCount() {
+  const [count, setCount] = useState(0);
+  const { pathname } = useLocation();
+
+  // Refetch on navigation so the badge drops after a review session.
   useEffect(() => {
     let active = true;
-
-    const loadReviewCount = async () => {
-      try {
-        const response = await transactionAPI.getReviewCount();
-        if (active) setReviewCount(response?.count ?? 0);
-      } catch {
-        // A badge is not worth an error; leave it hidden.
-        if (active) setReviewCount(0);
-      }
-    };
-
-    loadReviewCount();
-
+    // Promise.resolve first: a missing or throwing API (tests, offline) must not break the page.
+    Promise.resolve()
+      .then(() => transactionAPI.getReviewCount())
+      .then((r: { count?: number }) => active && setCount(r?.count ?? 0))
+      .catch(() => active && setCount(0));
     return () => {
       active = false;
     };
-  }, []);
+  }, [pathname]);
 
-  const navigationItems = [
-    {
-      to: "/overview", 
-      label: "Overview", 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v6H8V5z" />
-        </svg>
-      )
-    },
-    {
-      to: "/transactions", 
-      label: "Transactions", 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-      )
-    },
-    {
-      to: "/budgets", 
-      label: "Budgets", 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-        </svg>
-      )
-    },
-    {
-      to: "/recurring",
-      label: "Recurring",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h5M20 20v-5h-5M5.5 9a7 7 0 0111.9-2.6L20 9M4 15l2.6 2.6A7 7 0 0018.5 15" />
-        </svg>
-      )
-    },
-    {
-      to: "/insights", 
-      label: "Insights", 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      )
-    },
-    {
-      to: "/connections",
-      label: "Connections",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-        </svg>
-      )
-    }
-  ];
+  return count;
+}
+
+const ReviewBadge: React.FC<{ count: number; className?: string }> = ({ count, className }) =>
+  count > 0 ? (
+    <span
+      className={cn(
+        "inline-flex min-w-5 items-center justify-center rounded-full bg-terra px-1.5 text-[11px] font-semibold leading-5 text-white",
+        className
+      )}
+      aria-label={`${count} transactions need review`}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  ) : null;
+
+const UserMenu: React.FC = () => {
+  const { user, logout } = useAuth();
+  const initial = user?.fullName?.trim().charAt(0).toUpperCase() || "?";
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r flex flex-col shadow-xs">
-        <div className="p-6">
-          <h1 className="font-bold text-xl text-gray-900">💰 Mazzy Money</h1>
-          <p className="text-sm text-gray-500 mt-1">Personal Finance</p>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="flex size-9 items-center justify-center rounded-full border border-rule bg-card text-sm font-semibold text-ink hover:bg-muted"
+        aria-label="Account menu"
+      >
+        {initial}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuLabel className="font-normal">
+          <div className="truncate text-sm font-semibold text-ink">{user?.fullName}</div>
+          <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={logout}>
+          <LogOut /> Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const Wordmark: React.FC = () => (
+  <NavLink to="/overview" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight text-ink">
+    {/* Two ruled lines: the ledger, not a logo. The product name is still undecided. */}
+    <span aria-hidden className="flex h-4 w-5 flex-col justify-between">
+      <span className="h-px w-full bg-ink" />
+      <span className="h-px w-full bg-ink" />
+      <span className="h-px w-3/5 bg-sage" />
+    </span>
+    Mazzy Money
+  </NavLink>
+);
+
+const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, title, showTitle = true }) => {
+  const reviewCount = useReviewCount();
+  const { logout } = useAuth();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const { pathname } = useLocation();
+  const moreActive = NAV.some((n) => !n.phone && pathname.startsWith(n.to));
+
+  useEffect(() => {
+    if (title) document.title = `${title} · Mazzy Money`;
+  }, [title]);
+
+  return (
+    <div className="min-h-screen bg-paper">
+      <header className="sticky top-0 z-30 border-b border-rule bg-paper/95 backdrop-blur-sm supports-[backdrop-filter]:bg-paper/85">
+        <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-8 px-5 md:px-8">
+          <Wordmark />
+          <nav aria-label="Sections" className="hidden h-full flex-1 items-stretch gap-6 md:flex">
+            {NAV.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    "relative flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-ink",
+                    "after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-transparent",
+                    isActive && "font-semibold text-ink after:bg-sage"
+                  )
+                }
+              >
+                {item.label}
+                {item.to === "/transactions" && <ReviewBadge count={reviewCount} />}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="ml-auto md:ml-0">
+            <UserMenu />
+          </div>
         </div>
-        <nav className="flex-1 px-4 space-y-1">
-          {navigationItems.map((item) => (
+      </header>
+
+      <main className="mx-auto max-w-[1200px] px-5 pb-28 pt-8 md:px-8 md:pb-16 md:pt-10">
+        {showTitle && title && (
+          <h1 className="mb-8 text-title font-semibold text-ink">{title}</h1>
+        )}
+        {children}
+      </main>
+
+      {/* Phone: bottom tabs for the daily loop, everything else under More. */}
+      <nav
+        aria-label="Sections"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-rule bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
+      >
+        <div className="grid grid-cols-5">
+          {NAV.filter((n) => n.phone).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive 
-                    ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700" 
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }`
+                cn(
+                  "relative flex flex-col items-center gap-1 py-2.5 text-[11px] text-muted-foreground",
+                  isActive && "font-semibold text-ink"
+                )
               }
             >
-              <span className="mr-3">{item.icon}</span>
-              <span className="flex-1">{item.label}</span>
-              {item.to === "/transactions" && reviewCount > 0 && (
-                <span
-                  className="ml-2 min-w-5 px-1.5 py-0.5 rounded-full bg-blue-600 text-white text-xs font-semibold text-center"
-                  aria-label={`${reviewCount} transactions need review`}
-                >
-                  {reviewCount > 99 ? "99+" : reviewCount}
-                </span>
+              {({ isActive }) => (
+                <>
+                  <item.icon className={cn("size-5", isActive ? "text-sage" : "text-muted-foreground")} strokeWidth={1.75} />
+                  {item.short}
+                  {item.to === "/transactions" && (
+                    <ReviewBadge count={reviewCount} className="absolute left-1/2 top-1 ml-2" />
+                  )}
+                </>
               )}
             </NavLink>
           ))}
-        </nav>
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center space-x-3 mb-3 p-2">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-sm font-semibold text-blue-700">{userInitial}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user?.fullName || "User"}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-            </div>
-          </div>
-          <button
-            onClick={logout}
-            className="w-full flex items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Sign Out
-          </button>
+          <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+            <SheetTrigger
+              className={cn(
+                "flex flex-col items-center gap-1 py-2.5 text-[11px] text-muted-foreground",
+                moreActive && "font-semibold text-ink"
+              )}
+            >
+              <Ellipsis className={cn("size-5", moreActive ? "text-sage" : "text-muted-foreground")} strokeWidth={1.75} />
+              More
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-xl border-rule bg-card pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+              <SheetHeader>
+                <SheetTitle className="text-left text-base">More</SheetTitle>
+              </SheetHeader>
+              <div className="px-4">
+                {NAV.filter((n) => !n.phone).map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMoreOpen(false)}
+                    className="ledger-line flex items-center gap-3 py-3.5 text-[15px] text-ink"
+                  >
+                    <item.icon className="size-5 text-muted-foreground" strokeWidth={1.75} />
+                    {item.label}
+                  </NavLink>
+                ))}
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="flex w-full items-center gap-3 py-3.5 text-[15px] text-ink"
+                >
+                  <LogOut className="size-5 text-muted-foreground" strokeWidth={1.75} />
+                  Sign out
+                </button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage your finances with ease</p>
-          </div>
-        </header>
-
-        <main className="flex-1 p-6 bg-gray-50 overflow-auto">{children}</main>
-      </div>
+      </nav>
     </div>
   );
 };
