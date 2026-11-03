@@ -32,7 +32,7 @@ const response = (overrides: Partial<NetWorthResponse> = {}): NetWorthResponse =
   current: { assets: 30000, liabilities: 22000, netWorth: 8000 },
   change: { amount: 1500.5, percent: 23.08 },
   points: [
-    { date: '2025-01-01', assets: 29000, liabilities: 22500, netWorth: 6500 },
+    { date: '2025-01-01', assets: 29000, liabilities: 22500.5, netWorth: 6499.5 },
     { date: '2025-02-01', assets: 29500, liabilities: 22300, netWorth: 7200 },
     { date: '2025-03-01', assets: 30000, liabilities: 22000, netWorth: 8000 },
   ],
@@ -137,7 +137,13 @@ describe('NetWorthChart', () => {
 
   it('shows a negative change in ink with a minus sign', async () => {
     getNetWorth.mockResolvedValue(
-      response({ change: { amount: -250.25, percent: -3.03 } })
+      response({
+        change: { amount: -250.25, percent: -3.03 },
+        points: [
+          { date: '2025-01-01', assets: 30250.25, liabilities: 22000, netWorth: 8250.25 },
+          { date: '2025-03-01', assets: 30000, liabilities: 22000, netWorth: 8000 },
+        ],
+      })
     );
 
     render(<NetWorthChart />);
@@ -193,7 +199,25 @@ describe('NetWorthChart', () => {
     ).toBeInTheDocument();
     // The totals are still rendered, just with no history.
     expect(screen.getByTestId('net-worth-value')).toHaveTextContent('$0.00');
-    expect(screen.getByTestId('net-worth-change')).toHaveTextContent('+$0.00');
+    // No history means no change to report, not a fake +$0.00.
+    expect(screen.queryByTestId('net-worth-change')).not.toBeInTheDocument();
+  });
+
+  it('ignores leading $0 days and says when history starts', async () => {
+    getNetWorth.mockResolvedValue(
+      response({
+        change: { amount: 8000, percent: null },
+        points: [
+          { date: '2025-01-01', assets: 0, liabilities: 0, netWorth: 0 },
+          { date: '2025-03-01', assets: 30000, liabilities: 22000, netWorth: 8000 },
+        ],
+      })
+    );
+
+    render(<NetWorthChart />);
+
+    expect(await screen.findByText(/History starts Mar 1/)).toBeInTheDocument();
+    expect(screen.queryByTestId('net-worth-change')).not.toBeInTheDocument();
   });
 
   it('keeps the chart visible while a new range loads', async () => {

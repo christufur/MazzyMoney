@@ -590,7 +590,7 @@ const TransactionsPage: React.FC = () => {
                   key={row.id}
                   role="listitem"
                   className={cn(
-                    'ledger-line grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors md:grid-cols-[auto_3.25rem_minmax(0,1fr)_8.5rem_10rem_6.5rem_2.25rem] md:gap-x-4 md:gap-y-0',
+                    'group/row ledger-line grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 transition-colors md:grid-cols-[auto_3.25rem_minmax(0,1fr)_8.5rem_10rem_6.5rem_2.25rem] md:gap-x-4 md:gap-y-0',
                     selected.has(row.id) ? 'bg-paper' : 'hover:bg-paper'
                   )}
                 >

@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { addMonths, isoDay, money, moneyWhole, monthKey, monthName, parseMonth } from '@/lib/money';
 import { reflectOnMonth } from '@/lib/reflection';
+import { historyChange, realHistory } from '@/lib/networth';
 
 interface Summary { income: number; expenses: number }
 interface ReviewRow { id: string; date: string; name: string; merchantName?: string | null; merchantDisplay?: string | null; amount: number; primaryCategory?: string | null }
@@ -286,17 +287,24 @@ const Overview: React.FC = () => {
               ))}
             </ul>
           )}
-          {netWorth && netWorth.points.length > 0 && (
-            <Link to="/net-worth" className="mt-6 flex items-baseline justify-between gap-4 rounded-md px-1 py-1 text-sm hover:bg-paper">
-              <span className="text-muted-foreground">Net worth</span>
-              <span className="tabular-nums">
-                <span className="font-semibold">{moneyWhole(netWorth.current.netWorth)}</span>{' '}
-                <span className={netWorth.change.amount >= 0 ? 'text-sage-ink' : 'text-terra'}>
-                  {netWorth.change.amount >= 0 ? '+' : '−'}{moneyWhole(Math.abs(netWorth.change.amount))} since {shortDate(netWorth.points[0].date)}
+          {netWorth && (() => {
+            const history = realHistory(netWorth.points);
+            const change = historyChange(history);
+            if (history.length === 0) return null;
+            return (
+              <Link to="/net-worth" className="mt-6 flex items-baseline justify-between gap-4 rounded-md px-1 py-1 text-sm hover:bg-paper">
+                <span className="text-muted-foreground">Net worth</span>
+                <span className="tabular-nums">
+                  <span className="font-semibold">{moneyWhole(netWorth.current.netWorth)}</span>{' '}
+                  {change && (
+                    <span className={change.amount >= 0 ? 'text-sage-ink' : 'text-ink'}>
+                      {change.amount >= 0 ? '+' : '−'}{moneyWhole(Math.abs(change.amount))} since {shortDate(history[0].date)}
+                    </span>
+                  )}
                 </span>
-              </span>
-            </Link>
-          )}
+              </Link>
+            );
+          })()}
         </div>
         </div>
       </section>

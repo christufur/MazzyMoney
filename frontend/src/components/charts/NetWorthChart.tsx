@@ -1,3 +1,4 @@
+import { historyChange, realHistory } from '@/lib/networth';
 import React, { useEffect, useState } from 'react';
 import {
   AreaChart,
@@ -37,6 +38,9 @@ const signedChange = (amount: number) => `${amount < 0 ? MINUS : '+'}${money(Mat
 
 /** A balance: "$25,000.00" / "−$22,000.00". */
 const signedBalance = (amount: number) => `${amount < 0 ? MINUS : ''}${money(Math.abs(amount))}`;
+
+const formatDay = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 const formatPercent = (percent: number) => `${percent < 0 ? MINUS : '+'}${Math.abs(percent).toFixed(1)}%`;
 
@@ -195,14 +199,15 @@ const NetWorthChart: React.FC = () => {
 
   const retry = () => setReloadKey((key) => key + 1);
 
-  const points = data?.points ?? [];
+  const points = realHistory(data?.points ?? []);
+  const change = historyChange(points);
   const accounts = data?.accounts ?? [];
   const assets = accounts.filter((account) => !account.isLiability);
   const liabilities = accounts.filter((account) => account.isLiability);
 
   const netWorth = data?.current.netWorth ?? 0;
-  const changeAmount = data?.change.amount ?? 0;
-  const percent = data?.change.percent ?? null;
+  const changeAmount = change?.amount ?? 0;
+  const percent = change?.percent ?? null;
   const changePositive = changeAmount >= 0;
 
   return (
@@ -218,7 +223,10 @@ const NetWorthChart: React.FC = () => {
                   {data ? money(netWorth) : '—'}
                 </p>
               )}
-              {data && (
+              {data && !change && points.length === 1 && (
+                <p className="mt-1 text-sm text-muted-foreground">History starts {formatDay(points[0].date)}. The chart fills in as each day is recorded.</p>
+              )}
+              {data && change && (
                 <p className="mt-1 text-sm">
                   <span
                     className={cn('font-medium tabular-nums', changePositive ? 'text-sage-ink' : 'text-ink')}
@@ -229,7 +237,7 @@ const NetWorthChart: React.FC = () => {
                   {percent !== null && (
                     <span className="ml-1.5 tabular-nums text-muted-foreground">({formatPercent(percent)})</span>
                   )}
-                  <span className="ml-1.5 text-muted-foreground">in this range</span>
+                  <span className="ml-1.5 text-muted-foreground">since {formatDay(points[0].date)}</span>
                 </p>
               )}
             </div>

@@ -85,7 +85,11 @@ export const TransactionNotes: React.FC<TransactionNotesProps> = ({
       <button
         type="button"
         onClick={() => setIsEditing(true)}
-        className="shrink-0 rounded-sm text-muted-foreground underline-offset-4 hover:text-ink hover:underline"
+        className={cn(
+          'shrink-0 rounded-sm text-muted-foreground underline-offset-4 hover:text-ink hover:underline',
+          // Desktop: an empty-note link appears on row hover or keyboard focus, not on all 50 rows at once.
+          !notes && 'md:opacity-0 md:group-hover/row:opacity-100 md:focus-visible:opacity-100'
+        )}
       >
         {notes ? 'Edit note' : 'Add a note'}
       </button>
