@@ -201,7 +201,7 @@ const BudgetRow: React.FC<BudgetRowProps> = ({
           </span>
           <span className="order-3 col-span-2 h-2 rounded-sm bg-muted md:order-none md:col-span-1" aria-hidden>
             <span
-              className={cn('block h-2 rounded-sm', over ? 'bg-terra' : 'bg-ink')}
+              className={cn('block h-2 rounded-sm', over ? 'bg-terra' : 'bg-sage')}
               style={{ width: `${pct}%` }}
             />
           </span>
@@ -261,7 +261,7 @@ const BudgetRow: React.FC<BudgetRowProps> = ({
                   {points.map((point) => (
                     <Cell
                       key={point.month}
-                      fill={point.spent > point.budgeted ? 'var(--terra)' : 'var(--foreground)'}
+                      fill={point.spent > point.budgeted ? 'var(--terra)' : 'var(--sage)'}
                     />
                   ))}
                 </Bar>
