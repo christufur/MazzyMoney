@@ -1,5 +1,18 @@
 import { prisma } from '../lib/prisma';
 
+/**
+ * A transaction that counts toward income, expense, and budget totals.
+ *
+ * Plaid amounts are positive for money out and negative for money in. Transfers
+ * between the user's own accounts and credit-card payments are flagged by the
+ * sync, and a user can hide a transaction; neither may count as income or an
+ * expense anywhere (H6). Spread this into every `where` that feeds a total.
+ */
+export const COUNTED = { isTransfer: false, hidden: false } as const;
+
+/** Round a money amount to cents at the point it is returned, never on stored values. */
+export const cents = (n: number) => Math.round(n * 100) / 100;
+
 export class AnalyticsService {
   /**
    * Get spending trends over time
@@ -11,6 +24,7 @@ export class AnalyticsService {
     const transactions = await prisma.transaction.findMany({
       where: {
         userId,
+        ...COUNTED,
         date: { gte: startDate },
         amount: { gt: 0 } // Only expenses
       },
@@ -36,7 +50,9 @@ export class AnalyticsService {
 
     return Array.from(monthlyData.entries()).map(([month, data]) => ({
       month,
-      ...data
+      ...Object.fromEntries(
+        Object.entries(data).map(([category, amount]) => [category, cents(amount)])
+      )
     }));
   }
 
@@ -71,11 +87,11 @@ export class AnalyticsService {
     // Compare spending by category
     for (const [category, thisMonthAmount] of Object.entries(thisMonthData)) {
       const lastMonthAmount = lastMonthData[category] || 0;
-      const change = thisMonthAmount - lastMonthAmount;
+      const change = cents(thisMonthAmount - lastMonthAmount);
       // Spending with no baseline last month counts as a 100% increase.
       const percentChange =
         lastMonthAmount > 0
-          ? (change / lastMonthAmount) * 100
+          ? Math.round((change / lastMonthAmount) * 10000) / 100
           : thisMonthAmount > 0
             ? 100
             : 0;
@@ -101,6 +117,7 @@ export class AnalyticsService {
     const transactions = await prisma.transaction.findMany({
       where: {
         userId,
+        ...COUNTED,
         amount: { gt: 0 },
         merchantName: { not: null }
       },
@@ -136,8 +153,9 @@ export class AnalyticsService {
     return Array.from(merchantData.values())
       .map(merchant => ({
         ...merchant,
+        totalSpent: cents(merchant.totalSpent),
         categories: Array.from(merchant.categories),
-        averageSpent: merchant.totalSpent / merchant.transactionCount
+        averageSpent: cents(merchant.totalSpent / merchant.transactionCount)
       }))
       .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, limit);
@@ -150,6 +168,7 @@ export class AnalyticsService {
     const transactions = await prisma.transaction.findMany({
       where: {
         userId,
+        ...COUNTED,
         amount: { gt: 0 }
       },
       select: {
@@ -179,9 +198,9 @@ export class AnalyticsService {
 
     return Object.entries(dayData).map(([day, data]) => ({
       day,
-      totalSpent: data.total,
+      totalSpent: cents(data.total),
       transactionCount: data.count,
-      averageSpent: data.count > 0 ? data.total / data.count : 0
+      averageSpent: data.count > 0 ? cents(data.total / data.count) : 0
     }));
   }
 
@@ -195,6 +214,7 @@ export class AnalyticsService {
     const transactions = await prisma.transaction.findMany({
       where: {
         userId,
+        ...COUNTED,
         date: { gte: startDate, lt: endDate }
       },
       select: {
@@ -232,12 +252,18 @@ export class AnalyticsService {
       }
     });
 
-    return Array.from(monthlyData.values()).map(month => ({
-      ...month,
-      netIncome: month.income - month.expenses,
-      topCategory: Array.from(month.categories.entries())
-        .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[0] || 'Other'
-    }));
+    return Array.from(monthlyData.values()).map(month => {
+      const income = cents(month.income);
+      const expenses = cents(month.expenses);
+      return {
+        ...month,
+        income,
+        expenses,
+        netIncome: cents(income - expenses),
+        topCategory: Array.from(month.categories.entries())
+          .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[0] || 'Other'
+      };
+    });
   }
 
   /**
@@ -250,6 +276,7 @@ export class AnalyticsService {
     const transactions = await prisma.transaction.findMany({
       where: {
         userId,
+        ...COUNTED,
         date: { gte: sixMonthsAgo },
         amount: { gt: 0 }
       },
@@ -286,13 +313,13 @@ export class AnalyticsService {
     // Generate forecast for next month
     const forecast = Array.from(categoryAverages.entries()).map(([category, average]) => ({
       category,
-      predictedAmount: Math.round(average * 100) / 100,
+      predictedAmount: cents(average),
       confidence: Math.min(months / 6, 1) // Confidence based on data availability
     }));
 
     return {
       forecast: forecast.sort((a, b) => b.predictedAmount - a.predictedAmount),
-      totalPredicted: forecast.reduce((sum, item) => sum + item.predictedAmount, 0),
+      totalPredicted: cents(forecast.reduce((sum, item) => sum + item.predictedAmount, 0)),
       dataQuality: Math.min(months / 6, 1)
     };
   }
@@ -301,6 +328,7 @@ export class AnalyticsService {
     const transactions = await prisma.transaction.findMany({
       where: {
         userId,
+        ...COUNTED,
         date: { gte: startDate, lt: endDate },
         amount: { gt: 0 }
       },
@@ -315,6 +343,10 @@ export class AnalyticsService {
       const category = transaction.primaryCategory || 'Other';
       categorySpending[category] = (categorySpending[category] || 0) + transaction.amount;
     });
+
+    for (const category of Object.keys(categorySpending)) {
+      categorySpending[category] = cents(categorySpending[category]);
+    }
 
     return categorySpending;
   }

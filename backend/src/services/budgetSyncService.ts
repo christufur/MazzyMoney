@@ -2,6 +2,7 @@
 import { prisma } from '../lib/prisma';
 import { Budget, BudgetPeriod } from '../../prisma/generated/prisma';
 import { BudgetAlertService } from './budgetAlertService';
+import { COUNTED, cents } from './analyticsService';
 
 export class BudgetSyncService {
   /**
@@ -52,15 +53,17 @@ export class BudgetSyncService {
     if (now < budget.startDate || now > effectiveEndDate) {
       return {
         spent: 0,
-        remaining: budget.amount,
+        remaining: cents(budget.amount),
         percentUsed: 0
       };
     }
 
-    // Get spending for this category in the budget period
+    // Get spending for this category in the budget period. Transfers and hidden rows
+    // are not spending (H6).
     const categorySpending = await prisma.transaction.aggregate({
       where: {
         userId: budget.userId,
+        ...COUNTED,
         primaryCategory: budget.category,
         amount: { gt: 0 }, // Only expenses
         date: {
@@ -73,8 +76,8 @@ export class BudgetSyncService {
       }
     });
 
-    const spent = categorySpending._sum.amount || 0;
-    const remaining = budget.amount - spent;
+    const spent = cents(categorySpending._sum.amount || 0);
+    const remaining = cents(budget.amount - spent);
     const percentUsed = budget.amount > 0 ? (spent / budget.amount) * 100 : 0;
 
     return {
@@ -127,6 +130,7 @@ export class BudgetSyncService {
       by: ['primaryCategory'],
       where: {
         userId,
+        ...COUNTED,
         primaryCategory: { not: null },
         amount: { gt: 0 } // Only expenses have meaningful categories for budgeting
       },

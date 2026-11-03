@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/auth';
 import { TransactionSyncService } from '../services/transactionSyncService';
+import { COUNTED, cents } from '../services/analyticsService';
 
 const router = Router();
 router.use(authenticateToken);
@@ -88,9 +89,12 @@ router.get('/', async (req: Request, res: Response) => {
       prisma.transaction.count({ where })
     ]);
 
-    // Calculate summary stats for the filtered results
+    // Calculate summary stats for the filtered results.
+    // The summary is money totals, so transfers and hidden rows never count (H6); the
+    // transaction list above still returns them. The amount type filter is combined with
+    // AND so it does not replace an amountMin/amountMax range.
     const summaryStats = await prisma.transaction.aggregate({
-      where,
+      where: { AND: [where, COUNTED] },
       _sum: {
         amount: true
       },
@@ -99,18 +103,21 @@ router.get('/', async (req: Request, res: Response) => {
       }
     });
 
-    const totalAmount = summaryStats._sum.amount || 0;
+    const totalAmount = cents(summaryStats._sum.amount || 0);
     const income = await prisma.transaction.aggregate({
-      where: { ...where, amount: { lt: 0 } },
+      where: { AND: [where, COUNTED, { amount: { lt: 0 } }] },
       _sum: { amount: true },
       _count: { id: true }
     });
 
     const expenses = await prisma.transaction.aggregate({
-      where: { ...where, amount: { gt: 0 } },
+      where: { AND: [where, COUNTED, { amount: { gt: 0 } }] },
       _sum: { amount: true },
       _count: { id: true }
     });
+
+    const incomeTotal = cents(Math.abs(income._sum.amount || 0));
+    const expenseTotal = cents(expenses._sum.amount || 0);
 
     res.json({
       transactions,
@@ -124,11 +131,11 @@ router.get('/', async (req: Request, res: Response) => {
       summary: {
         totalTransactions: summaryStats._count.id || 0,
         totalAmount,
-        income: Math.abs(income._sum.amount || 0),
+        income: incomeTotal,
         incomeCount: income._count.id,
-        expenses: expenses._sum.amount || 0,
+        expenses: expenseTotal,
         expenseCount: expenses._count.id,
-        netAmount: Math.abs(income._sum.amount || 0) - (expenses._sum.amount || 0)
+        netAmount: cents(incomeTotal - expenseTotal)
       }
     });
 
@@ -149,6 +156,7 @@ router.get('/categories', async (req: Request, res: Response) => {
 
     const where: any = {
       userId,
+      ...COUNTED,
       amount: { gt: 0 }, // Only expenses
       primaryCategory: { not: null }
     };
@@ -177,7 +185,7 @@ router.get('/categories', async (req: Request, res: Response) => {
 
     const result = categorySpending.map(item => ({
       category: item.primaryCategory,
-      amount: item._sum.amount || 0,
+      amount: cents(item._sum.amount || 0),
       transactionCount: item._count.id
     }));
 
@@ -202,7 +210,8 @@ router.get('/monthly-trends', async (req: Request, res: Response) => {
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - monthsBack);
 
-    // Get monthly aggregated data using raw SQL for better performance
+    // Get monthly aggregated data using raw SQL for better performance.
+    // Transfers and hidden rows are excluded here so they never look like income or expenses.
     const monthlyData = await prisma.$queryRaw`
       SELECT 
         DATE_TRUNC('month', date) as month,
@@ -211,16 +220,17 @@ router.get('/monthly-trends', async (req: Request, res: Response) => {
         COUNT(*) as transaction_count
       FROM transactions 
       WHERE "userId" = ${userId} AND date >= ${startDate}
+        AND "isTransfer" = false AND "hidden" = false
       GROUP BY DATE_TRUNC('month', date)
       ORDER BY month ASC
     `;
 
     const formattedData = (monthlyData as any[]).map(item => ({
       month: new Date(item.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
-      expenses: parseFloat(item.expenses) || 0,
-      income: parseFloat(item.income) || 0,
+      expenses: cents(parseFloat(item.expenses) || 0),
+      income: cents(parseFloat(item.income) || 0),
       transactionCount: parseInt(item.transaction_count),
-      netAmount: (parseFloat(item.income) || 0) - (parseFloat(item.expenses) || 0)
+      netAmount: cents((parseFloat(item.income) || 0) - (parseFloat(item.expenses) || 0))
     }));
 
     res.json(formattedData);
