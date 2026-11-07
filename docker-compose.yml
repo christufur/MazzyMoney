@@ -64,6 +64,9 @@ services:
     environment:
       NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
       NTFY_BEHIND_PROXY: "true"
+      # iPhones only wake for Apple pushes: ntfy.sh relays a "poll now" ping (hashed topic + message id, no text).
+      NTFY_BASE_URL: ${NTFY_PUBLIC_URL:-}
+      NTFY_UPSTREAM_BASE_URL: https://ntfy.sh
       # No accounts on a tailnet-only server: the topic name is the secret.
       NTFY_AUTH_DEFAULT_ACCESS: read-write
     volumes:

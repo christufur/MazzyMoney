@@ -92,6 +92,11 @@ to `http://ntfy:80`, and your phone's ntfy app reads it. Nothing leaves the tail
    tailscale serve status      # shows the :8443 URL
    ```
 
+   Put that URL in `.env` as `NTFY_PUBLIC_URL`, then `docker compose up -d ntfy`. On an
+   iPhone this is what makes pushes arrive with the app closed: Apple only wakes apps
+   for pushes from ntfy.sh, so your server sends ntfy.sh a "poll now" ping (a hash of the
+   topic and a message id, never the text) and the phone fetches the message from you.
+
 2. Install the **ntfy** app (iOS or Android). Add this server:
 
    ```
